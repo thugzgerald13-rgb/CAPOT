@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
 import { useAccounting } from '../../context/AccountingContext';
-import { Users, TrendingUp, Key, Lightbulb, BookOpen, BookText, LineChart, Scale, Plus, Building2, Save, X, RotateCcw } from 'lucide-react';
+import { Users, TrendingUp, Key, Lightbulb, BookOpen, BookText, LineChart, Scale, Plus, Building2, Save, X, RotateCcw, Library, FileText, Receipt, ShoppingCart, Banknote, Wallet, CreditCard } from 'lucide-react';
 import { Client } from '../../types';
 import { RDO_CODES } from '../../lib/utils';
 
@@ -371,11 +371,76 @@ export function ExtraModals() {
          </div>
       </Modal>
 
-      <Modal id="ratios" title="Financial Ratios" icon={<Key className="text-indigo-500" />}>
-         <div className="grid grid-cols-2 gap-4">
-           <div className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800 p-6 rounded-2xl text-center">
-             <div className="text-sm font-semibold text-indigo-500 mb-2 uppercase tracking-wide">Gross Margin</div>
-             <div className="text-4xl font-extrabold text-indigo-700 dark:text-indigo-400">{gm}%</div>
+      <Modal id="reports" title="Accounting Reports" icon={<TrendingUp className="text-indigo-500" />}>
+         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+           <button 
+             onClick={() => openModal('pl')}
+             className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800 p-6 rounded-2xl text-left hover:bg-indigo-100 transition-colors"
+           >
+             <div className="flex items-center gap-3 mb-2">
+               <TrendingUp className="text-indigo-600 w-5 h-5" />
+               <div className="text-sm font-bold text-indigo-500 uppercase tracking-wide">Profit & Loss</div>
+             </div>
+             <p className="text-xs text-slate-600 dark:text-slate-400">View your income, expenses, and net profit results for a specific period.</p>
+           </button>
+           <button 
+             onClick={() => openModal('trialbalance')}
+             className="bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 p-6 rounded-2xl text-left hover:bg-slate-100 transition-colors"
+           >
+             <div className="flex items-center gap-3 mb-2">
+               <Scale className="text-slate-600 w-5 h-5" />
+               <div className="text-sm font-bold text-slate-500 uppercase tracking-wide">Trial Balance</div>
+             </div>
+             <p className="text-xs text-slate-600 dark:text-slate-400">Check the equality of your debits and credits across all accounts.</p>
+           </button>
+           <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800 p-6 rounded-2xl opacity-50">
+             <div className="text-sm font-bold text-amber-600 mb-2 uppercase tracking-wide">Balance Sheet</div>
+             <p className="text-xs text-slate-600 dark:text-slate-400 italic">Coming soon: View your assets, liabilities, and equity status.</p>
+           </div>
+           <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 p-6 rounded-2xl opacity-50">
+             <div className="text-sm font-bold text-blue-600 mb-2 uppercase tracking-wide">Cash Flow</div>
+             <p className="text-xs text-slate-600 dark:text-slate-400 italic">Coming soon: Track the flow of cash in and out of your business.</p>
+           </div>
+         </div>
+      </Modal>
+
+      <Modal id="books" title="Accounting Books" icon={<Library className="text-cyan-500" />}>
+         <div className="grid grid-cols-1 gap-4">
+           <button 
+             onClick={() => openModal('journal')}
+             className="flex items-center justify-between p-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:border-cyan-500 transition-all group"
+           >
+             <div className="flex items-center gap-4">
+               <div className="p-2 bg-cyan-50 dark:bg-cyan-900/30 rounded-lg">
+                 <BookText className="text-cyan-600 w-5 h-5" />
+               </div>
+               <div className="text-left">
+                 <div className="font-bold text-slate-800 dark:text-slate-200">General Journal</div>
+                 <div className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Book of Original Entry</div>
+               </div>
+             </div>
+             <span className="text-cyan-600 opacity-0 group-hover:opacity-100 transition-opacity">Open →</span>
+           </button>
+
+           <button 
+             onClick={() => openModal('ledger')}
+             className="flex items-center justify-between p-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:border-cyan-500 transition-all group"
+           >
+             <div className="flex items-center gap-4">
+               <div className="p-2 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg">
+                 <LineChart className="text-indigo-600 w-5 h-5" />
+               </div>
+               <div className="text-left">
+                 <div className="font-bold text-slate-800 dark:text-slate-200">General Ledger</div>
+                 <div className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Book of Final Entry</div>
+               </div>
+             </div>
+             <span className="text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity">Open →</span>
+           </button>
+           
+           <div className="p-8 text-center bg-slate-50 dark:bg-slate-800/30 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700">
+             <BookOpen className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+             <p className="text-xs text-slate-500 font-medium italic">Subsidiary ledgers and specialized journals will appear here as you expand your accounting system.</p>
            </div>
          </div>
       </Modal>
@@ -407,6 +472,44 @@ export function ExtraModals() {
          <p className="text-center p-8 text-slate-500">Trial Balance computation based on Journal and Ledger.</p>
          <div className="bg-slate-100 dark:bg-slate-800 p-4 rounded-xl text-center font-mono">
             <strong>Debits:</strong> ₱{salesTotal.toLocaleString()} &nbsp; | &nbsp; <strong>Credits:</strong> ₱{purchasesTotal.toLocaleString()}
+         </div>
+      </Modal>
+
+      <Modal id="sales-journal" title="Sales Journal" icon={<Receipt className="text-emerald-500" />}>
+         <div className="p-8 text-center text-slate-500">
+            <Receipt className="w-12 h-12 mx-auto mb-4 opacity-20" />
+            <h3 className="text-lg font-bold text-slate-700 dark:text-slate-300 mb-2">Sales Journal</h3>
+            <p className="text-sm">Summary of all sales transactions for the period.</p>
+            <div className="mt-6 p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-100 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 font-bold">
+               Total Sales recorded: ₱{salesTotal.toLocaleString()}
+            </div>
+         </div>
+      </Modal>
+
+      <Modal id="purchase-journal" title="Purchase Journal" icon={<ShoppingCart className="text-amber-500" />}>
+         <div className="p-8 text-center text-slate-500">
+            <ShoppingCart className="w-12 h-12 mx-auto mb-4 opacity-20" />
+            <h3 className="text-lg font-bold text-slate-700 dark:text-slate-300 mb-2">Purchase Journal</h3>
+            <p className="text-sm">Detailed log of all purchases on credit and cash.</p>
+            <div className="mt-6 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-100 dark:border-amber-800 text-amber-700 dark:text-amber-400 font-bold">
+               Total Purchases recorded: ₱{purchasesTotal.toLocaleString()}
+            </div>
+         </div>
+      </Modal>
+
+      <Modal id="cash-disbursement" title="Cash Disbursement Book" icon={<CreditCard className="text-red-500" />}>
+         <div className="p-8 text-center text-slate-500">
+            <Banknote className="w-12 h-12 mx-auto mb-4 opacity-20" />
+            <h3 className="text-lg font-bold text-slate-700 dark:text-slate-300 mb-2">Cash Disbursement Book</h3>
+            <p className="text-sm">Recording all cash outflows and expenses paid.</p>
+         </div>
+      </Modal>
+
+      <Modal id="cash-receipt" title="Cash Receipt Journal" icon={<Wallet className="text-indigo-500" />}>
+         <div className="p-8 text-center text-slate-500">
+            <Wallet className="w-12 h-12 mx-auto mb-4 opacity-20" />
+            <h3 className="text-lg font-bold text-slate-700 dark:text-slate-300 mb-2">Cash Receipt Journal</h3>
+            <p className="text-sm">Recording all cash inflows and collections from customers.</p>
          </div>
       </Modal>
     </>

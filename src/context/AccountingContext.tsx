@@ -8,10 +8,12 @@ interface AccountingContextType {
   isDarkMode: boolean;
   activeModal: string | null;
   currentDat: DatSelection | null;
+  historyTab: string;
   toastMsg: string | null;
   
   setDarkMode: (value: boolean) => void;
   openModal: (modal: string | null) => void;
+  setHistoryTab: (tab: string) => void;
   setCurrentClientId: (id: string) => void;
   setCurrentDat: (dat: DatSelection | null) => void;
   
@@ -42,6 +44,7 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [isDarkMode, setDarkMode] = useState(false);
   const [activeModal, setActiveModal] = useState<string | null>(null);
   const [currentDat, setCurrentDat] = useState<DatSelection | null>(null);
+  const [historyTab, setHistoryTab] = useState('expenses');
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [isReady, setIsReady] = useState(false);
 
@@ -127,9 +130,11 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         isDarkMode,
         activeModal,
         currentDat,
+        historyTab,
         toastMsg,
         setDarkMode,
         openModal,
+        setHistoryTab,
         setCurrentClientId,
         setCurrentDat,
         saveClient,

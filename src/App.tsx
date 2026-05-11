@@ -8,6 +8,7 @@ import { SalesModal } from './components/modals/SalesModal';
 import { PurchasesModal } from './components/modals/PurchasesModal';
 import { DatModal } from './components/modals/DatModal';
 import { TinLibraryModal } from './components/modals/TinLibraryModal';
+import { HistoryModal } from './components/modals/HistoryModal';
 import { ExtraModals } from './components/modals/ExtraModals';
 
 function AppLayout() {
@@ -43,6 +44,7 @@ function AppLayout() {
         <SalesModal />
         <PurchasesModal />
         <TinLibraryModal />
+        <HistoryModal />
         <ExtraModals />
       </main>
     </div>

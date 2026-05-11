@@ -2,11 +2,11 @@ import { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
 import { useAccounting } from '../../context/AccountingContext';
 import { formatTIN, generateCSV, MONTHS, getMonthName } from '../../lib/utils';
-import { ShoppingCart, Search, Trash2, Plus, Download, FolderClock } from 'lucide-react';
+import { ShoppingCart, Plus, ArrowLeft, FolderClock } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 export function PurchasesModal() {
-  const { currentClient, currentClientId, currentDat, saveClient, showToast, setCurrentDat } = useAccounting();
+  const { currentClient, currentClientId, currentDat, saveClient, showToast, setCurrentDat, openModal } = useAccounting();
   
   // Single record state (similar to original but react-friendly)
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -19,11 +19,54 @@ export function PurchasesModal() {
   const [amount, setAmount] = useState('');
   const [vatType, setVatType] = useState('vat');
   const [expenseType, setExpenseType] = useState('Capital Goods');
+  const [accountTitle, setAccountTitle] = useState('');
   const [inputTax, setInputTax] = useState(0);
 
+  const ACCOUNT_TITLES_MAP: Record<string, string[]> = {
+    'Capital Goods': [
+      'Land',
+      'Building',
+      'Machinery and Equipment',
+      'Transportation Equipment',
+      'Furniture and Fixtures'
+    ],
+    'Services': [
+      'Professional Fees',
+      'Security Services',
+      'Janitorial Services',
+      'Advertising and Promotion',
+      'Rent Expense',
+      'Communication, Light and Water',
+      'Repairs and Maintenance (Services)'
+    ],
+    'Others': [
+      'Supplies Expense',
+      'Fuel, Oil and Lubricants',
+      'Taxes and Licenses',
+      'Communication, Light and Water (Others)',
+      'Repairs and Maintenance (Goods)',
+      'Freight and Handling'
+    ]
+  };
+
+  // Reset account title when expense type changes
+  useEffect(() => {
+    const options = ACCOUNT_TITLES_MAP[expenseType] || [];
+    setAccountTitle(options[0] || '');
+  }, [expenseType]);
+
   const [dateWarning, setDateWarning] = useState<string | null>(null);
+  const [sequenceNumber, setSequenceNumber] = useState(1);
+
+  // Auto-count sequence number
+  useEffect(() => {
+    if (currentClient && currentDat) {
+      const count = (currentClient.purchases || []).filter(p => p.datMonthYear === currentDat.formatted).length;
+      setSequenceNumber(count + 1);
+    }
+  }, [currentClient?.purchases.length, currentDat?.formatted]);
+
   const [autoLoadMsg, setAutoLoadMsg] = useState('');
-  const [searchTerm, setSearchTerm] = useState('');
 
   // Re-compute input tax on amount or vat type change
   useEffect(() => {
@@ -81,6 +124,7 @@ export function PurchasesModal() {
 
     const newPurchase = {
       id: Date.now(),
+      sequenceNumber,
       datMonthYear: currentDat.formatted,
       date,
       paymentMethod,
@@ -92,15 +136,34 @@ export function PurchasesModal() {
       amount: parseFloat(amount),
       vatType,
       expenseType,
+      accountTitle,
       inputTax
     };
 
+    // Auto-add to TIN Library if new
+    let updatedTinLibrary = currentClient.tinLibrary;
+    const exists = currentClient.tinLibrary.suppliers.some(s => s.tin === supplierTin);
+    if (!exists) {
+      updatedTinLibrary = {
+        ...currentClient.tinLibrary,
+        suppliers: [
+          ...currentClient.tinLibrary.suppliers,
+          {
+            tin: supplierTin,
+            name: supplierName,
+            address: supplierAddress
+          }
+        ]
+      };
+    }
+
     const updatedClient = {
       ...currentClient,
-      purchases: [...currentClient.purchases, newPurchase]
+      purchases: [...currentClient.purchases, newPurchase],
+      tinLibrary: updatedTinLibrary
     };
     saveClient(currentClientId, updatedClient);
-    showToast('Expense entry added');
+    showToast(exists ? 'Expense entry added' : 'Expense added & Supplier saved to Library');
 
     // Reset most form fields, keeping dates
     setInvoiceNo('');
@@ -121,15 +184,6 @@ export function PurchasesModal() {
     showToast('Expense deleted');
   };
 
-  const purchases = (currentClient?.purchases || []).filter(p => p.datMonthYear === currentDat?.formatted);
-  const filteredPurchases = purchases.filter(p => 
-    p.supplierName.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    p.invoiceNo.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-  
-  const totalAmount = purchases.reduce((sum, p) => sum + p.amount, 0);
-  const totalIpTax = purchases.reduce((sum, p) => sum + (p.inputTax || 0), 0);
-
   return (
     <Modal
       id="purchases"
@@ -143,11 +197,22 @@ export function PurchasesModal() {
             <span>DAT Period:</span>
           </div>
           
-          <div className="flex gap-2 w-full md:w-auto">
+          <div className="flex gap-2 w-full md:w-auto items-center">
             {currentDat ? (
-              <span className="bg-cyan-500 text-white px-4 py-1.5 rounded-lg font-bold text-sm shadow-sm ring-2 ring-cyan-500/20">
-                {currentDat.formatted}
-              </span>
+              <>
+                <span className="bg-cyan-500 text-white px-4 py-1.5 rounded-lg font-bold text-sm shadow-sm ring-2 ring-cyan-500/20">
+                  {currentDat.formatted}
+                </span>
+                <div className="flex items-center gap-2 ml-2 pl-4 border-l border-slate-300 dark:border-slate-600">
+                  <span className="text-sm font-bold text-slate-700 dark:text-slate-300 whitespace-nowrap">Seq #:</span>
+                  <input 
+                    type="text" 
+                    readOnly 
+                    value={sequenceNumber} 
+                    className="w-14 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg text-center font-bold text-amber-600 py-1.5 focus:outline-none shadow-inner"
+                  />
+                </div>
+              </>
             ) : (
               <span className="text-red-500 font-bold animate-pulse italic">No DAT Selected</span>
             )}
@@ -208,13 +273,27 @@ export function PurchasesModal() {
         </div>
 
         <div>
-          <label className="form-label text-red-500">Amount (₱) *</label>
-          <input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" className="form-input font-bold" />
+          <label className="form-label text-red-500">Supplier Name *</label>
+          <input type="text" value={supplierName} onChange={e => setSupplierName(e.target.value)} placeholder="Supplier Full Name" className="form-input" />
         </div>
 
         <div className="lg:col-span-2">
-          <label className="form-label text-red-500">Supplier Name *</label>
-          <input type="text" value={supplierName} onChange={e => setSupplierName(e.target.value)} placeholder="Supplier Full Name" className="form-input" />
+          <label className="form-label">Supplier Address</label>
+          <input type="text" value={supplierAddress} onChange={e => setSupplierAddress(e.target.value)} placeholder="Street, City, Province" className="form-input" />
+        </div>
+
+        <div>
+           <label className="form-label text-red-500">VAT Type *</label>
+           <select value={vatType} onChange={e => setVatType(e.target.value)} className="form-input bg-slate-100 dark:bg-slate-900 border-slate-300">
+             <option value="vat">VAT 12% (+ Input Tax)</option>
+             <option value="non-vat">Non-VAT (0 Tax)</option>
+             <option value="zero-rated">0-Rated (0 Tax)</option>
+           </select>
+        </div>
+
+        <div>
+          <label className="form-label text-red-500">Amount (₱) *</label>
+          <input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" className="form-input font-bold" />
         </div>
 
         <div className="lg:col-span-1">
@@ -227,16 +306,11 @@ export function PurchasesModal() {
         </div>
 
         <div className="lg:col-span-2">
-          <label className="form-label">Supplier Address</label>
-          <input type="text" value={supplierAddress} onChange={e => setSupplierAddress(e.target.value)} placeholder="Street, City, Province" className="form-input" />
-        </div>
-
-        <div>
-          <label className="form-label text-red-500">VAT Type *</label>
-          <select value={vatType} onChange={e => setVatType(e.target.value)} className="form-input bg-slate-100 dark:bg-slate-900 border-slate-300">
-            <option value="vat">VAT 12% (+ Input Tax)</option>
-            <option value="non-vat">Non-VAT (0 Tax)</option>
-            <option value="zero-rated">0-Rated (0 Tax)</option>
+          <label className="form-label">Account Title</label>
+          <select value={accountTitle} onChange={e => setAccountTitle(e.target.value)} className="form-input bg-blue-50 dark:bg-blue-900/10 border-blue-200 dark:border-blue-900/50 font-bold text-blue-800 dark:text-blue-300">
+            {(ACCOUNT_TITLES_MAP[expenseType] || []).map(title => (
+              <option key={title} value={title}>{title}</option>
+            ))}
           </select>
         </div>
 
@@ -248,94 +322,20 @@ export function PurchasesModal() {
              </span>
            </div>
            
-           <button onClick={handleAddPurchase} className="bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold px-8 py-2.5 rounded-xl transition-colors shadow-sm shadow-amber-500/20 flex items-center gap-2">
-            <Plus className="w-5 h-5" /> Add Entry
-          </button>
+           <div className="flex gap-3">
+             <button onClick={handleAddPurchase} className="bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold px-8 py-2.5 rounded-xl transition-colors shadow-sm shadow-amber-500/20 flex items-center gap-2">
+               <Plus className="w-5 h-5" /> Add Entry
+             </button>
+             <button 
+               onClick={() => openModal('dat')} 
+               className="bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold px-6 py-2.5 rounded-xl transition-colors flex items-center gap-2"
+             >
+               <ArrowLeft className="w-5 h-5" /> Back
+             </button>
+           </div>
         </div>
       </div>
 
-      <div className="mt-8 border-t border-slate-200 dark:border-slate-700 pt-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
-          <h4 className="text-lg font-bold text-slate-800 dark:text-slate-100">Expense Transactions</h4>
-          <div className="relative w-full sm:w-64">
-            <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
-            <input 
-              type="text" 
-              placeholder="Search expenses..." 
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 border border-slate-300 dark:border-slate-600 rounded-xl text-sm bg-white dark:bg-slate-800 focus:outline-none"
-            />
-          </div>
-        </div>
-
-        <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Supplier</th>
-                <th>VAT</th>
-                <th>Expense</th>
-                <th className="text-right">Amount</th>
-                <th className="text-right">Input Tax</th>
-                <th className="w-16"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredPurchases.map((p) => (
-                <tr key={p.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-colors">
-                  <td>{p.date}</td>
-                  <td className="font-medium">
-                     {p.supplierName} 
-                     <span className="block text-xs font-normal text-slate-400">{p.invoiceNo} {p.paymentMethod === 'Check' ? `(Check)`: ''}</span>
-                  </td>
-                  <td>
-                    <span className={cn("px-2 py-0.5 rounded text-xs font-bold", 
-                      p.vatType === 'vat' ? "bg-amber-100 text-amber-800" : "bg-slate-200 text-slate-600"
-                    )}>
-                      {p.vatType === 'vat' ? 'VAT 12%' : 'No VAT'}
-                    </span>
-                  </td>
-                  <td className="text-xs">{p.expenseType}</td>
-                  <td className="text-right font-bold">₱{p.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                  <td className="text-right text-blue-600 dark:text-blue-400">₱{(p.inputTax || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                  <td className="text-center">
-                    <button 
-                      onClick={() => handleDelete(p.id)}
-                      className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-              {filteredPurchases.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="text-center py-8 text-slate-500 dark:text-slate-400">
-                    No purchase records found for this DAT.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-        
-        <div className="mt-6 bg-slate-100 dark:bg-slate-800 p-4 rounded-xl flex justify-around items-center divide-x divide-slate-300 dark:divide-slate-600">
-          <div className="flex flex-col items-center flex-1">
-             <span className="font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase">Total Expenses</span>
-             <span className="text-xl font-extrabold text-amber-600 dark:text-amber-500">
-               ₱{totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-             </span>
-          </div>
-          <div className="flex flex-col items-center flex-1">
-             <span className="font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase">Total Input Tax</span>
-             <span className="text-xl font-extrabold text-blue-600 dark:text-blue-500">
-               ₱{totalIpTax.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-             </span>
-          </div>
-        </div>
-      </div>
     </Modal>
   );
 }

@@ -2,10 +2,10 @@ import { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
 import { useAccounting } from '../../context/AccountingContext';
 import { formatTIN } from '../../lib/utils';
-import { Receipt, Search, Trash2, Plus } from 'lucide-react';
+import { Receipt, Search, Trash2, Plus, FolderClock } from 'lucide-react';
 
 export function SalesModal() {
-  const { currentClient, currentClientId, saveClient, showToast } = useAccounting();
+  const { currentClient, currentClientId, currentDat, saveClient, showToast } = useAccounting();
   
   // Form State
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -17,6 +17,30 @@ export function SalesModal() {
   const [desc, setDesc] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [autoLoadMsg, setAutoLoadMsg] = useState('');
+  const [dateWarning, setDateWarning] = useState<string | null>(null);
+
+  // Date validation against DAT
+  useEffect(() => {
+    if (!currentDat || !date) {
+      setDateWarning(null);
+      return;
+    }
+    const selectedDate = new Date(date);
+    const y = selectedDate.getFullYear();
+    const m = selectedDate.getMonth() + 1;
+
+    if (y > currentDat.year) {
+      setDateWarning(`⚠️ Transaction year (${y}) cannot be later than DAT year (${currentDat.year})`);
+    } else if (y < currentDat.year) {
+      setDateWarning(`⚠️ Transaction year (${y}) is earlier than DAT year (${currentDat.year}).`);
+    } else if (m > currentDat.month) {
+      setDateWarning(`⚠️ Transaction month cannot be later than DAT month`);
+    } else if (m < currentDat.month) {
+      setDateWarning(`⚠️ Transaction month is earlier than DAT month.`);
+    } else {
+      setDateWarning(null);
+    }
+  }, [date, currentDat]);
 
   // Auto-fill buyer name from TIN library
   useEffect(() => {
@@ -32,21 +56,27 @@ export function SalesModal() {
   }, [buyerTin, currentClient]);
 
   const handleAddSale = () => {
-    if (!currentClient || !currentClientId) return;
+    if (!currentClient || !currentClientId || !currentDat) return;
     if (!date || !amount || !buyerName) {
       alert('Enter date, buyer name, and amount');
+      return;
+    }
+    if (dateWarning) {
+      alert('Please fix date warning before saving.');
       return;
     }
 
     const newSale = {
       id: Date.now(),
+      datMonthYear: currentDat.formatted,
       date,
       ref,
       paymentType,
       buyerName,
       buyerTin,
       amount: parseFloat(amount),
-      desc
+      desc,
+      outputTax: parseFloat(amount) * 0.12 // Standard 12% for Sales if applicable, or keep as is
     };
 
     const updatedClient = {
@@ -90,10 +120,23 @@ export function SalesModal() {
       icon={<Receipt className="w-5 h-5 text-emerald-500" />}
       badge={<span className="bg-emerald-500 text-white px-2 py-0.5 rounded-full text-xs font-bold">Revenue</span>}
     >
+      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between bg-slate-100 dark:bg-slate-800 p-4 rounded-2xl mb-6 gap-4 border border-slate-200 dark:border-slate-700">
+        <div className="flex items-center gap-2 font-bold text-slate-700 dark:text-slate-300">
+          <FolderClock className="w-5 h-5 text-cyan-500" />
+          <span>DAT Period:</span>
+          {currentDat ? (
+            <span className="bg-cyan-500 text-white px-3 py-1 rounded-lg text-sm shadow-sm">{currentDat.formatted}</span>
+          ) : (
+            <span className="text-red-500 italic">No DAT Selected</span>
+          )}
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-700">
         <div>
           <label className="form-label">Date</label>
           <input type="date" value={date} onChange={e => setDate(e.target.value)} className="form-input" />
+          {dateWarning && <p className="text-xs text-amber-600 mt-1">{dateWarning}</p>}
         </div>
         <div>
           <label className="form-label">Invoice #</label>
