@@ -3,6 +3,7 @@ import { Modal } from '../ui/Modal';
 import { useAccounting } from '../../context/AccountingContext';
 import { Users, TrendingUp, Key, Lightbulb, BookOpen, BookText, LineChart, Scale, Plus, Building2, Save, X, RotateCcw } from 'lucide-react';
 import { Client } from '../../types';
+import { RDO_CODES } from '../../lib/utils';
 
 export function ExtraModals() {
   const { clients, currentClientId, setCurrentClientId, addClient, openModal, currentClient, saveClient } = useAccounting();
@@ -61,8 +62,9 @@ export function ExtraModals() {
                       maxLength={3}
                       value={(editingClient.tin || '').split('-')[0] || ''} 
                       onChange={e => {
+                        const val = e.target.value.replace(/\D/g, '');
                         const parts = (editingClient.tin || '').split('-');
-                        parts[0] = e.target.value;
+                        parts[0] = val;
                         setEditingClient({...editingClient, tin: parts.join('-')});
                       }}
                       className="w-16 px-2 py-1.5 border border-slate-400 dark:border-slate-600 rounded bg-white dark:bg-slate-800 text-center font-mono"
@@ -73,8 +75,9 @@ export function ExtraModals() {
                       maxLength={3}
                       value={(editingClient.tin || '').split('-')[1] || ''} 
                       onChange={e => {
+                        const val = e.target.value.replace(/\D/g, '');
                         const parts = (editingClient.tin || '').split('-');
-                        parts[1] = e.target.value;
+                        parts[1] = val;
                         setEditingClient({...editingClient, tin: parts.join('-')});
                       }}
                       className="w-16 px-2 py-1.5 border border-slate-400 dark:border-slate-600 rounded bg-white dark:bg-slate-800 text-center font-mono"
@@ -85,8 +88,9 @@ export function ExtraModals() {
                       maxLength={3}
                       value={(editingClient.tin || '').split('-')[2] || ''} 
                       onChange={e => {
+                        const val = e.target.value.replace(/\D/g, '');
                         const parts = (editingClient.tin || '').split('-');
-                        parts[2] = e.target.value;
+                        parts[2] = val;
                         setEditingClient({...editingClient, tin: parts.join('-')});
                       }}
                       className="w-16 px-2 py-1.5 border border-slate-400 dark:border-slate-600 rounded bg-white dark:bg-slate-800 text-center font-mono"
@@ -227,11 +231,10 @@ export function ExtraModals() {
                     onChange={e => setEditingClient({...editingClient, rdoCode: e.target.value})}
                     className="form-input border-slate-400"
                   >
-                    <option value="">Select</option>
-                    <option value="001">001</option>
-                    <option value="002">002</option>
-                    <option value="050">050</option>
-                    <option value="040">040</option>
+                    <option value="">Select RDO</option>
+                    {RDO_CODES.map(code => (
+                      <option key={code} value={code.split(' - ')[0]}>{code}</option>
+                    ))}
                   </select>
                 </div>
                 <div className="col-span-5 flex items-center gap-6 py-3 px-2">
