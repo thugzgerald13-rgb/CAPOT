@@ -20,6 +20,7 @@ export function PurchasesModal() {
   const [vatType, setVatType] = useState('vat');
   const [expenseType, setExpenseType] = useState('Capital Goods');
   const [accountTitle, setAccountTitle] = useState('');
+  const [transactionDetails, setTransactionDetails] = useState('');
   const [inputTax, setInputTax] = useState(0);
 
   const ACCOUNT_TITLES_MAP: Record<string, string[]> = {
@@ -137,6 +138,7 @@ export function PurchasesModal() {
       vatType,
       expenseType,
       accountTitle,
+      transactionDetails,
       inputTax
     };
 
@@ -172,6 +174,7 @@ export function PurchasesModal() {
     setSupplierAddress('');
     setAmount('');
     setCheckNumber('');
+    setTransactionDetails('');
   };
 
   const handleDelete = (id: number) => {
@@ -312,6 +315,17 @@ export function PurchasesModal() {
               <option key={title} value={title}>{title}</option>
             ))}
           </select>
+        </div>
+
+        <div className="lg:col-span-3">
+          <label className="form-label">Transaction Details</label>
+          <input 
+            type="text" 
+            value={transactionDetails} 
+            onChange={e => setTransactionDetails(e.target.value)} 
+            placeholder="Enter additional details about this transaction..." 
+            className="form-input" 
+          />
         </div>
 
         <div className="lg:col-span-3 flex justify-between items-center mt-2 border-t border-slate-200 dark:border-slate-700 pt-4">

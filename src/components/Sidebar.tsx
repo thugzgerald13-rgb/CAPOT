@@ -118,6 +118,49 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
             );
           })}
 
+          {/* Books Collapsible Dropdown */}
+          <div className="flex flex-col">
+            <button
+              onClick={() => setIsBooksOpen(!isBooksOpen)}
+              className={cn(
+                "flex items-center justify-between px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-300 rounded-xl transition-all w-full text-left group",
+                isBooksOpen ? "bg-cyan-50 text-cyan-700 dark:bg-cyan-900/20 dark:text-cyan-400" : "hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-slate-800"
+              )}
+            >
+              <div className="flex items-center gap-3">
+                <Library className="w-5 h-5 opacity-70 group-hover:opacity-100 transition-opacity" />
+                <span>Books</span>
+              </div>
+              <ChevronDown className={cn("w-4 h-4 transition-transform duration-300", isBooksOpen ? "rotate-180" : "")} />
+            </button>
+
+            <AnimatePresence>
+              {isBooksOpen && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="overflow-hidden flex flex-col gap-1 mt-1 pl-4"
+                >
+                  {bookItems.map((subItem) => {
+                    const SubIcon = subItem.icon;
+                    return (
+                      <button
+                        key={subItem.id}
+                        onClick={() => handleNavClick(subItem.id)}
+                        className="flex items-center gap-3 px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 rounded-lg hover:bg-cyan-50 hover:text-cyan-600 dark:hover:bg-slate-800 dark:hover:text-cyan-400 transition-all w-full text-left"
+                      >
+                        <SubIcon className="w-4 h-4" />
+                        {subItem.label}
+                      </button>
+                    );
+                  })}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
           {/* History Collapsible Dropdown */}
           <div className="flex flex-col">
             <button
@@ -164,143 +207,98 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
             </AnimatePresence>
           </div>
 
-          <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 flex flex-col gap-1">
-            {/* Books Collapsible Dropdown */}
-            <div className="flex flex-col">
-              <button
-                onClick={() => setIsBooksOpen(!isBooksOpen)}
-                className={cn(
-                  "flex items-center justify-between px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-300 rounded-xl transition-all w-full text-left group",
-                  isBooksOpen ? "bg-cyan-50 text-cyan-700 dark:bg-cyan-900/20 dark:text-cyan-400" : "hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-slate-800"
-                )}
-              >
-                <div className="flex items-center gap-3">
-                  <Library className="w-5 h-5 opacity-70 group-hover:opacity-100 transition-opacity" />
-                  <span>Books</span>
-                </div>
-                <ChevronDown className={cn("w-4 h-4 transition-transform duration-300", isBooksOpen ? "rotate-180" : "")} />
-              </button>
+          {/* Reports Collapsible Dropdown */}
+          <div className="flex flex-col">
+            <button
+              onClick={() => setIsReportsOpen(!isReportsOpen)}
+              className={cn(
+                "flex items-center justify-between px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-300 rounded-xl transition-all w-full text-left group",
+                isReportsOpen ? "bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400" : "hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-slate-800"
+              )}
+            >
+              <div className="flex items-center gap-3">
+                <FileText className="w-5 h-5 opacity-70 group-hover:opacity-100 transition-opacity" />
+                <span>Reports</span>
+              </div>
+              <ChevronDown className={cn("w-4 h-4 transition-transform duration-300", isReportsOpen ? "rotate-180" : "")} />
+            </button>
 
-              <AnimatePresence>
-                {isBooksOpen && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="overflow-hidden flex flex-col gap-1 mt-1 pl-4"
+            <AnimatePresence>
+              {isReportsOpen && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="overflow-hidden flex flex-col gap-1 mt-1 pl-4"
+                >
+                  {reportItems.map((subItem) => {
+                    const SubIcon = subItem.icon;
+                    return (
+                      <button
+                        key={subItem.id}
+                        onClick={() => handleNavClick(subItem.id)}
+                        className="flex items-center gap-3 px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 rounded-lg hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-slate-800 dark:hover:text-amber-400 transition-all w-full text-left"
+                      >
+                        <SubIcon className="w-4 h-4" />
+                        {subItem.label}
+                      </button>
+                    );
+                  })}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Settings Collapsible Dropdown */}
+          <div className="flex flex-col">
+            <button
+              onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+              className={cn(
+                "flex items-center justify-between px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-300 rounded-xl transition-all w-full text-left group",
+                isSettingsOpen ? "bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-slate-100" : "hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-slate-800"
+              )}
+            >
+              <div className="flex items-center gap-3">
+                <Settings className="w-5 h-5 opacity-70 group-hover:opacity-100 transition-opacity" />
+                <span>Settings</span>
+              </div>
+              <ChevronDown className={cn("w-4 h-4 transition-transform duration-300", isSettingsOpen ? "rotate-180" : "")} />
+            </button>
+
+            <AnimatePresence>
+              {isSettingsOpen && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="overflow-hidden flex flex-col gap-1 mt-1 pl-4"
+                >
+                  <button
+                    onClick={() => handleNavClick('clients')}
+                    className="flex items-center gap-3 px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 rounded-lg hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-slate-200 transition-all w-full text-left"
                   >
-                    {bookItems.map((subItem) => {
-                      const SubIcon = subItem.icon;
-                      return (
-                        <button
-                          key={subItem.id}
-                          onClick={() => handleNavClick(subItem.id)}
-                          className="flex items-center gap-3 px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 rounded-lg hover:bg-cyan-50 hover:text-cyan-600 dark:hover:bg-slate-800 dark:hover:text-cyan-400 transition-all w-full text-left"
-                        >
-                          <SubIcon className="w-4 h-4" />
-                          {subItem.label}
-                        </button>
-                      );
-                    })}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-
-            {/* Reports Collapsible Dropdown */}
-            <div className="flex flex-col">
-              <button
-                onClick={() => setIsReportsOpen(!isReportsOpen)}
-                className={cn(
-                  "flex items-center justify-between px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-300 rounded-xl transition-all w-full text-left group",
-                  isReportsOpen ? "bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400" : "hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-slate-800"
-                )}
-              >
-                <div className="flex items-center gap-3">
-                  <FileText className="w-5 h-5 opacity-70 group-hover:opacity-100 transition-opacity" />
-                  <span>Reports</span>
-                </div>
-                <ChevronDown className={cn("w-4 h-4 transition-transform duration-300", isReportsOpen ? "rotate-180" : "")} />
-              </button>
-
-              <AnimatePresence>
-                {isReportsOpen && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="overflow-hidden flex flex-col gap-1 mt-1 pl-4"
+                    <Users className="w-4 h-4" />
+                    Client Profiles
+                  </button>
+                  <button
+                    onClick={() => handleNavClick('tinlibrary')}
+                    className="flex items-center gap-3 px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 rounded-lg hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-slate-200 transition-all w-full text-left"
                   >
-                    {reportItems.map((subItem) => {
-                      const SubIcon = subItem.icon;
-                      return (
-                        <button
-                          key={subItem.id}
-                          onClick={() => handleNavClick(subItem.id)}
-                          className="flex items-center gap-3 px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 rounded-lg hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-slate-800 dark:hover:text-amber-400 transition-all w-full text-left"
-                        >
-                          <SubIcon className="w-4 h-4" />
-                          {subItem.label}
-                        </button>
-                      );
-                    })}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-
-            {/* Settings Collapsible Dropdown */}
-            <div className="flex flex-col">
-              <button
-                onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-                className={cn(
-                  "flex items-center justify-between px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-300 rounded-xl transition-all w-full text-left group",
-                  isSettingsOpen ? "bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-slate-100" : "hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-slate-800"
-                )}
-              >
-                <div className="flex items-center gap-3">
-                  <Settings className="w-5 h-5 opacity-70 group-hover:opacity-100 transition-opacity" />
-                  <span>Settings</span>
-                </div>
-                <ChevronDown className={cn("w-4 h-4 transition-transform duration-300", isSettingsOpen ? "rotate-180" : "")} />
-              </button>
-
-              <AnimatePresence>
-                {isSettingsOpen && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="overflow-hidden flex flex-col gap-1 mt-1 pl-4"
+                    <Building2 className="w-4 h-4" />
+                    TIN Library
+                  </button>
+                  <button
+                    onClick={() => handleNavClick('taxnotes')}
+                    className="flex items-center gap-3 px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 rounded-lg hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-slate-200 transition-all w-full text-left"
                   >
-                    <button
-                      onClick={() => handleNavClick('clients')}
-                      className="flex items-center gap-3 px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 rounded-lg hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-slate-200 transition-all w-full text-left"
-                    >
-                      <Users className="w-4 h-4" />
-                      Client Profiles
-                    </button>
-                    <button
-                      onClick={() => handleNavClick('tinlibrary')}
-                      className="flex items-center gap-3 px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 rounded-lg hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-slate-200 transition-all w-full text-left"
-                    >
-                      <Building2 className="w-4 h-4" />
-                      TIN Library
-                    </button>
-                    <button
-                      onClick={() => handleNavClick('taxnotes')}
-                      className="flex items-center gap-3 px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 rounded-lg hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-slate-200 transition-all w-full text-left"
-                    >
-                      <Lightbulb className="w-4 h-4" />
-                      Tax Notes & RDO
-                    </button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
+                    <Lightbulb className="w-4 h-4" />
+                    Tax Notes & RDO
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
       </div>

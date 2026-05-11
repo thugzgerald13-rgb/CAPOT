@@ -19,6 +19,7 @@ export interface Purchase {
   vatType: string;
   expenseType: string;
   accountTitle: string;
+  transactionDetails?: string;
   inputTax: number;
 }
 

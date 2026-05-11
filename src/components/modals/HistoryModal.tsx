@@ -134,7 +134,14 @@ export function HistoryModal() {
                               {p.accountTitle || 'General Expense'}
                             </span>
                           </td>
-                          <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">{p.supplierName}</td>
+                          <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">
+                            <div className="font-medium text-slate-700 dark:text-slate-300">{p.supplierName}</div>
+                            {p.transactionDetails && (
+                              <div className="text-[10px] text-slate-400 italic leading-tight mt-0.5">
+                                {p.transactionDetails}
+                              </div>
+                            )}
+                          </td>
                           <td className="px-4 py-3 text-sm font-bold text-slate-900 dark:text-white text-right">
                             ₱{p.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                           </td>
