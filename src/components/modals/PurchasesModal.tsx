@@ -100,7 +100,7 @@ export function PurchasesModal() {
       purchases: [...currentClient.purchases, newPurchase]
     };
     saveClient(currentClientId, updatedClient);
-    showToast('Purchase entry added');
+    showToast('Expense entry added');
 
     // Reset most form fields, keeping dates
     setInvoiceNo('');
@@ -118,52 +118,8 @@ export function PurchasesModal() {
       purchases: currentClient.purchases.filter(p => p.id !== id)
     };
     saveClient(currentClientId, updatedClient);
-    showToast('Purchase deleted');
+    showToast('Expense deleted');
   };
-
-  const handleExportDAT = () => {
-    if (!currentClient || !currentDat) return;
-    const purchases = (currentClient.purchases || []).filter(p => p.datMonthYear === currentDat.formatted);
-    if (purchases.length === 0) {
-      alert(`No transactions found for ${currentDat.formatted}`);
-      return;
-    }
-
-    let csvRows = [];
-    csvRows.push(['DAT File Period', currentDat.formatted]);
-    csvRows.push(['Generated Date', new Date().toLocaleString()]);
-    csvRows.push(['Client', currentClient.name]);
-    csvRows.push([]);
-    csvRows.push(['Transaction Date', 'Payment Method', 'Check #', 'Invoice #', 'Supplier TIN', 'Supplier Name', 'Supplier Address', 'VAT Type', 'Expense Classification', 'Amount (PHP)', 'Input Tax (PHP)']);
-    
-    let totalAmt = 0;
-    let totalTax = 0;
-
-    purchases.forEach(p => {
-      totalAmt += p.amount;
-      totalTax += p.inputTax || 0;
-      csvRows.push([
-        p.date,
-        p.paymentMethod,
-        p.checkNumber || '',
-        p.invoiceNo || '',
-        p.supplierTin || '',
-        p.supplierName,
-        p.supplierAddress || '',
-        p.vatType === 'vat' ? 'VAT 12%' : (p.vatType === 'non-vat' ? 'Non-VAT' : '0-Rated'),
-        p.expenseType || 'Others',
-        p.amount.toFixed(2),
-        (p.inputTax || 0).toFixed(2)
-      ]);
-    });
-
-    csvRows.push([]);
-    csvRows.push(['TOTAL', '', '', '', '', '', '', '', '', totalAmt.toFixed(2), totalTax.toFixed(2)]);
-
-    generateCSV(`DAT_${currentDat.formatted.replace(/ /g, '_')}_${currentClient.name.replace(/ /g, '_')}.csv`, csvRows);
-    showToast('DAT exported successfully');
-  };
-
 
   const purchases = (currentClient?.purchases || []).filter(p => p.datMonthYear === currentDat?.formatted);
   const filteredPurchases = purchases.filter(p => 
@@ -177,13 +133,8 @@ export function PurchasesModal() {
   return (
     <Modal
       id="purchases"
-      title="Purchases Module"
+      title="Expense Data Entry Screen"
       icon={<ShoppingCart className="w-5 h-5 text-amber-500" />}
-      badge={
-        <span className="bg-amber-500 text-slate-900 px-2 py-0.5 rounded-full text-xs font-bold leading-tight">
-          VAT & Expense
-        </span>
-      }
     >
       <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between bg-slate-100 dark:bg-slate-800 p-4 rounded-2xl mb-6 gap-4 border border-slate-200 dark:border-slate-700">
         <div className="flex flex-col md:flex-row items-start md:items-center gap-4 flex-1">
@@ -193,47 +144,15 @@ export function PurchasesModal() {
           </div>
           
           <div className="flex gap-2 w-full md:w-auto">
-            <select
-              value={currentDat?.month || new Date().getMonth() + 1}
-              onChange={(e) => {
-                const m = parseInt(e.target.value);
-                const y = currentDat?.year || new Date().getFullYear();
-                setCurrentDat({
-                  month: m,
-                  year: y,
-                  formatted: `${getMonthName(m)} ${y}`
-                });
-              }}
-              className="flex-1 md:w-40 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-medium focus:ring-2 focus:ring-cyan-500/20 outline-none"
-            >
-              {MONTHS.map((m, i) => (
-                <option key={m} value={i + 1}>{m}</option>
-              ))}
-            </select>
-
-            <select
-              value={currentDat?.year || new Date().getFullYear()}
-              onChange={(e) => {
-                const y = parseInt(e.target.value);
-                const m = currentDat?.month || new Date().getMonth() + 1;
-                setCurrentDat({
-                  month: m,
-                  year: y,
-                  formatted: `${getMonthName(m)} ${y}`
-                });
-              }}
-              className="flex-1 md:w-28 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-medium focus:ring-2 focus:ring-cyan-500/20 outline-none"
-            >
-              {Array.from({ length: 11 }, (_, i) => new Date().getFullYear() - 5 + i).map(y => (
-                <option key={y} value={y}>{y}</option>
-              ))}
-            </select>
+            {currentDat ? (
+              <span className="bg-cyan-500 text-white px-4 py-1.5 rounded-lg font-bold text-sm shadow-sm ring-2 ring-cyan-500/20">
+                {currentDat.formatted}
+              </span>
+            ) : (
+              <span className="text-red-500 font-bold animate-pulse italic">No DAT Selected</span>
+            )}
           </div>
         </div>
-
-        <button onClick={handleExportDAT} className="whitespace-nowrap font-bold bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 px-6 py-2 rounded-xl border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600 transition-all flex items-center justify-center gap-2 shadow-sm">
-          <Download className="w-4 h-4" /> Export DAT
-        </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6 bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-700 relative">
@@ -337,12 +256,12 @@ export function PurchasesModal() {
 
       <div className="mt-8 border-t border-slate-200 dark:border-slate-700 pt-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
-          <h4 className="text-lg font-bold text-slate-800 dark:text-slate-100">DAT Transactions</h4>
+          <h4 className="text-lg font-bold text-slate-800 dark:text-slate-100">Expense Transactions</h4>
           <div className="relative w-full sm:w-64">
             <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
             <input 
               type="text" 
-              placeholder="Search purchases..." 
+              placeholder="Search expenses..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-9 pr-4 py-2 border border-slate-300 dark:border-slate-600 rounded-xl text-sm bg-white dark:bg-slate-800 focus:outline-none"
@@ -404,7 +323,7 @@ export function PurchasesModal() {
         
         <div className="mt-6 bg-slate-100 dark:bg-slate-800 p-4 rounded-xl flex justify-around items-center divide-x divide-slate-300 dark:divide-slate-600">
           <div className="flex flex-col items-center flex-1">
-             <span className="font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase">Total Purchases</span>
+             <span className="font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase">Total Expenses</span>
              <span className="text-xl font-extrabold text-amber-600 dark:text-amber-500">
                ₱{totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
              </span>

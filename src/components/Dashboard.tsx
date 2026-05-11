@@ -28,7 +28,7 @@ export function Dashboard() {
       >
         <div className="absolute -right-4 -top-4 w-24 h-24 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center opacity-50 blur-xl"></div>
         <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 font-semibold text-xs tracking-wider uppercase mb-1">
-          <TrendingUp className="w-4 h-4 text-emerald-500" /> Total Sales
+          <TrendingUp className="w-4 h-4 text-emerald-500" /> Total Income
         </div>
         <div className="text-3xl font-extrabold text-slate-900 dark:text-white">
           {formatCurrency(totalSales)}
@@ -43,7 +43,7 @@ export function Dashboard() {
       >
         <div className="absolute -right-4 -top-4 w-24 h-24 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center opacity-50 blur-xl"></div>
         <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 font-semibold text-xs tracking-wider uppercase mb-1">
-          <ShoppingBag className="w-4 h-4 text-amber-500" /> Total Purchases
+          <ShoppingBag className="w-4 h-4 text-amber-500" /> Total Expenses
         </div>
         <div className="text-3xl font-extrabold text-slate-900 dark:text-white">
           {formatCurrency(totalPurchases)}
