@@ -7,12 +7,14 @@ interface AccountingContextType {
   currentClient: Client | null;
   isDarkMode: boolean;
   activeModal: string | null;
+  pendingModal: string | null;
   currentDat: DatSelection | null;
   historyTab: string;
   toastMsg: string | null;
   
   setDarkMode: (value: boolean) => void;
   openModal: (modal: string | null) => void;
+  setPendingModal: (modal: string | null) => void;
   setHistoryTab: (tab: string) => void;
   setCurrentClientId: (id: string) => void;
   setCurrentDat: (dat: DatSelection | null) => void;
@@ -43,6 +45,7 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [currentClientId, setCurrentClientId] = useState<string | null>(null);
   const [isDarkMode, setDarkMode] = useState(false);
   const [activeModal, setActiveModal] = useState<string | null>(null);
+  const [pendingModal, setPendingModal] = useState<string | null>(null);
   const [currentDat, setCurrentDat] = useState<DatSelection | null>(null);
   const [historyTab, setHistoryTab] = useState('expenses');
   const [toastMsg, setToastMsg] = useState<string | null>(null);
@@ -129,11 +132,13 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         currentClient,
         isDarkMode,
         activeModal,
+        pendingModal,
         currentDat,
         historyTab,
         toastMsg,
         setDarkMode,
         openModal,
+        setPendingModal,
         setHistoryTab,
         setCurrentClientId,
         setCurrentDat,

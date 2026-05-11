@@ -341,10 +341,10 @@ export function PurchasesModal() {
                <Plus className="w-5 h-5" /> Add Entry
              </button>
              <button 
-               onClick={() => openModal('dat')} 
+               onClick={() => openModal(null)} 
                className="bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold px-6 py-2.5 rounded-xl transition-colors flex items-center gap-2"
              >
-               <ArrowLeft className="w-5 h-5" /> Back
+               <ArrowLeft className="w-5 h-5" /> Cancel
              </button>
            </div>
         </div>

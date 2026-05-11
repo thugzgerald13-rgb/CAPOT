@@ -5,7 +5,7 @@ import { FolderClock, FileDown } from 'lucide-react';
 import { MONTHS, getMonthName, generateCSV } from '../../lib/utils';
 
 export function DatModal() {
-  const { currentDat, setCurrentDat, openModal, currentClient, showToast } = useAccounting();
+  const { currentDat, setCurrentDat, openModal, currentClient, showToast, pendingModal, setPendingModal } = useAccounting();
   
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 11 }, (_, i) => currentYear - 10 + i);
@@ -20,8 +20,12 @@ export function DatModal() {
       year: parseInt(selectedYear),
       formatted
     });
-    // the user flow from the vanilla file automatically transitions to purchases after selecting DAT
-    openModal('purchases');
+    if (pendingModal) {
+      openModal(pendingModal);
+      setPendingModal(null);
+    } else {
+      openModal(null);
+    }
   };
 
   const handleGenerateDAT = () => {
