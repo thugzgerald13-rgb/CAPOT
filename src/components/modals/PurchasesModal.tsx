@@ -17,6 +17,7 @@ export function PurchasesModal() {
   const [supplierName, setSupplierName] = useState('');
   const [supplierAddress, setSupplierAddress] = useState('');
   const [amount, setAmount] = useState('');
+  const [netAmount, setNetAmount] = useState(0);
   const [vatType, setVatType] = useState('vat');
   const [expenseType, setExpenseType] = useState('Capital Goods');
   const [accountTitle, setAccountTitle] = useState('');
@@ -69,10 +70,17 @@ export function PurchasesModal() {
 
   const [autoLoadMsg, setAutoLoadMsg] = useState('');
 
-  // Re-compute input tax on amount or vat type change
+  // Re-compute input tax and net amount on amount or vat type change
   useEffect(() => {
     const num = parseFloat(amount) || 0;
-    setInputTax(vatType === 'vat' ? num * 0.12 : 0);
+    if (vatType === 'vat') {
+      const net = num / 1.12;
+      setNetAmount(net);
+      setInputTax(net * 0.12);
+    } else {
+      setNetAmount(num);
+      setInputTax(0);
+    }
   }, [amount, vatType]);
 
   // Auto-fill from supplier library
@@ -134,7 +142,7 @@ export function PurchasesModal() {
       supplierTin,
       supplierName,
       supplierAddress,
-      amount: parseFloat(amount),
+      amount: netAmount,
       vatType,
       expenseType,
       accountTitle,
@@ -295,8 +303,13 @@ export function PurchasesModal() {
         </div>
 
         <div>
-          <label className="form-label text-red-500">Amount (₱) *</label>
-          <input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" className="form-input font-bold" />
+          <label className="form-label text-red-500">Gross Amount (₱) *</label>
+          <input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" className="form-input font-bold text-amber-900 border-amber-300 dark:bg-amber-900/20 dark:text-amber-100" />
+        </div>
+
+        <div>
+          <label className="form-label text-slate-500">Net Amount (₱)</label>
+          <input type="text" readOnly value={netAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} className="form-input bg-slate-100 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 font-bold cursor-not-allowed" />
         </div>
 
         <div className="lg:col-span-1">

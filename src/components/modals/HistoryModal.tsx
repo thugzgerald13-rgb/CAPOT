@@ -4,7 +4,7 @@ import { useAccounting } from '../../context/AccountingContext';
 import { Search, Trash2, Receipt, ShoppingCart, FolderClock, History } from 'lucide-react';
 import { cn, MONTHS } from '../../lib/utils';
 
-type HistoryTab = 'expenses' | 'income' | 'dat';
+type HistoryTab = 'expenses' | 'income' | 'slp' | 'sls';
 
 export function HistoryModal() {
   const { currentClient, currentClientId, currentDat, saveClient, showToast, openModal, setCurrentDat, historyTab, setHistoryTab } = useAccounting();
@@ -18,7 +18,8 @@ export function HistoryModal() {
   const TabConfig = {
     expenses: { label: 'Expense History', icon: ShoppingCart, color: 'text-amber-600', bg: 'bg-amber-50' },
     income: { label: 'Income History', icon: Receipt, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-    dat: { label: 'DAT File History', icon: FolderClock, color: 'text-cyan-600', bg: 'bg-cyan-50' }
+    slp: { label: 'Summary List of Purchases (SLP)', icon: FolderClock, color: 'text-cyan-600', bg: 'bg-cyan-50' },
+    sls: { label: 'Summary List of Sales (SLS)', icon: FolderClock, color: 'text-indigo-600', bg: 'bg-indigo-50' }
   };
 
   const activeConfig = TabConfig[activeTab];
@@ -87,7 +88,7 @@ export function HistoryModal() {
       <div className="flex flex-col gap-6">
         {/* Content Area */}
         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
-          {activeTab !== 'dat' ? (
+          {!['slp', 'sls'].includes(activeTab) ? (
             <>
               <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row justify-between items-center gap-4 bg-slate-50/50 dark:bg-slate-800/30">
                 <h3 className="font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
@@ -114,44 +115,83 @@ export function HistoryModal() {
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="bg-slate-50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 text-xs uppercase font-bold tracking-wider">
-                      <th className="px-4 py-3 border-b border-slate-100 dark:border-slate-800">Date</th>
-                      <th className="px-4 py-3 border-b border-slate-100 dark:border-slate-800">Reference</th>
-                      <th className="px-4 py-3 border-b border-slate-100 dark:border-slate-800">Account Title</th>
-                      <th className="px-4 py-3 border-b border-slate-100 dark:border-slate-800">Name/Entity</th>
-                      <th className="px-4 py-3 border-b border-slate-100 dark:border-slate-800 text-right">Amount</th>
-                      {activeTab === 'expenses' && <th className="px-4 py-3 border-b border-slate-100 dark:border-slate-800 text-right">Tax</th>}
-                      <th className="px-4 py-3 border-b border-slate-100 dark:border-slate-800 w-16"></th>
+                      {activeTab === 'expenses' ? (
+                        <>
+                          <th className="px-3 py-3 border-b border-slate-100 dark:border-slate-800 whitespace-nowrap">Date</th>
+                          <th className="px-3 py-3 border-b border-slate-100 dark:border-slate-800 whitespace-nowrap">Invoice No.</th>
+                          <th className="px-3 py-3 border-b border-slate-100 dark:border-slate-800 text-left">Supplier Info</th>
+                          <th className="px-3 py-3 border-b border-slate-100 dark:border-slate-800 text-left">Payment</th>
+                          <th className="px-3 py-3 border-b border-slate-100 dark:border-slate-800 text-left">Classification</th>
+                          <th className="px-3 py-3 border-b border-slate-100 dark:border-slate-800 text-right whitespace-nowrap">Gross Amount</th>
+                          <th className="px-3 py-3 border-b border-slate-100 dark:border-slate-800 text-right whitespace-nowrap">Net Amount</th>
+                          <th className="px-3 py-3 border-b border-slate-100 dark:border-slate-800 text-right whitespace-nowrap">Input Tax</th>
+                          <th className="px-3 py-3 border-b border-slate-100 dark:border-slate-800 w-12 sticky right-0 bg-white dark:bg-slate-900 z-10"></th>
+                        </>
+                      ) : (
+                        <>
+                          <th className="px-4 py-3 border-b border-slate-100 dark:border-slate-800">Date</th>
+                          <th className="px-4 py-3 border-b border-slate-100 dark:border-slate-800">Reference</th>
+                          <th className="px-4 py-3 border-b border-slate-100 dark:border-slate-800">Account Title</th>
+                          <th className="px-4 py-3 border-b border-slate-100 dark:border-slate-800">Name/Entity</th>
+                          <th className="px-4 py-3 border-b border-slate-100 dark:border-slate-800 text-right">Amount</th>
+                          <th className="px-4 py-3 border-b border-slate-100 dark:border-slate-800 w-16 sticky right-0 bg-white dark:bg-slate-900 z-10"></th>
+                        </>
+                      )}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                     {activeTab === 'expenses' ? (
                       filteredPurchases.map((p) => (
                         <tr key={p.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
-                          <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">{p.date}</td>
-                          <td className="px-4 py-3 text-sm font-medium text-slate-800 dark:text-slate-200">{p.invoiceNo || '—'}</td>
-                          <td className="px-4 py-3 text-sm">
-                            <span className="px-2 py-1 rounded-md bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 font-bold text-[10px] uppercase truncate max-w-[120px] inline-block">
-                              {p.accountTitle || 'General Expense'}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">
-                            <div className="font-medium text-slate-700 dark:text-slate-300">{p.supplierName}</div>
+                          <td className="px-3 py-3 text-xs text-slate-600 dark:text-slate-400 align-top whitespace-nowrap">{p.date}</td>
+                          <td className="px-3 py-3 text-xs font-medium text-slate-800 dark:text-slate-200 align-top whitespace-nowrap">{p.invoiceNo || p.referenceNo || '—'}</td>
+                          
+                          <td className="px-3 py-3 text-xs align-top">
+                            <div className="font-bold text-slate-800 dark:text-slate-200">{p.supplierName}</div>
+                            <div className="text-[10px] text-slate-500 font-mono mt-0.5">TIN: {p.supplierTin || '—'}</div>
+                            <div className="text-[10px] text-slate-400 mt-0.5 max-w-[180px] truncate" title={p.supplierAddress}>{p.supplierAddress || '—'}</div>
                             {p.transactionDetails && (
-                              <div className="text-[10px] text-slate-400 italic leading-tight mt-0.5">
-                                {p.transactionDetails}
+                              <div className="text-[10px] text-indigo-500/80 italic leading-tight mt-1">Note: {p.transactionDetails}</div>
+                            )}
+                          </td>
+
+                          <td className="px-3 py-3 text-xs align-top">
+                            <span className="inline-block px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-medium">
+                              {p.paymentMethod || '—'}
+                            </span>
+                            {p.paymentMethod === 'Check' && p.checkNumber && (
+                              <div className="text-[10px] text-slate-500 font-mono mt-1 w-max">
+                                # {p.checkNumber}
                               </div>
                             )}
                           </td>
-                          <td className="px-4 py-3 text-sm font-bold text-slate-900 dark:text-white text-right">
+
+                          <td className="px-3 py-3 text-xs align-top">
+                            <div className="flex flex-col gap-1 items-start">
+                              <span className="px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 font-bold text-[9px] uppercase max-w-[140px] truncate" title={p.accountTitle}>
+                                {p.accountTitle || 'General Expense'}
+                              </span>
+                              <div className="flex flex-wrap items-center gap-1 mt-0.5">
+                                <span className="px-1.5 py-0.5 rounded text-[9px] bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400 font-semibold uppercase">{p.vatType || '—'}</span>
+                                <span className="px-1.5 py-0.5 rounded text-[9px] bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400 font-semibold uppercase">{p.expenseType || '—'}</span>
+                              </div>
+                            </div>
+                          </td>
+
+                          <td className="px-3 py-3 text-sm font-bold text-amber-600 dark:text-amber-400 text-right align-top whitespace-nowrap bg-amber-50/30 dark:bg-amber-900/10">
+                            ₱{(p.amount + (p.inputTax || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          </td>
+                          <td className="px-3 py-3 text-sm font-bold text-slate-900 dark:text-white text-right align-top whitespace-nowrap">
                             ₱{p.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                           </td>
-                          <td className="px-4 py-3 text-sm text-blue-600 dark:text-blue-400 text-right">
+                          <td className="px-3 py-3 text-sm text-blue-600 dark:text-blue-400 text-right align-top whitespace-nowrap">
                             ₱{(p.inputTax || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                           </td>
-                          <td className="px-4 py-3 text-center">
+                          <td className="px-3 py-3 text-center align-top sticky right-0 bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800/50 z-10 border-l border-slate-100 dark:border-slate-800">
                             <button 
                               onClick={() => handleDeleteExpense(p.id)}
                               className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
+                              title="Delete Entry"
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
@@ -181,7 +221,7 @@ export function HistoryModal() {
                     )}
                     {((activeTab === 'expenses' && filteredPurchases.length === 0) || (activeTab === 'income' && filteredSales.length === 0)) && (
                       <tr>
-                        <td colSpan={activeTab === 'expenses' ? 7 : 6} className="px-4 py-12 text-center text-slate-500 dark:text-slate-400">
+                        <td colSpan={activeTab === 'expenses' ? 9 : 6} className="px-4 py-12 text-center text-slate-500 dark:text-slate-400">
                           <History className="w-8 h-8 mx-auto mb-3 opacity-20" />
                           <p className="font-medium">No {activeTab} found for this period.</p>
                           <p className="text-xs">Adjust your search or change the DAT File Selection.</p>
@@ -192,7 +232,7 @@ export function HistoryModal() {
                 </table>
               </div>
             </>
-          ) : (
+          ) : activeTab === 'slp' ? (
             <div className="flex flex-col">
               <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row justify-between items-center gap-4 bg-slate-50/50 dark:bg-slate-800/30">
                 <div className="flex items-center gap-3">
@@ -339,11 +379,126 @@ export function HistoryModal() {
                 </div>
               )}
             </div>
+          ) : (
+            <div className="flex flex-col">
+              <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row justify-between items-center gap-4 bg-slate-50/50 dark:bg-slate-800/30">
+                <div className="flex items-center gap-3">
+                  <h3 className="font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2 text-sm">
+                    <FolderClock className="w-4 h-4 text-indigo-500" />
+                    Summary List of Sales (SLS)
+                  </h3>
+                  {currentDat && (
+                    <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full uppercase border border-indigo-100">
+                      {currentDat.formatted}
+                    </span>
+                  )}
+                </div>
+                <button 
+                  onClick={() => openModal('dat')}
+                  className="px-3 py-1.5 text-xs font-bold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
+                >
+                  Change Period
+                </button>
+              </div>
+
+              {!currentDat ? (
+                <div className="p-12 text-center text-slate-500 dark:text-slate-400">
+                  <FolderClock className="w-12 h-12 mx-auto mb-4 opacity-10" />
+                  <p className="font-bold">No DAT Period Selected</p>
+                  <p className="text-sm mb-6">Please select a period to view the summary list.</p>
+                  <button 
+                    onClick={() => openModal('dat')}
+                    className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-500/20"
+                  >
+                    Select Period Now
+                  </button>
+                </div>
+              ) : sales.length === 0 ? (
+                <div className="p-12 text-center text-slate-500 dark:text-slate-400">
+                  <History className="w-12 h-12 mx-auto mb-4 opacity-10" />
+                  <p className="font-bold">No Records in {currentDat.formatted}</p>
+                  <p className="text-sm">Add some income entries to see the summary here.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto custom-scrollbar">
+                  <table className="w-full text-[10px] text-left border-collapse min-w-[1200px]">
+                    <thead>
+                      <tr className="bg-slate-100 dark:bg-slate-800/80 text-slate-500 font-bold uppercase tracking-tighter border-b border-slate-200 dark:border-slate-700">
+                        <th className="px-2 py-3 border-r border-slate-200 dark:border-slate-700 text-center sticky left-0 bg-slate-100 dark:bg-slate-800 z-10">Month</th>
+                        <th className="px-2 py-3 border-r border-slate-200 dark:border-slate-700 text-center">Taxpayer TIN</th>
+                        <th className="px-2 py-3 border-r border-slate-200 dark:border-slate-700">Registered Name</th>
+                        <th className="px-2 py-3 border-r border-slate-200 dark:border-slate-700">Name of Customer</th>
+                        <th className="px-2 py-3 border-r border-slate-200 dark:border-slate-700">Customer Address</th>
+                        <th className="px-2 py-3 border-r border-slate-200 dark:border-slate-700 text-right">Gross Sales</th>
+                        <th className="px-2 py-3 border-r border-slate-200 dark:border-slate-700 text-right">Exempt Sales</th>
+                        <th className="px-2 py-3 border-r border-slate-200 dark:border-slate-700 text-right">Zero-Rated Sales</th>
+                        <th className="px-2 py-3 border-r border-slate-200 dark:border-slate-700 text-right">Taxable Sales</th>
+                        <th className="px-2 py-3 border-r border-slate-200 dark:border-slate-700 text-right">Output Tax</th>
+                        <th className="px-2 py-3 text-right">Gross Taxable</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                      {sales.map((s) => {
+                        // Assuming 12% output tax for Taxable Sales
+                        // We will need to compute this better if we store more details
+                        const isVat = true; // simplified
+                        const outputTax = s.amount * 0.12; 
+                        const grossTotal = s.amount + outputTax;
+                        const monthNum = currentDat?.month?.toString().padStart(2, '0') || '—';
+
+                        return (
+                          <tr key={s.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+                            <td className="px-2 py-2 border-r border-slate-100 dark:border-slate-800 text-center font-bold sticky left-0 bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800/40">{monthNum}</td>
+                            <td className="px-2 py-2 border-r border-slate-100 dark:border-slate-800 text-center font-mono">{s.buyerTin || '—'}</td>
+                            <td className="px-2 py-2 border-r border-slate-100 dark:border-slate-800 text-slate-400 italic">—</td>
+                            <td className="px-2 py-2 border-r border-slate-100 dark:border-slate-800 font-medium">{s.buyerName || s.customerName}</td>
+                            <td className="px-2 py-2 border-r border-slate-100 dark:border-slate-800 text-[9px] max-w-[200px] truncate">{s.buyerAddress || s.customerAddress || '—'}</td>
+                            <td className="px-2 py-2 border-r border-slate-100 dark:border-slate-800 text-right font-bold">
+                              {grossTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            </td>
+                            <td className="px-2 py-2 border-r border-slate-100 dark:border-slate-800 text-right text-slate-500">0.00</td>
+                            <td className="px-2 py-2 border-r border-slate-100 dark:border-slate-800 text-right text-slate-500">0.00</td>
+                            <td className="px-2 py-2 border-r border-slate-100 dark:border-slate-800 text-right text-slate-500">
+                              {s.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            </td>
+                            <td className="px-2 py-2 border-r border-slate-100 dark:border-slate-800 text-right text-indigo-600 font-bold">
+                              {outputTax.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            </td>
+                            <td className="px-2 py-2 text-right bg-slate-50 dark:bg-slate-800/20 font-black">
+                              {grossTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                    <tfoot className="bg-slate-50 dark:bg-slate-800/50 font-black text-slate-700 dark:text-slate-200 border-t-2 border-slate-200 dark:border-slate-700">
+                      <tr>
+                        <td colSpan={5} className="px-2 py-3 border-r border-slate-200 dark:border-slate-700 text-right">TOTAL PERIOD SUMMARY:</td>
+                        <td className="px-2 py-3 border-r border-slate-200 dark:border-slate-700 text-right">
+                          ₱{sales.reduce((sum, s) => sum + s.amount + (s.amount * 0.12), 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        </td>
+                        <td className="px-2 py-3 border-r border-slate-200 dark:border-slate-700 text-right font-normal">0.00</td>
+                        <td className="px-2 py-3 border-r border-slate-200 dark:border-slate-700 text-right font-normal">0.00</td>
+                        <td className="px-2 py-3 border-r border-slate-200 dark:border-slate-700 text-right font-normal">
+                          {sales.reduce((sum, s) => sum + s.amount, 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        </td>
+                        <td className="px-2 py-3 border-r border-slate-200 dark:border-slate-700 text-right text-indigo-600">
+                          {sales.reduce((sum, s) => sum + (s.amount * 0.12), 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        </td>
+                        <td className="px-2 py-3 text-right text-indigo-700">
+                          {sales.reduce((sum, s) => sum + s.amount + (s.amount * 0.12), 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              )}
+            </div>
           )}
         </div>
 
         {/* Footer Summary */}
-        {activeTab !== 'dat' && (
+        {!['slp', 'sls'].includes(activeTab) && (
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-amber-50 dark:bg-amber-900/20 p-4 rounded-xl border border-amber-100 dark:border-amber-800/50">
               <span className="block text-xs uppercase font-bold text-amber-600 dark:text-amber-400 mb-1">Period Total Expenses</span>
