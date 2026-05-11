@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
 import { useAccounting } from '../../context/AccountingContext';
-import { formatTIN, generateCSV } from '../../lib/utils';
-import { ShoppingCart, Search, Trash2, Plus, Download } from 'lucide-react';
+import { formatTIN, generateCSV, MONTHS, getMonthName } from '../../lib/utils';
+import { ShoppingCart, Search, Trash2, Plus, Download, FolderClock } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 export function PurchasesModal() {
-  const { currentClient, currentClientId, currentDat, saveClient, showToast } = useAccounting();
+  const { currentClient, currentClientId, currentDat, saveClient, showToast, setCurrentDat } = useAccounting();
   
   // Single record state (similar to original but react-friendly)
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -185,16 +185,53 @@ export function PurchasesModal() {
         </span>
       }
     >
-      <div className="flex items-center justify-between bg-slate-100 dark:bg-slate-800 p-3 rounded-xl mb-6">
-        <div className="flex items-center gap-3 font-semibold text-sm">
-          <span>Active DAT:</span>
-          {currentDat ? (
-            <span className="bg-cyan-500 text-white px-3 py-1 rounded-full">{currentDat.formatted}</span>
-          ) : (
-            <span className="text-red-500">None Selected</span>
-          )}
+      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between bg-slate-100 dark:bg-slate-800 p-4 rounded-2xl mb-6 gap-4 border border-slate-200 dark:border-slate-700">
+        <div className="flex flex-col md:flex-row items-start md:items-center gap-4 flex-1">
+          <div className="flex items-center gap-2 font-bold text-slate-700 dark:text-slate-300">
+            <FolderClock className="w-5 h-5 text-cyan-500" />
+            <span>DAT Period:</span>
+          </div>
+          
+          <div className="flex gap-2 w-full md:w-auto">
+            <select
+              value={currentDat?.month || new Date().getMonth() + 1}
+              onChange={(e) => {
+                const m = parseInt(e.target.value);
+                const y = currentDat?.year || new Date().getFullYear();
+                setCurrentDat({
+                  month: m,
+                  year: y,
+                  formatted: `${getMonthName(m)} ${y}`
+                });
+              }}
+              className="flex-1 md:w-40 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-medium focus:ring-2 focus:ring-cyan-500/20 outline-none"
+            >
+              {MONTHS.map((m, i) => (
+                <option key={m} value={i + 1}>{m}</option>
+              ))}
+            </select>
+
+            <select
+              value={currentDat?.year || new Date().getFullYear()}
+              onChange={(e) => {
+                const y = parseInt(e.target.value);
+                const m = currentDat?.month || new Date().getMonth() + 1;
+                setCurrentDat({
+                  month: m,
+                  year: y,
+                  formatted: `${getMonthName(m)} ${y}`
+                });
+              }}
+              className="flex-1 md:w-28 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-medium focus:ring-2 focus:ring-cyan-500/20 outline-none"
+            >
+              {Array.from({ length: 11 }, (_, i) => new Date().getFullYear() - 5 + i).map(y => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+          </div>
         </div>
-        <button onClick={handleExportDAT} className="text-sm font-bold bg-white dark:bg-slate-700 px-4 py-1.5 rounded-lg border border-slate-200 dark:border-slate-600 hover:bg-slate-50 transition-colors flex items-center gap-2">
+
+        <button onClick={handleExportDAT} className="whitespace-nowrap font-bold bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 px-6 py-2 rounded-xl border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600 transition-all flex items-center justify-center gap-2 shadow-sm">
           <Download className="w-4 h-4" /> Export DAT
         </button>
       </div>

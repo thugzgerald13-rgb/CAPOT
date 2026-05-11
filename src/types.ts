@@ -42,7 +42,23 @@ export interface Expense {
 
 export interface Client {
   id: string;
-  name: string;
+  name: string; // Display name
+  tin?: string;
+  taxpayerClassification?: string;
+  registeredName?: string;
+  lastName?: string;
+  firstName?: string;
+  middleName?: string;
+  tradeName?: string;
+  substreet?: string;
+  street?: string;
+  barangay?: string;
+  district?: string;
+  city?: string;
+  zipCode?: string;
+  rdoCode?: string;
+  accountingType?: 'Calendar' | 'Fiscal';
+  fiscalMonthEnd?: number;
   tinLibrary: {
     customers: TinEntry[];
     suppliers: TinEntry[];
