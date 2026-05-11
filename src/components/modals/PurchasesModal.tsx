@@ -11,6 +11,7 @@ export function PurchasesModal() {
   // Single record state (similar to original but react-friendly)
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [paymentMethod, setPaymentMethod] = useState('Cash');
+  const [bankName, setBankName] = useState('');
   const [checkNumber, setCheckNumber] = useState('');
   const [invoiceNo, setInvoiceNo] = useState('');
   const [supplierTin, setSupplierTin] = useState('');
@@ -137,6 +138,7 @@ export function PurchasesModal() {
       datMonthYear: currentDat.formatted,
       date,
       paymentMethod,
+      bankName: paymentMethod === 'Check' ? bankName : null,
       checkNumber: paymentMethod === 'Check' ? checkNumber : null,
       invoiceNo,
       supplierTin,
@@ -181,6 +183,7 @@ export function PurchasesModal() {
     setSupplierName('');
     setSupplierAddress('');
     setAmount('');
+    setBankName('');
     setCheckNumber('');
     setTransactionDetails('');
   };
@@ -255,10 +258,29 @@ export function PurchasesModal() {
         </div>
 
         {paymentMethod === 'Check' && (
-          <div className="lg:col-span-3">
-             <label className="form-label text-red-500">Check Number *</label>
-             <input type="text" value={checkNumber} onChange={e => setCheckNumber(e.target.value)} placeholder="000123" className="form-input bg-amber-50 dark:bg-amber-900/10 border-amber-200" />
-          </div>
+          <>
+            <div className="lg:col-span-1">
+              <label className="form-label text-red-500">Bank Name *</label>
+              <select value={bankName} onChange={e => setBankName(e.target.value)} className="form-input bg-amber-50 dark:bg-amber-900/10 border-amber-200">
+                <option value="">Select Bank...</option>
+                <option value="BDO">BDO</option>
+                <option value="BPI">BPI</option>
+                <option value="Metrobank">Metrobank</option>
+                <option value="Security Bank">Security Bank</option>
+                <option value="RCBC">RCBC</option>
+                <option value="UnionBank">UnionBank</option>
+                <option value="PNB">PNB</option>
+                <option value="Chinabank">Chinabank</option>
+                <option value="EastWest">EastWest</option>
+                <option value="AUB">AUB</option>
+                <option value="Others">Others</option>
+              </select>
+            </div>
+            <div className="lg:col-span-2">
+               <label className="form-label text-red-500">Check Number *</label>
+               <input type="text" value={checkNumber} onChange={e => setCheckNumber(e.target.value)} placeholder="000123" className="form-input bg-amber-50 dark:bg-amber-900/10 border-amber-200" />
+            </div>
+          </>
         )}
 
         <div>

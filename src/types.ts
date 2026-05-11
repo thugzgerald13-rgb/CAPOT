@@ -11,6 +11,7 @@ export interface Purchase {
   date: string;
   paymentMethod: string;
   checkNumber: string | null;
+  bankName?: string | null;
   invoiceNo: string;
   supplierName: string;
   supplierAddress: string;

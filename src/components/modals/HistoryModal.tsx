@@ -161,7 +161,7 @@ export function HistoryModal() {
                             </span>
                             {p.paymentMethod === 'Check' && p.checkNumber && (
                               <div className="text-[10px] text-slate-500 font-mono mt-1 w-max">
-                                # {p.checkNumber}
+                                {p.bankName ? `${p.bankName} - ` : ''}# {p.checkNumber}
                               </div>
                             )}
                           </td>
