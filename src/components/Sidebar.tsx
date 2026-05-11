@@ -92,27 +92,6 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
         </div>
 
         <div className="flex-1 overflow-y-auto py-4 px-3 flex flex-col gap-1 custom-scrollbar">
-          {/* Current Period Badge */}
-          {currentDat && (
-            <div className="px-4 py-3 mb-2 bg-indigo-50/50 dark:bg-indigo-900/10 rounded-xl border border-indigo-100 dark:border-indigo-900/30">
-              <div className="flex flex-col">
-                <span className="text-[10px] uppercase font-bold text-indigo-500 tracking-wider">Active Period</span>
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-slate-800 dark:text-slate-200">{currentDat.formatted}</span>
-                  <button 
-                    onClick={() => {
-                      setPendingModal(null);
-                      openModal('dat');
-                    }}
-                    className="p-1 px-2 text-[10px] bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400 rounded-md hover:bg-indigo-50 transition-colors font-bold"
-                  >
-                    Change
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
           {navItems.map((item) => {
             const Icon = item.icon;
             return (

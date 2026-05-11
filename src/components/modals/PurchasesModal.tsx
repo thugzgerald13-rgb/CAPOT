@@ -132,11 +132,14 @@ export function PurchasesModal() {
       return;
     }
 
+    const [y, m, d] = date.split('-');
+    const formattedDate = `${m}/${d}/${y}`;
+
     const newPurchase = {
       id: Date.now(),
       sequenceNumber,
       datMonthYear: currentDat.formatted,
-      date,
+      date: formattedDate,
       paymentMethod,
       bankName: paymentMethod === 'Check' ? bankName : null,
       checkNumber: paymentMethod === 'Check' ? checkNumber : null,
@@ -238,7 +241,14 @@ export function PurchasesModal() {
         <div className="lg:col-span-3 pb-2 mb-2 border-b border-slate-200 dark:border-slate-700 flex flex-col md:flex-row gap-4 justify-between">
             <div className="w-full md:w-1/3">
               <label className="form-label text-red-500">Transaction Date *</label>
-              <input type="date" value={date} onChange={e => setDate(e.target.value)} className="form-input" />
+              <input 
+                type="date" 
+                value={date} 
+                onChange={e => setDate(e.target.value)} 
+                min={currentDat ? `${currentDat.year}-${String(currentDat.month).padStart(2, '0')}-01` : undefined}
+                max={currentDat ? `${currentDat.year}-${String(currentDat.month).padStart(2, '0')}-${String(new Date(currentDat.year, currentDat.month, 0).getDate()).padStart(2, '0')}` : undefined}
+                className="form-input" 
+              />
               {dateWarning && <p className="text-xs text-amber-600 bg-amber-100 p-2 mt-1 rounded-lg">{dateWarning}</p>}
             </div>
             

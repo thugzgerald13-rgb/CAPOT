@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Modal } from '../ui/Modal';
 import { useAccounting } from '../../context/AccountingContext';
-import { FolderClock, FileDown } from 'lucide-react';
-import { MONTHS, getMonthName, generateCSV } from '../../lib/utils';
+import { FolderClock, FileDown, Receipt, ShoppingCart } from 'lucide-react';
+import { MONTHS, getMonthName, generateDATFile } from '../../lib/utils';
 
 export function DatModal() {
   const { currentDat, setCurrentDat, openModal, currentClient, showToast, pendingModal, setPendingModal } = useAccounting();
@@ -28,7 +28,125 @@ export function DatModal() {
     }
   };
 
-  const handleGenerateDAT = () => {
+  const qt = (val: string | undefined | null) => `"${val || ''}"`;
+  const qtE = (val: string | undefined | null) => val ? `"${val}"` : '';
+  const numH = (n: number) => n.toFixed(2);
+  const numD = (n: number) => n === 0 ? '0' : n.toFixed(2);
+
+  const generateDATContent = (type: 'P' | 'S', periodMonth: number, periodYear: number) => {
+    if (!currentClient) return '';
+    const formatted = `${getMonthName(periodMonth)} ${periodYear}`;
+    
+    // Default accounting month end
+    const lastDayOfMonth = new Date(periodYear, periodMonth, 0);
+    const endOfMonthStr = `${String(periodMonth).padStart(2, '0')}/${String(lastDayOfMonth.getDate()).padStart(2, '0')}/${periodYear}`;
+    
+    const taxpayerTIN = (currentClient.tin || '000000000').replace(/\D/g, '').substring(0, 9);
+    const branchCode = ""; 
+    const lastName = currentClient.lastName || "";
+    const firstName = currentClient.firstName || "";
+    const middleName = currentClient.middleName || "";
+    const registeredName = currentClient.registeredName || currentClient.name || "";
+    
+    // Infer Address format from currentClient properties (for now we use simple fallback)
+    const clientAdd = currentClient.substreet || currentClient.street || currentClient.city || "";
+    let add1 = clientAdd;
+    let add2 = "";
+    if (clientAdd.includes(',')) {
+      const parts = clientAdd.split(',');
+      add1 = parts[0].trim();
+      add2 = parts.slice(1).join(', ').trim();
+    }
+    const rdoCode = currentClient.rdoCode || "057";
+    const fiscalMonthEnd = (currentClient.fiscalMonthEnd || 12).toString();
+
+    let lines: string[] = [];
+
+    if (type === 'P') {
+      const periodPurchases = (currentClient.purchases || []).filter(p => p.datMonthYear === formatted);
+      
+      let totExempt = 0, totZero = 0, totServices = 0, totCapital = 0, totOther = 0, totInputTax = 0;
+      const detailLines: string[] = [];
+
+      periodPurchases.forEach(p => {
+        const supTIN = (p.supplierTin || '').replace(/\D/g, '').substring(0, 9);
+        const supName = p.supplierName || "";
+        let supAdd1 = p.supplierAddress || "";
+        let supAdd2 = "";
+        if (supAdd1.includes(',')) {
+          const parts = supAdd1.split(',');
+          supAdd1 = parts[0].trim();
+          supAdd2 = parts.slice(1).join(', ').trim();
+        }
+
+        let ex = 0, zr = 0, srv = 0, cap = 0, oth = 0;
+        let itax = p.inputTax || 0;
+        
+        if (p.vatType === 'non-vat') {
+          ex = p.amount;
+        } else if (p.vatType === 'zero-rated') {
+          zr = p.amount;
+        } else {
+          // vat
+          if (p.expenseType === 'Services') {
+            srv = p.amount;
+          } else if (p.expenseType === 'Capital Goods') {
+            cap = p.amount;
+          } else {
+            oth = p.amount;
+          }
+        }
+        
+        totExempt += ex; totZero += zr; totServices += srv; totCapital += cap; totOther += oth; totInputTax += itax;
+
+        // Details line: D,P,tin,regName,lastName,firstName,middleName,add1,add2,exempt,zero,srv,cap,oth,itax,taxpayerTIN,date
+        const dLine = `D,P,${qt(supTIN)},${qtE(supName)},${qtE("")},${qtE("")},${qtE("")},${qt(supAdd1)},${qt(supAdd2)},${numD(ex)},${numD(zr)},${numD(srv)},${numD(cap)},${numD(oth)},${numD(itax)},${taxpayerTIN},${endOfMonthStr}`;
+        detailLines.push(dLine);
+      });
+
+      // Header line: H,P,taxpayerTIN,branch,lastName,firstName,middleName,regName,add1,add2,totExempt,totZero,totSrv,totCap,totOth,totItax,totItaxcred,0.00,rdo,date,fiscal
+      const hLine = `H,P,${qt(taxpayerTIN)},${qt(branchCode)},${qt(lastName)},${qt(firstName)},${qt(middleName)},${qt(registeredName)},${qt(add1)},${qt(add2)},${numH(totExempt)},${numH(totZero)},${numH(totServices)},${numH(totCapital)},${numH(totOther)},${numH(totInputTax)},${numH(totInputTax)},0.00,${rdoCode},${endOfMonthStr},${fiscalMonthEnd}`;
+
+      lines.push(hLine);
+      lines.push(...detailLines);
+    } else if (type === 'S') {
+      const periodSales = (currentClient.sales || []).filter(s => s.datMonthYear === formatted);
+      let totExempt = 0, totZero = 0, totTaxable = 0, totOutputTax = 0;
+      const detailLines: string[] = [];
+
+      periodSales.forEach(s => {
+        const cusTIN = (s.customerTin || '').replace(/\D/g, '').substring(0, 9);
+        const cusName = s.customerName || "";
+        let cusAdd1 = s.customerAddress || "";
+        let cusAdd2 = "";
+        if (cusAdd1.includes(',')) {
+          const parts = cusAdd1.split(',');
+          cusAdd1 = parts[0].trim();
+          cusAdd2 = parts.slice(1).join(', ').trim();
+        }
+
+        let ex = 0, zr = 0, tax = 0;
+        let otax = s.outputTax || 0;
+        if (otax > 0) { tax = s.amount; } else { ex = s.amount; }
+
+        totExempt += ex; totZero += zr; totTaxable += tax; totOutputTax += otax;
+
+        // Details line: D,S,tin,regName,lastName,firstName,middleName,add1,add2,ex,zr,tax,otax,taxpayerTIN,date
+        const dLine = `D,S,${qt(cusTIN)},${qtE(cusName)},${qtE("")},${qtE("")},${qtE("")},${qt(cusAdd1)},${qt(cusAdd2)},${numD(ex)},${numD(zr)},${numD(tax)},${numD(otax)},${taxpayerTIN},${endOfMonthStr}`;
+        detailLines.push(dLine);
+      });
+
+      // Header line: H,S,taxpayerTIN,branch,lastName,firstName,middleName,regName,add1,add2,totEx,totZr,totTax,totOtax,rdo,date,fiscal
+      const hLine = `H,S,${qt(taxpayerTIN)},${qt(branchCode)},${qt(lastName)},${qt(firstName)},${qt(middleName)},${qt(registeredName)},${qt(add1)},${qt(add2)},${numH(totExempt)},${numH(totZero)},${numH(totTaxable)},${numH(totOutputTax)},${rdoCode},${endOfMonthStr},${fiscalMonthEnd}`;
+
+      lines.push(hLine);
+      lines.push(...detailLines);
+    }
+    
+    return lines.join('\n');
+  };
+
+  const handleGenerateDAT = (type: 'P' | 'S') => {
     if (!currentClient) return;
 
     const formatted = `${getMonthName(selectedMonth)} ${selectedYear}`;
@@ -38,45 +156,23 @@ export function DatModal() {
     const periodSales = (currentClient.sales || []).filter(s => s.datMonthYear === formatted);
     const periodPurchases = (currentClient.purchases || []).filter(p => p.datMonthYear === formatted);
 
-    if (periodSales.length === 0 && periodPurchases.length === 0) {
-      alert(`No transactions found for ${formatted}`);
+    if (type === 'P' && periodPurchases.length === 0) {
+      alert(`No purchase transactions found for ${formatted}`);
+      return;
+    }
+    if (type === 'S' && periodSales.length === 0) {
+      alert(`No sales transactions found for ${formatted}`);
       return;
     }
 
-    let csvRows = [];
-    csvRows.push(['RELIEF SYSTEM DAT FILE SUMMARY']);
-    csvRows.push(['Client Name', currentClient.name]);
-    csvRows.push(['Taxpayer TIN', currentClient.tin || '']);
-    csvRows.push(['Period', formatted]);
-    csvRows.push(['Generated At', new Date().toLocaleString()]);
-    csvRows.push([]);
+    const content = generateDATContent(type, periodMonth, periodYear);
 
-    // Sales Section
-    csvRows.push(['--- INCOME / SALES ---']);
-    csvRows.push(['Date', 'Invoice #', 'Customer TIN', 'Customer Name', 'Amount', 'Output Tax']);
-    let totalSalesAmt = 0;
-    let totalSalesTax = 0;
-    periodSales.forEach(s => {
-      totalSalesAmt += s.amount;
-      totalSalesTax += s.outputTax;
-      csvRows.push([s.date, s.invoiceNo, s.customerTin, s.customerName, s.amount.toFixed(2), s.outputTax.toFixed(2)]);
-    });
-    csvRows.push(['TOTAL INCOME', '', '', '', totalSalesAmt.toFixed(2), totalSalesTax.toFixed(2)]);
-    csvRows.push([]);
+    const tinClean = (currentClient.tin || '000000000').replace(/\D/g, '').substring(0, 9).padStart(9, '0');
+    const monthStr = selectedMonth.toString().padStart(2, '0');
+    const yearStr = selectedYear.toString();
+    const filename = `${tinClean}${type}${monthStr}${yearStr}.DAT`;
 
-    // Purchases Section
-    csvRows.push(['--- EXPENSES / PURCHASES ---']);
-    csvRows.push(['Date', 'Invoice #', 'Supplier TIN', 'Supplier Name', 'Amount', 'Input Tax']);
-    let totalPurchasesAmt = 0;
-    let totalPurchasesTax = 0;
-    periodPurchases.forEach(p => {
-      totalPurchasesAmt += p.amount;
-      totalPurchasesTax += (p.inputTax || 0);
-      csvRows.push([p.date, p.invoiceNo || '', p.supplierTin || '', p.supplierName, p.amount.toFixed(2), (p.inputTax || 0).toFixed(2)]);
-    });
-    csvRows.push(['TOTAL EXPENSES', '', '', '', totalPurchasesAmt.toFixed(2), totalPurchasesTax.toFixed(2)]);
-
-    generateCSV(`DAT_${formatted.replace(/ /g, '_')}_${currentClient.name.replace(/ /g, '_')}.csv`, csvRows);
+    generateDATFile(filename, content);
     showToast(`DAT File generated for ${formatted}`);
   };
 
@@ -127,12 +223,25 @@ export function DatModal() {
         >
           Confirm & Proceed
         </button>
-        <button
-          onClick={handleGenerateDAT}
-          className="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-3 rounded-xl transition-colors shadow-sm flex items-center justify-center gap-2"
-        >
-          <FileDown className="w-5 h-5" /> Generate DAT File
-        </button>
+        
+        {(!pendingModal || pendingModal === 'purchases' || pendingModal === 'history') && (
+          <button
+            onClick={() => handleGenerateDAT('P')}
+            className="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-3 rounded-xl transition-colors shadow-sm flex items-center justify-center gap-2"
+          >
+            <ShoppingCart className="w-5 h-5" /> Generate SLP .DAT (Purchases)
+          </button>
+        )}
+
+        {(!pendingModal || pendingModal === 'sales' || pendingModal === 'history') && (
+          <button
+            onClick={() => handleGenerateDAT('S')}
+            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl transition-colors shadow-sm flex items-center justify-center gap-2"
+          >
+            <Receipt className="w-5 h-5" /> Generate SLS .DAT (Sales)
+          </button>
+        )}
+
         <button
           onClick={() => openModal(null)}
           className="w-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-semibold py-3 rounded-xl transition-colors"

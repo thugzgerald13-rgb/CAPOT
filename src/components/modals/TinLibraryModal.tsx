@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Modal } from '../ui/Modal';
 import { useAccounting } from '../../context/AccountingContext';
 import { formatTIN } from '../../lib/utils';
-import { Building2, Search, Trash2, Plus, Users, Factory } from 'lucide-react';
+import { Building2, Search, Trash2, Plus, Users, Factory, Upload } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 export function TinLibraryModal() {
@@ -14,6 +14,7 @@ export function TinLibraryModal() {
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const lib = currentClient?.tinLibrary || { customers: [], suppliers: [] };
   const records = activeTab === 'customers' ? lib.customers : lib.suppliers;
@@ -22,6 +23,150 @@ export function TinLibraryModal() {
     r.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
     r.tin.includes(searchTerm)
   );
+
+  const handleFileUpload = (e: any) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
+      if (lines.length === 0) return;
+      
+      const newRecords: any[] = [];
+      let skippedHeader = false;
+      
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        
+        const sep = line.includes('\t') ? '\t' : ',';
+        const regex = sep === ',' ? /("([^"]|"")*"|[^,]*)(?=,|$)/g : /("([^"]|"")*"|[^\t]*)(?=\t|$)/g;
+        const initialMatches = line.match(regex);
+        if (!initialMatches) continue;
+        
+        const matchesArr = Array.from(initialMatches).filter((m, idx) => m !== "" || idx < initialMatches.length - 1);
+        
+        const cols = matchesArr.map(m => {
+          let val = m.trim();
+          if (val.startsWith('"') && val.endsWith('"')) {
+            val = val.slice(1, -1).replace(/""/g, '"');
+          }
+          return val;
+        });
+
+        // Check if it's a RELIEF DAT format row (D, P or D, S)
+        if (cols.length >= 10 && cols[0] === 'D' && (cols[1] === 'P' || cols[1] === 'S')) {
+            let ptin = cols[2];
+            let pname = cols[3];
+            if (!pname || pname.trim() === '') {
+              pname = [cols[4], cols[5], cols[6]].filter(Boolean).join(' ');
+            }
+            let addrParts = [];
+            if (cols[7] && cols[7].trim()) addrParts.push(cols[7].trim());
+            if (cols[8] && cols[8].trim()) addrParts.push(cols[8].trim());
+            let paddr = addrParts.join(', ');
+
+            ptin = ptin.replace(/\D/g, '');
+            if (ptin.length >= 9) {
+              ptin = `${ptin.substring(0,3)}-${ptin.substring(3,6)}-${ptin.substring(6,9)}`;
+            }
+            
+            if (ptin && pname) {
+              newRecords.push({ id: Date.now() + i, tin: ptin, name: pname, address: paddr });
+            }
+            continue;
+        }
+
+        if (!skippedHeader) {
+          const joinedLower = cols.join(',').toLowerCase();
+          if (joinedLower.includes('tin') || joinedLower.includes('name')) {
+            skippedHeader = true;
+            continue;
+          }
+          skippedHeader = true;
+        }
+
+        if (cols.length < 2) continue;
+        
+        let tinColIdx = -1;
+        let maxDigits = 0;
+        
+        // Find the column that looks most like a TIN
+        for (let j = 0; j < Math.min(cols.length, 5); j++) {
+            const digits = (cols[j].match(/\d/g) || []).length;
+            if (digits > maxDigits && digits >= 8) {
+                maxDigits = digits;
+                tinColIdx = j;
+            }
+        }
+        
+        if (tinColIdx === -1) {
+            tinColIdx = (cols[0].match(/\d/g) || []).length < (cols[1].match(/\d/g) || []).length ? 1 : 0;
+        }
+
+        let nameColIdx = -1;
+        for (let j = 0; j < cols.length; j++) {
+           if (j !== tinColIdx && cols[j].trim().length > 1) {
+              nameColIdx = j;
+              break;
+           }
+        }
+        if (nameColIdx === -1) {
+           nameColIdx = tinColIdx === 0 ? 1 : 0;
+        }
+
+        let ptin = cols[tinColIdx];
+        let pname = cols[nameColIdx];
+
+        let addrCols = cols.filter((val, idx) => idx !== tinColIdx && idx !== nameColIdx && val.trim().length > 0);
+        let paddr = addrCols.join(', ');
+
+        ptin = ptin.replace(/\D/g, '');
+        if (ptin.length >= 9) {
+          ptin = `${ptin.substring(0,3)}-${ptin.substring(3,6)}-${ptin.substring(6,9)}`;
+        }
+        
+        if (ptin && pname) {
+          newRecords.push({ id: Date.now() + i, tin: ptin, name: pname, address: paddr });
+        }
+      }
+      
+      // Deduplicate new records by TIN
+      const uniqueRecords: any[] = [];
+      const existingTins = new Set(
+        activeTab === 'customers' 
+          ? lib.customers.map((c: any) => c.tin) 
+          : lib.suppliers.map((s: any) => s.tin)
+      );
+      const seenTins = new Set();
+      
+      for (const rec of newRecords) {
+        if (!seenTins.has(rec.tin) && !existingTins.has(rec.tin)) {
+          seenTins.add(rec.tin);
+          uniqueRecords.push(rec);
+        }
+      }
+
+      if (uniqueRecords.length > 0 && currentClient && currentClientId) {
+        const updatedLib = { ...lib };
+        if (activeTab === 'customers') {
+          updatedLib.customers = [...updatedLib.customers, ...uniqueRecords];
+        } else {
+          updatedLib.suppliers = [...updatedLib.suppliers, ...uniqueRecords];
+        }
+        saveClient(currentClientId, { ...currentClient, tinLibrary: updatedLib });
+        showToast(`Uploaded ${uniqueRecords.length} unique records`);
+      } else if (newRecords.length === 0) {
+        alert('No valid records found in the file.');
+      }
+
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    };
+    reader.readAsText(file);
+  };
 
   const handleAdd = () => {
     if (!currentClient || !currentClientId) return;
@@ -67,7 +212,6 @@ export function TinLibraryModal() {
       id="tinlibrary"
       title="TIN Library"
       icon={<Building2 className="w-5 h-5 text-purple-500" />}
-      badge={<span className="bg-purple-500 text-white px-2 py-0.5 rounded-full text-xs font-bold">Directory</span>}
     >
       <div className="flex gap-2 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl mb-6">
         <button
@@ -111,17 +255,36 @@ export function TinLibraryModal() {
       </div>
 
       <div className="mt-8">
-        <div className="flex justify-between items-center mb-4">
+        <div className="flex flex-col md:flex-row justify-between items-center mb-4 gap-4">
           <h4 className="text-lg font-bold text-slate-800 dark:text-slate-100 capitalize">{activeTab} Registry</h4>
-          <div className="relative w-64">
-            <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
-            <input 
-              type="text" 
-              placeholder={`Search ${activeTab}...`}
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 border border-slate-300 dark:border-slate-600 rounded-xl text-sm bg-white dark:bg-slate-800 focus:outline-none"
-            />
+          <div className="flex items-center gap-3 w-full md:w-auto">
+            {activeTab === 'suppliers' && (
+              <>
+                <input 
+                  type="file" 
+                  accept="*" 
+                  ref={fileInputRef} 
+                  onChange={handleFileUpload} 
+                  className="hidden" 
+                />
+                <button 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors flex items-center gap-2"
+                >
+                  <Upload className="w-4 h-4" /> Upload
+                </button>
+              </>
+            )}
+            <div className="relative flex-1 md:w-64">
+              <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+              <input 
+                type="text" 
+                placeholder={`Search ${activeTab}...`}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 border border-slate-300 dark:border-slate-600 rounded-xl text-sm bg-white dark:bg-slate-800 focus:outline-none"
+              />
+            </div>
           </div>
         </div>
 

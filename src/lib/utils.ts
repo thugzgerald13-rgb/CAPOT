@@ -149,6 +149,18 @@ export function getMonthName(monthNum: number | string) {
   return MONTHS[parseInt(monthNum as string) - 1];
 }
 
+export function generateDATFile(filename: string, content: string) {
+  const blob = new Blob([content], { type: 'text/plain;charset=utf-8;' });
+  const link = document.createElement('a');
+  const url = URL.createObjectURL(blob);
+  link.href = url;
+  link.setAttribute('download', filename);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
 export function generateCSV(filename: string, rows: any[][]) {
   const csvContent = rows.map(r => 
     r.map(item => {
