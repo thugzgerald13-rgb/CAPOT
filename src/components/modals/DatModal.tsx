@@ -1,17 +1,152 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Modal } from '../ui/Modal';
 import { useAccounting } from '../../context/AccountingContext';
-import { FolderClock, FileDown, Receipt, ShoppingCart } from 'lucide-react';
+import { FolderClock, FileDown, Receipt, ShoppingCart, Upload } from 'lucide-react';
 import { MONTHS, getMonthName, generateDATFile } from '../../lib/utils';
 
 export function DatModal() {
-  const { currentDat, setCurrentDat, openModal, currentClient, showToast, pendingModal, setPendingModal } = useAccounting();
+  const { currentDat, setCurrentDat, openModal, currentClient, currentClientId, saveClient, showToast, pendingModal, setPendingModal } = useAccounting();
   
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 11 }, (_, i) => currentYear - 10 + i);
 
   const [selectedMonth, setSelectedMonth] = useState((currentDat?.month || new Date().getMonth() + 1).toString());
   const [selectedYear, setSelectedYear] = useState((currentDat?.year || currentYear).toString());
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileUpload = (e: any) => {
+    const file = e.target.files?.[0];
+    if (!file || !currentClient || !currentClientId) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
+      if (lines.length === 0) return;
+
+      const expectedMonth = parseInt(selectedMonth);
+      const expectedYear = parseInt(selectedYear);
+      const expectedFormatted = `${getMonthName(selectedMonth)} ${selectedYear}`;
+
+      let type: 'P' | 'S' | null = null;
+      let headerPeriodMatched = false;
+      const newPurchases: any[] = [];
+      const newSales: any[] = [];
+
+      for (let line of lines) {
+        // Robust split handling quotes
+        const cols: string[] = [];
+        let cur = '';
+        let inQuotes = false;
+        for (let j = 0; j < line.length; j++) {
+          const char = line[j];
+          if (char === '"') {
+            if (inQuotes && line[j + 1] === '"') { cur += '"'; j++; }
+            else { inQuotes = !inQuotes; }
+          } else if (char === ',' && !inQuotes) {
+            cols.push(cur.trim());
+            cur = '';
+          } else { cur += char; }
+        }
+        cols.push(cur.trim());
+
+        if (cols[0] === 'H') {
+          type = cols[1] as 'P' | 'S';
+          const dateIdx = type === 'P' ? 19 : 14;
+          const dateStr = cols[dateIdx]; // MM/DD/YYYY
+          if (dateStr) {
+            const [m, , y] = dateStr.split('/');
+            if (parseInt(m) === expectedMonth && parseInt(y) === expectedYear) {
+              headerPeriodMatched = true;
+            } else {
+              alert(`Period mismatch! File is for ${MONTHS[parseInt(m)-1]} ${y}, but selected period is ${expectedFormatted}.`);
+              return;
+            }
+          }
+        } else if (cols[0] === 'D') {
+          const rowType = cols[1] as 'P' | 'S';
+          if (!type) type = rowType;
+          
+          if (rowType === 'P') {
+            const tin = cols[2];
+            const name = cols[3];
+            const addr = `${cols[7]}${cols[8] ? ', ' + cols[8] : ''}`;
+            const ex = parseFloat(cols[9]) || 0;
+            const zr = parseFloat(cols[10]) || 0;
+            const srv = parseFloat(cols[11]) || 0;
+            const cap = parseFloat(cols[12]) || 0;
+            const oth = parseFloat(cols[13]) || 0;
+            const itax = parseFloat(cols[14]) || 0;
+            
+            const amount = ex + zr + srv + cap + oth;
+            let vatType: any = 'vat';
+            if (ex > 0 && zr === 0 && srv === 0 && cap === 0 && oth === 0) vatType = 'non-vat';
+            else if (zr > 0) vatType = 'zero-rated';
+            
+            let expenseType: any = 'Other';
+            if (srv > 0) expenseType = 'Services';
+            else if (cap > 0) expenseType = 'Capital Goods';
+
+            newPurchases.push({
+              id: Date.now() + Math.random(),
+              datMonthYear: expectedFormatted,
+              date: cols[16] || `01/01/${expectedYear}`,
+              paymentMethod: 'Cash',
+              invoiceNo: `UP-${Date.now().toString().slice(-4)}`,
+              supplierTin: tin,
+              supplierName: name,
+              supplierAddress: addr,
+              amount: amount,
+              inputTax: itax,
+              netAmount: amount,
+              vatType,
+              expenseType,
+              accountTitle: 'Imported',
+              sequenceNumber: (currentClient.purchases?.length || 0) + newPurchases.length + 1
+            });
+          } else if (rowType === 'S') {
+            const tin = cols[2];
+            const name = cols[3];
+            const addr = `${cols[7]}${cols[8] ? ', ' + cols[8] : ''}`;
+            const ex = parseFloat(cols[9]) || 0;
+            const zr = parseFloat(cols[10]) || 0;
+            const tax = parseFloat(cols[11]) || 0;
+            const otax = parseFloat(cols[12]) || 0;
+            
+            const totalAmount = ex + zr + tax;
+            newSales.push({
+              id: Date.now() + Math.random(),
+              datMonthYear: expectedFormatted,
+              date: cols[13] || `01/01/${expectedYear}`,
+              customerTin: tin,
+              customerName: name,
+              customerAddress: addr,
+              amount: totalAmount,
+              outputTax: otax,
+              netAmount: totalAmount,
+              reference: `UP-${Date.now().toString().slice(-4)}`,
+              sequenceNumber: (currentClient.sales?.length || 0) + newSales.length + 1
+            });
+          }
+        }
+      }
+
+      if (newPurchases.length > 0 || newSales.length > 0) {
+        const updatedClient = {
+          ...currentClient,
+          purchases: [...(currentClient.purchases || []), ...newPurchases],
+          sales: [...(currentClient.sales || []), ...newSales]
+        };
+        saveClient(currentClientId, updatedClient);
+        showToast(`Uploaded ${newPurchases.length + newSales.length} entries for ${expectedFormatted}`);
+      } else {
+        alert('No valid entries found in the file.');
+      }
+
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+    reader.readAsText(file);
+  };
 
   const handleConfirm = () => {
     const formatted = `${getMonthName(selectedMonth)} ${selectedYear}`;
@@ -241,6 +376,25 @@ export function DatModal() {
             <Receipt className="w-5 h-5" /> Generate SLS .DAT (Sales)
           </button>
         )}
+
+        <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
+          <input 
+            type="file" 
+            accept=".dat,.csv" 
+            ref={fileInputRef} 
+            onChange={handleFileUpload} 
+            className="hidden" 
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="w-full bg-slate-800 dark:bg-slate-900 hover:bg-slate-900 text-white font-bold py-3 rounded-xl transition-colors shadow-sm flex items-center justify-center gap-2"
+          >
+            <Upload className="w-5 h-5" /> Upload DAT/CSV File
+          </button>
+          <p className="text-[10px] text-slate-500 mt-2 text-center">
+            Upload RELIEF .DAT or CSV for the selected period
+          </p>
+        </div>
 
         <button
           onClick={() => openModal(null)}

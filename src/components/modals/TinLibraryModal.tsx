@@ -31,32 +31,56 @@ export function TinLibraryModal() {
     const reader = new FileReader();
     reader.onload = (event) => {
       const text = event.target?.result as string;
-      const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
-      if (lines.length === 0) return;
+      const allLines = text.split(/\r?\n/).filter(line => line.trim() !== '');
+      if (allLines.length === 0) return;
       
       const newRecords: any[] = [];
-      let skippedHeader = false;
+      let isMarkdownTable = allLines.some(line => line.includes('|') && (line.includes('---') || line.trim().startsWith('|')));
       
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        
-        const sep = line.includes('\t') ? '\t' : ',';
-        const regex = sep === ',' ? /("([^"]|"")*"|[^,]*)(?=,|$)/g : /("([^"]|"")*"|[^\t]*)(?=\t|$)/g;
-        const initialMatches = line.match(regex);
-        if (!initialMatches) continue;
-        
-        const matchesArr = Array.from(initialMatches).filter((m, idx) => m !== "" || idx < initialMatches.length - 1);
-        
-        const cols = matchesArr.map(m => {
-          let val = m.trim();
-          if (val.startsWith('"') && val.endsWith('"')) {
-            val = val.slice(1, -1).replace(/""/g, '"');
+      for (let i = 0; i < allLines.length; i++) {
+        const line = allLines[i].trim();
+        if (!line) continue;
+
+        // Skip markdown separator lines
+        if (isMarkdownTable && line.includes('---') && line.includes('|')) continue;
+
+        let cols: string[] = [];
+
+        if (isMarkdownTable) {
+          // Parse markdown table row
+          cols = line.split('|').map(c => c.trim()).filter((c, idx, arr) => {
+            // Remove first and last empty elements from | col1 | col2 | format
+            if ((idx === 0 || idx === arr.length - 1) && !c) return false;
+            return true;
+          });
+        } else {
+          const sep = line.includes('\t') ? '\t' : ',';
+          // Robust CSV line parser
+          let cur = '';
+          let inQuotes = false;
+          for (let j = 0; j < line.length; j++) {
+            const char = line[j];
+            if (char === '"') {
+              if (inQuotes && line[j + 1] === '"') {
+                cur += '"';
+                j++;
+              } else {
+                inQuotes = !inQuotes;
+              }
+            } else if (char === sep && !inQuotes) {
+              cols.push(cur.trim());
+              cur = '';
+            } else {
+              cur += char;
+            }
           }
-          return val;
-        });
+          cols.push(cur.trim());
+        }
+
+        if (cols.length < 2) continue;
 
         // Check if it's a RELIEF DAT format row (D, P or D, S)
-        if (cols.length >= 10 && cols[0] === 'D' && (cols[1] === 'P' || cols[1] === 'S')) {
+        if (!isMarkdownTable && cols.length >= 10 && cols[0] === 'D' && (cols[1] === 'P' || cols[1] === 'S')) {
             let ptin = cols[2];
             let pname = cols[3];
             if (!pname || pname.trim() === '') {
@@ -78,51 +102,46 @@ export function TinLibraryModal() {
             continue;
         }
 
-        if (!skippedHeader) {
-          const joinedLower = cols.join(',').toLowerCase();
-          if (joinedLower.includes('tin') || joinedLower.includes('name')) {
-            skippedHeader = true;
-            continue;
-          }
-          skippedHeader = true;
-        }
-
-        if (cols.length < 2) continue;
-        
+        // Standard Row Detection Logic
         let tinColIdx = -1;
         let maxDigits = 0;
         
-        // Find the column that looks most like a TIN
-        for (let j = 0; j < Math.min(cols.length, 5); j++) {
-            const digits = (cols[j].match(/\d/g) || []).length;
-            if (digits > maxDigits && digits >= 8) {
-                maxDigits = digits;
-                tinColIdx = j;
+        // Find the column that looks most like a TIN (8-9 digits)
+        for (let j = 0; j < cols.length; j++) {
+            const digits = (cols[j].replace(/\D/g, '') || '').length;
+            if (digits >= 8 && digits <= 12) {
+                if (digits > maxDigits) {
+                  maxDigits = digits;
+                  tinColIdx = j;
+                }
             }
         }
         
+        // If we didn't find a clear TIN, but we have a header, skip it
         if (tinColIdx === -1) {
-            tinColIdx = (cols[0].match(/\d/g) || []).length < (cols[1].match(/\d/g) || []).length ? 1 : 0;
+          const joined = cols.join(',').toLowerCase();
+          if (joined.includes('tin') || joined.includes('reg #') || joined.includes('company')) continue;
+          continue;
         }
 
+        // Simple name index - first non-TIN column with characters
         let nameColIdx = -1;
         for (let j = 0; j < cols.length; j++) {
-           if (j !== tinColIdx && cols[j].trim().length > 1) {
+           if (j !== tinColIdx && cols[j].trim().length > 2 && !/^\d+$/.test(cols[j].trim())) {
               nameColIdx = j;
               break;
            }
         }
-        if (nameColIdx === -1) {
-           nameColIdx = tinColIdx === 0 ? 1 : 0;
-        }
+        
+        if (nameColIdx === -1) continue;
 
-        let ptin = cols[tinColIdx];
+        let ptin = cols[tinColIdx].replace(/\D/g, '');
         let pname = cols[nameColIdx];
+        
+        // Address is anything left over
+        let addrCols = cols.filter((_, idx) => idx !== tinColIdx && idx !== nameColIdx && idx !== 0); // skip index 0 often '#'
+        let paddr = addrCols.join(', ').trim();
 
-        let addrCols = cols.filter((val, idx) => idx !== tinColIdx && idx !== nameColIdx && val.trim().length > 0);
-        let paddr = addrCols.join(', ');
-
-        ptin = ptin.replace(/\D/g, '');
         if (ptin.length >= 9) {
           ptin = `${ptin.substring(0,3)}-${ptin.substring(3,6)}-${ptin.substring(6,9)}`;
         }
@@ -132,7 +151,7 @@ export function TinLibraryModal() {
         }
       }
       
-      // Deduplicate new records by TIN
+      // Deduplicate new records by TIN and Filter Existing
       const uniqueRecords: any[] = [];
       const existingTins = new Set(
         activeTab === 'customers' 
@@ -156,9 +175,11 @@ export function TinLibraryModal() {
           updatedLib.suppliers = [...updatedLib.suppliers, ...uniqueRecords];
         }
         saveClient(currentClientId, { ...currentClient, tinLibrary: updatedLib });
-        showToast(`Uploaded ${uniqueRecords.length} unique records`);
+        showToast(`Uploaded ${uniqueRecords.length} new records`);
       } else if (newRecords.length === 0) {
-        alert('No valid records found in the file.');
+        alert('No valid records found in the file. Ensure TIN and Company Name are visible.');
+      } else {
+        showToast('All records in the file already exist in the registry.');
       }
 
       if (fileInputRef.current) {

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
 import { useAccounting } from '../../context/AccountingContext';
 import { formatTIN, generateCSV, MONTHS, getMonthName } from '../../lib/utils';
-import { ShoppingCart, Plus, ArrowLeft, FolderClock } from 'lucide-react';
+import { ShoppingCart, Plus, ArrowLeft, FolderClock, ChevronsLeft, ChevronsRight, ChevronLeft, ChevronRight, PlusCircle } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 export function PurchasesModal() {
@@ -61,15 +61,60 @@ export function PurchasesModal() {
   const [dateWarning, setDateWarning] = useState<string | null>(null);
   const [sequenceNumber, setSequenceNumber] = useState(1);
 
+  const [viewIndex, setViewIndex] = useState<number | null>(null);
+
   // Auto-count sequence number
   useEffect(() => {
-    if (currentClient && currentDat) {
+    if (currentClient && currentDat && viewIndex === null) {
       const count = (currentClient.purchases || []).filter(p => p.datMonthYear === currentDat.formatted).length;
       setSequenceNumber(count + 1);
     }
-  }, [currentClient?.purchases.length, currentDat?.formatted]);
+  }, [currentClient?.purchases.length, currentDat?.formatted, viewIndex]);
 
   const [autoLoadMsg, setAutoLoadMsg] = useState('');
+
+  const periodPurchases = currentClient 
+    ? (currentClient.purchases || []).filter(p => p.datMonthYear === (currentDat?.formatted || ''))
+    : [];
+
+  const loadPurchase = (index: number) => {
+    if (index < 0 || index >= periodPurchases.length) return;
+    const p = periodPurchases[index];
+    if (p) {
+      const [m, d, y] = p.date.split('/');
+      setDate(`${y}-${m}-${d}`);
+      setPaymentMethod(p.paymentMethod);
+      setBankName(p.bankName || '');
+      setCheckNumber(p.checkNumber || '');
+      setInvoiceNo(p.invoiceNo);
+      setSupplierTin(p.supplierTin);
+      setSupplierName(p.supplierName);
+      setSupplierAddress(p.supplierAddress || '');
+      
+      const gross = p.vatType === 'vat' ? (p.amount + (p.inputTax || 0)) : p.amount;
+      setAmount(gross.toFixed(2));
+      setVatType(p.vatType);
+      setExpenseType(p.expenseType);
+      setAccountTitle(p.accountTitle);
+      setTransactionDetails(p.transactionDetails || '');
+      setSequenceNumber(p.sequenceNumber || (index + 1));
+      setViewIndex(index);
+    }
+  };
+
+  const handleAddNew = () => {
+    setViewIndex(null);
+    setInvoiceNo('');
+    setSupplierTin('');
+    setSupplierName('');
+    setSupplierAddress('');
+    setAmount('');
+    setBankName('');
+    setCheckNumber('');
+    setTransactionDetails('');
+    const count = periodPurchases.length;
+    setSequenceNumber(count + 1);
+  };
 
   // Re-compute input tax and net amount on amount or vat type change
   useEffect(() => {
@@ -135,9 +180,9 @@ export function PurchasesModal() {
     const [y, m, d] = date.split('-');
     const formattedDate = `${m}/${d}/${y}`;
 
-    const newPurchase = {
-      id: Date.now(),
-      sequenceNumber,
+    const purchaseData = {
+      id: viewIndex !== null ? periodPurchases[viewIndex].id : Date.now(),
+      sequenceNumber: viewIndex !== null ? (periodPurchases[viewIndex].sequenceNumber || sequenceNumber) : sequenceNumber,
       datMonthYear: currentDat.formatted,
       date: formattedDate,
       paymentMethod,
@@ -172,13 +217,20 @@ export function PurchasesModal() {
       };
     }
 
+    let updatedPurchases;
+    if (viewIndex !== null) {
+      updatedPurchases = currentClient.purchases.map(p => p.id === purchaseData.id ? purchaseData : p);
+    } else {
+      updatedPurchases = [...currentClient.purchases, purchaseData];
+    }
+
     const updatedClient = {
       ...currentClient,
-      purchases: [...currentClient.purchases, newPurchase],
+      purchases: updatedPurchases,
       tinLibrary: updatedTinLibrary
     };
     saveClient(currentClientId, updatedClient);
-    showToast(exists ? 'Expense entry added' : 'Expense added & Supplier saved to Library');
+    showToast(viewIndex !== null ? 'Entry updated' : (exists ? 'Expense entry added' : 'Expense added & Supplier saved to Library'));
 
     // Reset most form fields, keeping dates
     setInvoiceNo('');
@@ -383,7 +435,7 @@ export function PurchasesModal() {
            
            <div className="flex gap-3">
              <button onClick={handleAddPurchase} className="bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold px-8 py-2.5 rounded-xl transition-colors shadow-sm shadow-amber-500/20 flex items-center gap-2">
-               <Plus className="w-5 h-5" /> Add Entry
+               <Plus className="w-5 h-5" /> {viewIndex !== null ? 'Update Entry' : 'Add Entry'}
              </button>
              <button 
                onClick={() => openModal(null)} 
@@ -392,6 +444,48 @@ export function PurchasesModal() {
                <ArrowLeft className="w-5 h-5" /> Cancel
              </button>
            </div>
+        </div>
+
+        <div className="lg:col-span-3 flex flex-wrap justify-center gap-2 mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
+          <button 
+            onClick={() => loadPurchase(0)} 
+            disabled={periodPurchases.length === 0}
+            className="flex items-center gap-1 px-4 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+          >
+            <ChevronsLeft className="w-4 h-4" /> Top
+          </button>
+          <button 
+            onClick={() => loadPurchase((viewIndex === null ? periodPurchases.length : viewIndex) - 1)} 
+            disabled={periodPurchases.length === 0 || viewIndex === 0}
+            className="flex items-center gap-1 px-4 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+          >
+            <ChevronLeft className="w-4 h-4" /> Previous
+          </button>
+          <button 
+            onClick={() => loadPurchase(viewIndex === null ? 0 : viewIndex + 1)} 
+            disabled={periodPurchases.length === 0 || (viewIndex !== null && viewIndex >= periodPurchases.length - 1)}
+            className="flex items-center gap-1 px-4 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+          >
+            Next <ChevronRight className="w-4 h-4" />
+          </button>
+          <button 
+            onClick={() => loadPurchase(periodPurchases.length - 1)} 
+            disabled={periodPurchases.length === 0 || viewIndex === periodPurchases.length - 1}
+            className="flex items-center gap-1 px-4 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+          >
+            Last <ChevronsRight className="w-4 h-4" />
+          </button>
+          <button 
+            onClick={handleAddNew} 
+            className={cn(
+              "flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-bold transition-all ml-2",
+              viewIndex === null 
+                ? "bg-amber-100 text-amber-700 border border-amber-200" 
+                : "bg-blue-100 text-blue-700 border border-blue-200 hover:bg-blue-200"
+            )}
+          >
+            <PlusCircle className="w-4 h-4" /> New Entry
+          </button>
         </div>
       </div>
 
