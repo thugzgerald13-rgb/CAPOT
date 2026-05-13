@@ -5,7 +5,7 @@ import { useAccounting } from '../../context/AccountingContext';
 import { CoaAccount } from '../../types';
 import { cn } from '../../lib/utils';
 
-const DEFAULT_ACCOUNTS: CoaAccount[] = [
+export const DEFAULT_ACCOUNTS: CoaAccount[] = [
   { id: '1000', name: 'Assets', type: 'Asset' },
   { id: '1100', name: 'Cash and Cash Equivalents', type: 'Asset', parentId: '1000' },
   { id: '1200', name: 'Accounts Receivable', type: 'Asset', parentId: '1000' },

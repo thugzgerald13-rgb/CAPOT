@@ -4,6 +4,7 @@ import { useAccounting } from '../../context/AccountingContext';
 import { formatTIN, generateCSV, MONTHS, getMonthName } from '../../lib/utils';
 import { ShoppingCart, Plus, ArrowLeft, FolderClock, ChevronsLeft, ChevronsRight, ChevronLeft, ChevronRight, PlusCircle, Trash2 } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { DEFAULT_ACCOUNTS } from './ChartOfAccountsModal';
 
 export function PurchasesModal() {
   const { currentClient, currentClientId, currentDat, saveClient, showToast, setCurrentDat, openModal } = useAccounting();
@@ -25,38 +26,23 @@ export function PurchasesModal() {
   const [transactionDetails, setTransactionDetails] = useState('');
   const [inputTax, setInputTax] = useState(0);
 
-  const ACCOUNT_TITLES_MAP: Record<string, string[]> = {
-    'Capital Goods': [
-      'Land',
-      'Building',
-      'Machinery and Equipment',
-      'Transportation Equipment',
-      'Furniture and Fixtures'
-    ],
-    'Services': [
-      'Professional Fees',
-      'Security Services',
-      'Janitorial Services',
-      'Advertising and Promotion',
-      'Rent Expense',
-      'Communication, Light and Water',
-      'Repairs and Maintenance (Services)'
-    ],
-    'Others': [
-      'Supplies Expense',
-      'Fuel, Oil and Lubricants',
-      'Taxes and Licenses',
-      'Communication, Light and Water (Others)',
-      'Repairs and Maintenance (Goods)',
-      'Freight and Handling'
-    ]
-  };
+  // Derive available accounts from Chart of Accounts
+  const coaAccounts = (() => {
+    let accs = currentClient?.accounts || [];
+    if (accs.length === 0) accs = DEFAULT_ACCOUNTS;
+    return accs.filter(a => expenseType === 'Capital Goods' ? a.type === 'Asset' : a.type === 'Expense');
+  })();
 
-  // Reset account title when expense type changes
+  // Reset account title when expense type changes, if not already in list
   useEffect(() => {
-    const options = ACCOUNT_TITLES_MAP[expenseType] || [];
-    setAccountTitle(options[0] || '');
-  }, [expenseType]);
+    if (coaAccounts.length > 0) {
+      if (!coaAccounts.find(a => a.name === accountTitle)) {
+        setAccountTitle(coaAccounts[0].name);
+      }
+    } else {
+      setAccountTitle('');
+    }
+  }, [expenseType, coaAccounts, accountTitle]);
 
   const [dateWarning, setDateWarning] = useState<string | null>(null);
   const [sequenceNumber, setSequenceNumber] = useState(1);
@@ -427,8 +413,8 @@ export function PurchasesModal() {
         <div className="lg:col-span-2">
           <label className="form-label">Account Title</label>
           <select value={accountTitle} onChange={e => setAccountTitle(e.target.value)} className="form-input bg-blue-50 dark:bg-blue-900/10 border-blue-200 dark:border-blue-900/50 font-bold text-blue-800 dark:text-blue-300">
-            {(ACCOUNT_TITLES_MAP[expenseType] || []).map(title => (
-              <option key={title} value={title}>{title}</option>
+            {coaAccounts.map(account => (
+              <option key={account.id} value={account.name}>{account.name}</option>
             ))}
           </select>
         </div>
