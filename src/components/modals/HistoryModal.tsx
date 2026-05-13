@@ -1,14 +1,37 @@
 import { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
 import { useAccounting } from '../../context/AccountingContext';
-import { Search, Trash2, Receipt, ShoppingCart, FolderClock, History } from 'lucide-react';
-import { cn, MONTHS } from '../../lib/utils';
+import { Search, Trash2, Receipt, ShoppingCart, FolderClock, History, FileDown, FileSpreadsheet } from 'lucide-react';
+import { cn, MONTHS, generateCSV, formatTIN } from '../../lib/utils';
+import * as XLSX from 'xlsx';
 
 type HistoryTab = 'expenses' | 'income' | 'slp' | 'sls';
 
 export function HistoryModal() {
   const { currentClient, currentClientId, currentDat, saveClient, showToast, openModal, setCurrentDat, historyTab, setHistoryTab } = useAccounting();
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedMonth, setSelectedMonth] = useState<number>(currentDat?.month || new Date().getMonth() + 1);
+  const [selectedYear, setSelectedYear] = useState<number>(currentDat?.year || new Date().getFullYear());
+
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: currentYear - 2022 }, (_, i) => 2023 + i);
+
+  useEffect(() => {
+    if (currentDat) {
+      setSelectedMonth(currentDat.month);
+      setSelectedYear(currentDat.year);
+    }
+  }, [currentDat]);
+
+  const handleLoadPeriod = () => {
+    const formatted = `${MONTHS[selectedMonth - 1]} ${selectedYear}`;
+    setCurrentDat({
+      month: selectedMonth,
+      year: selectedYear,
+      formatted
+    });
+    showToast(`Loaded data for ${formatted}`);
+  };
 
   const activeTab = historyTab as HistoryTab;
   const setActiveTab = (tab: HistoryTab) => setHistoryTab(tab);
@@ -76,6 +99,165 @@ export function HistoryModal() {
       });
       showToast(`Switched to ${period}`);
     }
+  };
+
+  const handleExportSLP = () => {
+    if (!purchases.length || !currentDat || !currentClient) return;
+
+    const workbook = XLSX.utils.book_new();
+    
+    // Header Info as shown in image
+    const headerRows = [
+      ['PURCHASE TRANSACTION'],
+      ['RECONCILIATION OF LISTING FOR ENFORCEMENT'],
+      [''],
+      [`TIN : ${currentClient.tin || ''}`],
+      [`OWNER'S NAME : ${currentClient.proprietor || currentClient.name}`],
+      [`OWNER'S TRADE NAME : ${currentClient.name}`],
+      [`OWNER'S ADDRESS : ${currentClient.address || ''}`],
+      [''],
+      [
+        '(1) TAXABLE MONTH', 
+        '(2) TAXPAYER IDENTIFICATION NUMBER', 
+        '(3) REGISTERED NAME', 
+        '(4) NAME OF SUPPLIER (Last Name, First Name, Middle Name)', 
+        '(5) SUPPLIER\'S ADDRESS', 
+        '(6) AMOUNT OF GROSS PURCHASE', 
+        '(7) AMOUNT OF EXEMPT PURCHASE', 
+        '(8) AMOUNT OF ZERO-RATED PURCHASE', 
+        '(9) AMOUNT OF TAXABLE PURCHASE', 
+        '(10) AMOUNT OF PURCHASE OF SERVICES', 
+        '(11) AMOUNT OF PURCHASE OF CAPITAL GOODS', 
+        '(12) AMOUNT OF PURCHASE OF GOODS OTHER THAN CAPITAL GOODS', 
+        '(13) AMOUNT OF INPUT TAX', 
+        '(14) AMOUNT OF GROSS TAXABLE PURCHASE'
+      ]
+    ];
+    
+    const dataRows = purchases.map(p => {
+      const isVat = p.vatType === 'vat';
+      const isNonVat = p.vatType === 'non-vat';
+      const isZeroRated = p.vatType === 'zero-rated';
+      const isServices = p.expenseType === 'Services';
+      const isCapital = p.expenseType === 'Capital Goods';
+      const isOthers = p.expenseType === 'Others';
+      const grossTotal = p.amount + (p.inputTax || 0);
+      
+      const monthStr = p.date.split('/')[0] + '/' + p.date.split('/')[1] + '/' + p.date.split('/')[2];
+      
+      return [
+        monthStr,
+        p.supplierTin,
+        '',
+        p.supplierName,
+        p.supplierAddress,
+        grossTotal,
+        isNonVat ? p.amount : 0,
+        isZeroRated ? p.amount : 0,
+        isVat ? p.amount : 0,
+        (isVat && isServices) ? p.amount : 0,
+        (isVat && isCapital) ? p.amount : 0,
+        (isVat && isOthers) ? p.amount : 0,
+        p.inputTax || 0,
+        isVat ? grossTotal : 0
+      ];
+    });
+
+    const totalRow = [
+      'Grand Total :', '', '', '', '',
+      purchases.reduce((s, p) => s + p.amount + (p.inputTax || 0), 0),
+      purchases.filter(p => p.vatType === 'non-vat').reduce((s, p) => s + p.amount, 0),
+      purchases.filter(p => p.vatType === 'zero-rated').reduce((s, p) => s + p.amount, 0),
+      purchases.filter(p => p.vatType === 'vat').reduce((s, p) => s + p.amount, 0),
+      purchases.filter(p => p.vatType === 'vat' && p.expenseType === 'Services').reduce((s, p) => s + p.amount, 0),
+      purchases.filter(p => p.vatType === 'vat' && p.expenseType === 'Capital Goods').reduce((s, p) => s + p.amount, 0),
+      purchases.filter(p => p.vatType === 'vat' && p.expenseType === 'Others').reduce((s, p) => s + p.amount, 0),
+      purchases.reduce((s, p) => s + (p.inputTax || 0), 0),
+      purchases.filter(p => p.vatType === 'vat').reduce((s, p) => s + p.amount + (p.inputTax || 0), 0)
+    ];
+
+    const finalData = [...headerRows, ...dataRows, totalRow, [''], ['END OF REPORT']];
+    const worksheet = XLSX.utils.aoa_to_sheet(finalData);
+    
+    // Set column widths for better readability
+    worksheet['!cols'] = [
+      { wch: 15 }, { wch: 20 }, { wch: 30 }, { wch: 40 }, { wch: 40 },
+      { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 },
+      { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }
+    ];
+
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'SLP');
+    XLSX.writeFile(workbook, `SLP_${currentDat.formatted.replace(' ', '_')}.xlsx`);
+  };
+
+  const handleExportSLS = () => {
+    if (!sales.length || !currentDat || !currentClient) return;
+
+    const workbook = XLSX.utils.book_new();
+    
+    const headerRows = [
+      ['SALES TRANSACTION'],
+      ['RECONCILIATION OF LISTING FOR ENFORCEMENT'],
+      [''],
+      [`TIN : ${currentClient.tin || ''}`],
+      [`OWNER'S NAME : ${currentClient.proprietor || currentClient.name}`],
+      [`OWNER'S TRADE NAME : ${currentClient.name}`],
+      [`OWNER'S ADDRESS : ${currentClient.address || ''}`],
+      [''],
+      [
+        '(1) TAXABLE MONTH',
+        '(2) TAXPAYER IDENTIFICATION NUMBER',
+        '(3) REGISTERED NAME',
+        '(4) NAME OF CUSTOMER',
+        '(5) CUSTOMER ADDRESS',
+        '(6) AMOUNT OF GROSS SALES',
+        '(7) AMOUNT OF EXEMPT SALES',
+        '(8) AMOUNT OF ZERO-RATED SALES',
+        '(9) AMOUNT OF TAXABLE SALES',
+        '(10) AMOUNT OF OUTPUT TAX',
+        '(11) AMOUNT OF GROSS TAXABLE SALES'
+      ]
+    ];
+    
+    const dataRows = sales.map(s => {
+      const outputTax = s.amount * 0.12; 
+      const grossTotal = s.amount + outputTax;
+      
+      return [
+        s.date,
+        s.buyerTin || '',
+        '',
+        s.buyerName || s.customerName,
+        s.buyerAddress || s.customerAddress || '',
+        grossTotal,
+        0,
+        0,
+        s.amount,
+        outputTax,
+        grossTotal
+      ];
+    });
+
+    const totalRow = [
+      'Grand Total :', '', '', '', '',
+      sales.reduce((sum, s) => sum + s.amount + (s.amount * 0.12), 0),
+      0,
+      0,
+      sales.reduce((sum, s) => sum + s.amount, 0),
+      sales.reduce((sum, s) => sum + (s.amount * 0.12), 0),
+      sales.reduce((sum, s) => sum + s.amount + (s.amount * 0.12), 0)
+    ];
+
+    const finalData = [...headerRows, ...dataRows, totalRow, [''], ['END OF REPORT']];
+    const worksheet = XLSX.utils.aoa_to_sheet(finalData);
+    
+    worksheet['!cols'] = [
+      { wch: 15 }, { wch: 20 }, { wch: 30 }, { wch: 40 }, { wch: 40 },
+      { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }
+    ];
+
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'SLS');
+    XLSX.writeFile(workbook, `SLS_${currentDat.formatted.replace(' ', '_')}.xlsx`);
   };
 
   return (
@@ -240,18 +422,43 @@ export function HistoryModal() {
                     <FolderClock className="w-4 h-4 text-cyan-500" />
                     Summary List of Purchases (SLP)
                   </h3>
-                  {currentDat && (
-                    <span className="text-[10px] font-bold text-cyan-600 bg-cyan-50 px-2 py-0.5 rounded-full uppercase border border-cyan-100">
-                      {currentDat.formatted}
-                    </span>
+                  <div className="flex items-center gap-2">
+                    <select 
+                      value={selectedMonth} 
+                      onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+                      className="text-[11px] font-bold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-cyan-500/50 min-w-[100px]"
+                    >
+                      {MONTHS.map((m, idx) => (
+                        <option key={m} value={idx + 1}>{m}</option>
+                      ))}
+                    </select>
+                    <select 
+                      value={selectedYear} 
+                      onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                      className="text-[11px] font-bold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                    >
+                      {years.map(y => (
+                        <option key={y} value={y}>{y}</option>
+                      ))}
+                    </select>
+                    <button 
+                      onClick={handleLoadPeriod}
+                      className="px-3 py-1.5 text-[11px] font-bold bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+                    >
+                      Load
+                    </button>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {purchases.length > 0 && (
+                    <button 
+                      onClick={handleExportSLP}
+                      className="px-3 py-1.5 text-xs font-bold bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 transition-colors flex items-center gap-2"
+                    >
+                      <FileSpreadsheet className="w-3 h-3" /> Export Excel
+                    </button>
                   )}
                 </div>
-                <button 
-                  onClick={() => openModal('dat')}
-                  className="px-3 py-1.5 text-xs font-bold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
-                >
-                  Change Period
-                </button>
               </div>
 
               {!currentDat ? (
@@ -277,20 +484,20 @@ export function HistoryModal() {
                   <table className="w-full text-[10px] text-left border-collapse min-w-[1500px]">
                     <thead>
                       <tr className="bg-slate-100 dark:bg-slate-800/80 text-slate-500 font-bold uppercase tracking-tighter border-b border-slate-200 dark:border-slate-700">
-                        <th className="px-2 py-3 border-r border-slate-200 dark:border-slate-700 text-center sticky left-0 bg-slate-100 dark:bg-slate-800 z-10">Month</th>
-                        <th className="px-2 py-3 border-r border-slate-200 dark:border-slate-700 text-center">Taxpayer TIN</th>
-                        <th className="px-2 py-3 border-r border-slate-200 dark:border-slate-700">Registered Name</th>
-                        <th className="px-2 py-3 border-r border-slate-200 dark:border-slate-700">Name of Supplier</th>
-                        <th className="px-2 py-3 border-r border-slate-200 dark:border-slate-700">Supplier Address</th>
-                        <th className="px-2 py-3 border-r border-slate-200 dark:border-slate-700 text-right">Gross Purchase</th>
-                        <th className="px-2 py-3 border-r border-slate-200 dark:border-slate-700 text-right">Exempt Purchase</th>
-                        <th className="px-2 py-3 border-r border-slate-200 dark:border-slate-700 text-right">Zero-Rated Purchase</th>
-                        <th className="px-2 py-3 border-r border-slate-200 dark:border-slate-700 text-right">Taxable Purchase</th>
-                        <th className="px-2 py-3 border-r border-slate-200 dark:border-slate-700 text-right">Purchase Services</th>
-                        <th className="px-2 py-3 border-r border-slate-200 dark:border-slate-700 text-right">Capital Goods</th>
-                        <th className="px-2 py-3 border-r border-slate-200 dark:border-slate-700 text-right">Goods Others</th>
-                        <th className="px-2 py-3 border-r border-slate-200 dark:border-slate-700 text-right">Input Tax</th>
-                        <th className="px-2 py-3 text-right">Gross Taxable</th>
+                        <th className="px-2 py-3 border-r border-slate-200 dark:border-slate-700 text-center sticky left-0 bg-slate-100 dark:bg-slate-800 z-10 leading-tight">TAXABLE<br/>MONTH</th>
+                        <th className="px-2 py-3 border-r border-slate-200 dark:border-slate-700 text-center leading-tight">TAXPAYER<br/>IDENTIFICATION<br/>NUMBER</th>
+                        <th className="px-2 py-3 border-r border-slate-200 dark:border-slate-700 leading-tight">REGISTERED NAME</th>
+                        <th className="px-2 py-3 border-r border-slate-200 dark:border-slate-700 leading-tight">NAME OF SUPPLIER<br/>(Last Name, First Name, Middle Name)</th>
+                        <th className="px-2 py-3 border-r border-slate-200 dark:border-slate-700 leading-tight">SUPPLIER'S ADDRESS</th>
+                        <th className="px-2 py-3 border-r border-slate-200 dark:border-slate-700 text-right leading-tight">AMOUNT OF<br/>GROSS PURCHASE</th>
+                        <th className="px-2 py-3 border-r border-slate-200 dark:border-slate-700 text-right leading-tight">AMOUNT OF<br/>EXEMPT PURCHASE</th>
+                        <th className="px-2 py-3 border-r border-slate-200 dark:border-slate-700 text-right leading-tight">AMOUNT OF<br/>ZERO-RATED PURCHASE</th>
+                        <th className="px-2 py-3 border-r border-slate-200 dark:border-slate-700 text-right leading-tight">AMOUNT OF<br/>TAXABLE PURCHASE</th>
+                        <th className="px-2 py-3 border-r border-slate-200 dark:border-slate-700 text-right leading-tight">AMOUNT OF<br/>PURCHASE OF SERVICES</th>
+                        <th className="px-2 py-3 border-r border-slate-200 dark:border-slate-700 text-right leading-tight">AMOUNT OF<br/>PURCHASE OF CAPITAL GOODS</th>
+                        <th className="px-2 py-3 border-r border-slate-200 dark:border-slate-700 text-right leading-tight">AMOUNT OF PURCHASE OF GOODS<br/>OTHER THAN CAPITAL GOODS</th>
+                        <th className="px-2 py-3 border-r border-slate-200 dark:border-slate-700 text-right leading-tight">AMOUNT OF<br/>INPUT TAX</th>
+                        <th className="px-2 py-3 text-right leading-tight">AMOUNT OF<br/>GROSS TAXABLE PURCHASE</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -387,18 +594,43 @@ export function HistoryModal() {
                     <FolderClock className="w-4 h-4 text-indigo-500" />
                     Summary List of Sales (SLS)
                   </h3>
-                  {currentDat && (
-                    <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full uppercase border border-indigo-100">
-                      {currentDat.formatted}
-                    </span>
+                  <div className="flex items-center gap-2">
+                    <select 
+                      value={selectedMonth} 
+                      onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+                      className="text-[11px] font-bold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 min-w-[100px]"
+                    >
+                      {MONTHS.map((m, idx) => (
+                        <option key={m} value={idx + 1}>{m}</option>
+                      ))}
+                    </select>
+                    <select 
+                      value={selectedYear} 
+                      onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                      className="text-[11px] font-bold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
+                    >
+                      {years.map(y => (
+                        <option key={y} value={y}>{y}</option>
+                      ))}
+                    </select>
+                    <button 
+                      onClick={handleLoadPeriod}
+                      className="px-3 py-1.5 text-[11px] font-bold bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+                    >
+                      Load
+                    </button>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {sales.length > 0 && (
+                    <button 
+                      onClick={handleExportSLS}
+                      className="px-3 py-1.5 text-xs font-bold bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2"
+                    >
+                      <FileSpreadsheet className="w-3 h-3" /> Export Excel
+                    </button>
                   )}
                 </div>
-                <button 
-                  onClick={() => openModal('dat')}
-                  className="px-3 py-1.5 text-xs font-bold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
-                >
-                  Change Period
-                </button>
               </div>
 
               {!currentDat ? (
