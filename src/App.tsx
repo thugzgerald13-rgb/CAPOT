@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { Dashboard } from './components/Dashboard';
@@ -23,16 +23,31 @@ import { AuthContainer } from './components/AuthContainer';
 
 function AppLayout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const { toastMsg } = useAccounting();
+  const { toastMsg, clients, openModal } = useAccounting();
+
+  const hasClients = Object.keys(clients).length > 0;
 
   return (
-    <div className="flex h-screen bg-slate-50 dark:bg-slate-900 overflow-hidden font-sans">
+    <div className="flex h-screen bg-slate-50 dark:bg-slate-900 justify-center overflow-hidden font-sans">
       <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
       
       <main className="flex-1 flex flex-col h-screen overflow-y-auto w-full relative">
         <div className="p-4 md:p-8 max-w-[1400px] mx-auto w-full">
           <Header onMenuClick={() => setIsSidebarOpen(true)} />
-          <Dashboard />
+          {hasClients ? (
+            <Dashboard />
+          ) : (
+            <div className="flex flex-col items-center justify-center py-20 px-4 text-center bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm mt-8">
+              <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-2">Welcome to your workspace</h2>
+              <p className="text-slate-500 dark:text-slate-400 max-w-md mb-8">Let's get started by creating your first client profile to begin tracking transactions and generating reports.</p>
+              <button 
+                 onClick={() => openModal('clients')}
+                 className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold shadow-lg shadow-blue-500/30 transition-all"
+              >
+                Create Client Profile
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Global Toast */}
@@ -69,8 +84,20 @@ function AppLayout() {
   );
 }
 
+import { RoleSelection } from './components/RoleSelection';
+
 function MainApp() {
   const { user, loading } = useAuth();
+  const [role, setRole] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (user) {
+      const savedRole = localStorage.getItem(`user_role_${user.uid}`);
+      if (savedRole) {
+        setRole(savedRole);
+      }
+    }
+  }, [user]);
 
   if (loading) {
     return (
@@ -82,6 +109,15 @@ function MainApp() {
 
   if (!user) {
     return <AuthContainer />;
+  }
+
+  const handleRoleSelect = (selectedRole: string) => {
+    localStorage.setItem(`user_role_${user.uid}`, selectedRole);
+    setRole(selectedRole);
+  };
+
+  if (!role && user) {
+    return <RoleSelection onSelect={handleRoleSelect} />;
   }
 
   return (

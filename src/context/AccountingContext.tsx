@@ -26,19 +26,7 @@ interface AccountingContextType {
 
 const AccountingContext = createContext<AccountingContextType | undefined>(undefined);
 
-const DEFAULT_DATA: Record<string, Client> = {
-  'client_default': {
-    id: 'client_default',
-    name: 'Sample Company',
-    tinLibrary: {
-      customers: [{ id: 1, tin: '123-456-789', name: 'ABC Corp' }],
-      suppliers: [{ id: 1, tin: '111-222-333', name: 'Wholesale Inc.', address: '123 Trade St.' }]
-    },
-    sales: [],
-    purchases: [],
-    expenses: []
-  }
-};
+const DEFAULT_DATA: Record<string, Client> = {};
 
 export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [clients, setClients] = useState<Record<string, Client>>({});
