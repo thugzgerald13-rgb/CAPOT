@@ -1,4 +1,4 @@
-import { Menu, Moon, Sun, LogOut } from 'lucide-react';
+import { Menu, Moon, Sun, LogOut, Shield } from 'lucide-react';
 import { useAccounting } from '../context/AccountingContext';
 import { useAuth } from '../context/AuthContext';
 
@@ -8,7 +8,7 @@ interface HeaderProps {
 
 export function Header({ onMenuClick }: HeaderProps) {
   const { currentClient, isDarkMode, setDarkMode } = useAccounting();
-  const { user, signOut } = useAuth();
+  const { user, isAdmin, signOut } = useAuth();
 
   return (
     <div className="bg-gradient-to-br from-blue-700 object-cover to-blue-900 text-white rounded-2xl p-5 md:p-6 mb-6 shadow-lg border-l-4 border-yellow-400 flex flex-col gap-3">
@@ -33,8 +33,13 @@ export function Header({ onMenuClick }: HeaderProps) {
 
         <div className="flex items-center gap-2">
           {user && (
-            <div className="hidden sm:flex text-sm text-blue-200 mr-2 items-center">
+            <div className="hidden sm:flex text-sm text-blue-200 mr-2 items-center gap-2">
               <span className="truncate max-w-[150px]">{user.email}</span>
+              {isAdmin && (
+                 <span className="bg-emerald-500/20 text-emerald-200 border border-emerald-500/30 px-2 py-0.5 rounded-md flex items-center gap-1 text-xs font-bold">
+                   <Shield className="w-3 h-3" /> Developer
+                 </span>
+              )}
             </div>
           )}
           <button
@@ -59,3 +64,4 @@ export function Header({ onMenuClick }: HeaderProps) {
     </div>
   );
 }
+

@@ -5,12 +5,14 @@ import { auth } from '../lib/firebase';
 interface AuthContextType {
   user: User | null;
   loading: boolean;
+  isAdmin: boolean;
   signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
+  isAdmin: false,
   signOut: async () => {},
 });
 
@@ -19,6 +21,11 @@ export const useAuth = () => useContext(AuthContext);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Hardcode the developer's email as superuser for now, 
+  // until complete migration to firestore users collection happens.
+  const DEVELOPER_EMAIL = 'thugz.gerald13@gmail.com';
+  const isAdmin = user?.email === DEVELOPER_EMAIL;
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (usr) => {
@@ -33,7 +40,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signOut }}>
+    <AuthContext.Provider value={{ user, loading, isAdmin, signOut }}>
       {children}
     </AuthContext.Provider>
   );

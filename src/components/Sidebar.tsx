@@ -2,11 +2,12 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import { useAccounting } from '../context/AccountingContext';
+import { useAuth } from '../context/AuthContext';
 import { 
   Users, Building2, BookText, BookOpen, 
   LineChart, Scale, Receipt, ShoppingCart, 
   TrendingUp, FileText, Library, Lightbulb, FolderClock, History,
-  ChevronDown, LayoutGrid, Settings, Key, Banknote, Wallet, CreditCard
+  ChevronDown, LayoutGrid, Settings, Key, Banknote, Wallet, CreditCard, ShieldAlert
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -16,11 +17,13 @@ interface SidebarProps {
 
 export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
   const { openModal, currentDat, setHistoryTab, setPendingModal } = useAccounting();
+  const { isAdmin } = useAuth();
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isReportsOpen, setIsReportsOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isBooksOpen, setIsBooksOpen] = useState(false);
   const [isDatHistoryOpen, setIsDatHistoryOpen] = useState(false);
+  const [isDevOpen, setIsDevOpen] = useState(false);
 
   const handleNavClick = (modalId: string, historyType?: string) => {
     if (historyType) {
@@ -336,6 +339,55 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
               )}
             </AnimatePresence>
           </div>
+
+          {/* Developer Tools Dropdown for Admin */}
+          {isAdmin && (
+            <div className="flex flex-col mt-4 pt-4 border-t border-slate-200 dark:border-slate-800">
+              <button
+                onClick={() => setIsDevOpen(!isDevOpen)}
+                className={cn(
+                  "flex items-center justify-between px-4 py-3 text-sm font-medium rounded-xl transition-all w-full text-left group",
+                  isDevOpen ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400" : "text-emerald-600 dark:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/10"
+                )}
+              >
+                <div className="flex items-center gap-3">
+                  <ShieldAlert className="w-5 h-5 opacity-70 group-hover:opacity-100 transition-opacity" />
+                  <span>Developer Tools</span>
+                </div>
+                <ChevronDown className={cn("w-4 h-4 transition-transform duration-300", isDevOpen ? "rotate-180" : "")} />
+              </button>
+
+              <AnimatePresence>
+                {isDevOpen && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="overflow-hidden flex flex-col gap-1 mt-1 pl-4"
+                  >
+                    <button
+                      onClick={() => handleNavClick('admin-settings')}
+                      className="flex items-center gap-3 px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 rounded-lg hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-900/20 dark:hover:text-emerald-400 transition-all w-full text-left"
+                    >
+                      <Settings className="w-4 h-4" />
+                      System Config
+                    </button>
+                    <button
+                      onClick={() => {
+                        console.log("Firebase config/diagnostics or extra dev options will go here.");
+                      }}
+                      className="flex items-center gap-3 px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 rounded-lg hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-900/20 dark:hover:text-emerald-400 transition-all w-full text-left"
+                    >
+                      <LineChart className="w-4 h-4" />
+                      Diagnostics
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          )}
+
         </div>
       </div>
     </>
