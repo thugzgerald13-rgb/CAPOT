@@ -41,7 +41,11 @@ export function AuthContainer() {
       await signInWithPopup(auth, provider);
     } catch (err) {
       if (err instanceof Error) {
-        setError(err.message);
+        if (err.message.includes('auth/unauthorized-domain')) {
+          setError('This domain is not authorized. Please add "' + window.location.hostname + '" to your Firebase Console > Authentication > Settings > Authorized domains.');
+        } else {
+          setError(err.message);
+        }
       } else {
         setError('An unexpected error occurred.');
       }
