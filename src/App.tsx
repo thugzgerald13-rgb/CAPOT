@@ -10,6 +10,11 @@ import { DatModal } from './components/modals/DatModal';
 import { TinLibraryModal } from './components/modals/TinLibraryModal';
 import { HistoryModal } from './components/modals/HistoryModal';
 import { ChartOfAccountsModal } from './components/modals/ChartOfAccountsModal';
+import { CashReceiptsJournalModal } from './components/modals/CashReceiptsJournalModal';
+import { CashDisbursementsJournalModal } from './components/modals/CashDisbursementsJournalModal';
+import { PurchasesJournalModal } from './components/modals/PurchasesJournalModal';
+import { GeneralJournalModal } from './components/modals/GeneralJournalModal';
+import { GeneralLedgerModal } from './components/modals/GeneralLedgerModal';
 import { ExtraModals } from './components/modals/ExtraModals';
 
 function AppLayout() {
@@ -47,6 +52,11 @@ function AppLayout() {
         <TinLibraryModal />
         <HistoryModal />
         <ChartOfAccountsModal />
+        <CashReceiptsJournalModal />
+        <CashDisbursementsJournalModal />
+        <PurchasesJournalModal />
+        <GeneralJournalModal />
+        <GeneralLedgerModal />
         <ExtraModals />
       </main>
     </div>

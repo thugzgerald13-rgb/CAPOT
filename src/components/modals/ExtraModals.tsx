@@ -459,12 +459,6 @@ export function ExtraModals() {
       </Modal>
 
       {/* Placeholders for deep accounting features that were blank in the original HTML */}
-      <Modal id="journal" title="Journal Entry" icon={<BookText />}>
-         <p className="text-center p-8 text-slate-500">General Journal module coming soon. Create manual double-entry records.</p>
-      </Modal>
-      <Modal id="ledger" title="General Ledger" icon={<LineChart />}>
-         <p className="text-center p-8 text-slate-500">General Ledger sync mechanism coming soon.</p>
-      </Modal>
       <Modal id="trialbalance" title="Trial Balance" icon={<Scale />}>
          <p className="text-center p-8 text-slate-500">Trial Balance computation based on Journal and Ledger.</p>
          <div className="bg-slate-100 dark:bg-slate-800 p-4 rounded-xl text-center font-mono">
@@ -480,33 +474,6 @@ export function ExtraModals() {
             <div className="mt-6 p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-100 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 font-bold">
                Total Sales recorded: ₱{salesTotal.toLocaleString()}
             </div>
-         </div>
-      </Modal>
-
-      <Modal id="purchase-journal" title="Purchase Journal" icon={<ShoppingCart className="text-amber-500" />}>
-         <div className="p-8 text-center text-slate-500">
-            <ShoppingCart className="w-12 h-12 mx-auto mb-4 opacity-20" />
-            <h3 className="text-lg font-bold text-slate-700 dark:text-slate-300 mb-2">Purchase Journal</h3>
-            <p className="text-sm">Detailed log of all purchases on credit and cash.</p>
-            <div className="mt-6 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-100 dark:border-amber-800 text-amber-700 dark:text-amber-400 font-bold">
-               Total Purchases recorded: ₱{purchasesTotal.toLocaleString()}
-            </div>
-         </div>
-      </Modal>
-
-      <Modal id="cash-disbursement" title="Cash Disbursement Book" icon={<CreditCard className="text-red-500" />}>
-         <div className="p-8 text-center text-slate-500">
-            <Banknote className="w-12 h-12 mx-auto mb-4 opacity-20" />
-            <h3 className="text-lg font-bold text-slate-700 dark:text-slate-300 mb-2">Cash Disbursement Book</h3>
-            <p className="text-sm">Recording all cash outflows and expenses paid.</p>
-         </div>
-      </Modal>
-
-      <Modal id="cash-receipt" title="Cash Receipt Journal" icon={<Wallet className="text-indigo-500" />}>
-         <div className="p-8 text-center text-slate-500">
-            <Wallet className="w-12 h-12 mx-auto mb-4 opacity-20" />
-            <h3 className="text-lg font-bold text-slate-700 dark:text-slate-300 mb-2">Cash Receipt Journal</h3>
-            <p className="text-sm">Recording all cash inflows and collections from customers.</p>
          </div>
       </Modal>
     </>

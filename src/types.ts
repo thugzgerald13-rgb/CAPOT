@@ -77,7 +77,50 @@ export interface Client {
   purchases: Purchase[];
   expenses: Expense[];
   accounts?: CoaAccount[];
+  crjColumns?: JournalColumn[];
+  crjEntries?: JournalEntry[];
+  cdjColumns?: JournalColumn[];
+  cdjEntries?: JournalEntry[];
+  pjColumns?: JournalColumn[];
+  pjEntries?: JournalEntry[];
+  gjColumns?: JournalColumn[];
+  gjEntries?: JournalEntry[];
+  glAccounts?: GeneralLedgerAccount[];
 }
+
+export interface GeneralLedgerEntry {
+  id: string;
+  dateDr: string;
+  particularsDr: string;
+  refDr: string;
+  debit: string;
+  dateCr: string;
+  particularsCr: string;
+  refCr: string;
+  credit: string;
+}
+
+export interface GeneralLedgerAccount {
+  id: string;
+  accountTitle: string;
+  entries: GeneralLedgerEntry[];
+}
+
+export interface JournalColumn {
+  id: string;
+  name: string;
+  type: 'text' | 'number';
+  category: 'Dr' | 'Cr' | 'None';
+  isSystem: boolean; // if true, not deletable
+}
+
+export interface JournalEntry {
+  id: string;
+  values: Record<string, any>;
+}
+
+export type CashReceipt = JournalEntry;
+export type CashDisbursement = JournalEntry;
 
 export interface DatSelection {
   month: number;
