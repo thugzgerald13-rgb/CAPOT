@@ -87,17 +87,7 @@ function AppLayout() {
 import { RoleSelection } from './components/RoleSelection';
 
 function MainApp() {
-  const { user, loading } = useAuth();
-  const [role, setRole] = useState<string | null>(null);
-
-  React.useEffect(() => {
-    if (user) {
-      const savedRole = localStorage.getItem(`user_role_${user.uid}`);
-      if (savedRole) {
-        setRole(savedRole);
-      }
-    }
-  }, [user]);
+  const { user, loading, userRole, setUserRole } = useAuth();
 
   if (loading) {
     return (
@@ -112,11 +102,10 @@ function MainApp() {
   }
 
   const handleRoleSelect = (selectedRole: string) => {
-    localStorage.setItem(`user_role_${user.uid}`, selectedRole);
-    setRole(selectedRole);
+    setUserRole(selectedRole);
   };
 
-  if (!role && user) {
+  if (!userRole && user) {
     return <RoleSelection onSelect={handleRoleSelect} />;
   }
 

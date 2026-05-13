@@ -6,7 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 
 export function AdminSettingsModal() {
   const { currentClient } = useAccounting();
-  const { isAdmin } = useAuth();
+  const { isAdmin, userRole, setUserRole } = useAuth();
   
   if (!isAdmin) return null;
 
@@ -16,9 +16,23 @@ export function AdminSettingsModal() {
         <h3 className="text-lg font-bold mb-4 text-slate-800 dark:text-slate-100">Superuser Dashboard</h3>
         
         <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl p-4 mb-6">
-          <p className="text-sm text-emerald-800 dark:text-emerald-300 font-medium">
-            You are logged in as the primary developer. Soon, this panel will allow you to manage global users, configure Firebase database rules, view global usage limits, and monitor system health.
+          <p className="text-sm text-emerald-800 dark:text-emerald-300 font-medium mb-4">
+            You are logged in as the primary developer.
           </p>
+          
+          <div className="flex items-center gap-4">
+            <label className="text-sm font-bold text-emerald-900 dark:text-emerald-100">
+              Simulate Role:
+            </label>
+            <select 
+              value={userRole || ''} 
+              onChange={(e) => setUserRole(e.target.value)}
+              className="bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-700 text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            >
+              <option value="owner">Business Owner</option>
+              <option value="accountant">Accountant / Bookkeeper</option>
+            </select>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
