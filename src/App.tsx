@@ -9,6 +9,7 @@ import { PurchasesModal } from './components/modals/PurchasesModal';
 import { DatModal } from './components/modals/DatModal';
 import { TinLibraryModal } from './components/modals/TinLibraryModal';
 import { HistoryModal } from './components/modals/HistoryModal';
+import { ChartOfAccountsModal } from './components/modals/ChartOfAccountsModal';
 import { ExtraModals } from './components/modals/ExtraModals';
 
 function AppLayout() {
@@ -45,6 +46,7 @@ function AppLayout() {
         <PurchasesModal />
         <TinLibraryModal />
         <HistoryModal />
+        <ChartOfAccountsModal />
         <ExtraModals />
       </main>
     </div>

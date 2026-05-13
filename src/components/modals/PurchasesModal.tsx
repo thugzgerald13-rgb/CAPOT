@@ -92,7 +92,7 @@ export function PurchasesModal() {
       setSupplierAddress(p.supplierAddress || '');
       
       const gross = p.vatType === 'vat' ? (p.amount + (p.inputTax || 0)) : p.amount;
-      setAmount(gross.toFixed(2));
+      setAmount(gross.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
       setVatType(p.vatType);
       setExpenseType(p.expenseType);
       setAccountTitle(p.accountTitle);
@@ -118,7 +118,7 @@ export function PurchasesModal() {
 
   // Re-compute input tax and net amount on amount or vat type change
   useEffect(() => {
-    const num = parseFloat(amount) || 0;
+    const num = parseFloat(String(amount).replace(/,/g, '')) || 0;
     if (vatType === 'vat') {
       const net = num / 1.12;
       setNetAmount(net);
@@ -168,8 +168,10 @@ export function PurchasesModal() {
 
   const handleAddPurchase = () => {
     if (!currentClient || !currentClientId || !currentDat) return;
-    if (!date || !invoiceNo || !supplierTin || !supplierName || !amount) {
-      alert('Please fill out all required fields.');
+    
+    const parsedAmount = parseFloat(String(amount).replace(/,/g, ''));
+    if (!date || !invoiceNo || !supplierTin || !supplierName || !amount || isNaN(parsedAmount)) {
+      alert('Please fill out all required fields with valid values.');
       return;
     }
     if (dateWarning) {
@@ -388,7 +390,24 @@ export function PurchasesModal() {
 
         <div>
           <label className="form-label text-red-500">Gross Amount (₱) *</label>
-          <input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" className="form-input font-bold text-amber-900 border-amber-300 dark:bg-amber-900/20 dark:text-amber-100" />
+          <input 
+            type="text" 
+            value={amount} 
+            onChange={e => {
+              const val = e.target.value;
+              if (/^[0-9.,]*$/.test(val)) {
+                setAmount(val);
+              }
+            }} 
+            onBlur={e => {
+              const raw = e.target.value.replace(/,/g, '');
+              if (raw && !isNaN(parseFloat(raw))) {
+                setAmount(parseFloat(raw).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+              }
+            }}
+            placeholder="0.00" 
+            className="form-input font-bold text-amber-900 border-amber-300 dark:bg-amber-900/20 dark:text-amber-100" 
+          />
         </div>
 
         <div>

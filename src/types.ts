@@ -43,6 +43,13 @@ export interface Expense {
   description: string;
 }
 
+export interface CoaAccount {
+  id: string;
+  name: string;
+  type: string;
+  parentId?: string;
+}
+
 export interface Client {
   id: string;
   name: string; // Display name
@@ -69,6 +76,7 @@ export interface Client {
   sales: Sale[];
   purchases: Purchase[];
   expenses: Expense[];
+  accounts?: CoaAccount[];
 }
 
 export interface DatSelection {

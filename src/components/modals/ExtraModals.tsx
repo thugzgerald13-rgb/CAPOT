@@ -459,9 +459,6 @@ export function ExtraModals() {
       </Modal>
 
       {/* Placeholders for deep accounting features that were blank in the original HTML */}
-      <Modal id="coa" title="Chart of Accounts" icon={<BookOpen />}>
-         <p className="text-center p-8 text-slate-500">Standard COA integration coming soon. This module manages ledger accounts.</p>
-      </Modal>
       <Modal id="journal" title="Journal Entry" icon={<BookText />}>
          <p className="text-center p-8 text-slate-500">General Journal module coming soon. Create manual double-entry records.</p>
       </Modal>
