@@ -17,7 +17,7 @@ interface SidebarProps {
 
 export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
   const { openModal, currentDat, setHistoryTab, setPendingModal } = useAccounting();
-  const { isAdmin } = useAuth();
+  const { isAdmin, userRole } = useAuth();
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isReportsOpen, setIsReportsOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -319,7 +319,7 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
                     className="flex items-center gap-3 px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 rounded-lg hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-slate-200 transition-all w-full text-left"
                   >
                     <Users className="w-4 h-4" />
-                    Client Profiles
+                    {userRole === 'owner' ? 'Business Profiles' : 'Client Profiles'}
                   </button>
                   <button
                     onClick={() => handleNavClick('tinlibrary')}

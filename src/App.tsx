@@ -24,6 +24,7 @@ import { AuthContainer } from './components/AuthContainer';
 function AppLayout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { toastMsg, clients, openModal } = useAccounting();
+  const { userRole } = useAuth();
 
   const hasClients = Object.keys(clients).length > 0;
 
@@ -39,12 +40,12 @@ function AppLayout() {
           ) : (
             <div className="flex flex-col items-center justify-center py-20 px-4 text-center bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm mt-8">
               <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-2">Welcome to your workspace</h2>
-              <p className="text-slate-500 dark:text-slate-400 max-w-md mb-8">Let's get started by creating your first client profile to begin tracking transactions and generating reports.</p>
+              <p className="text-slate-500 dark:text-slate-400 max-w-md mb-8">Let's get started by creating your first {userRole === 'owner' ? 'business' : 'client'} profile to begin tracking transactions and generating reports.</p>
               <button 
                  onClick={() => openModal('clients')}
                  className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold shadow-lg shadow-blue-500/30 transition-all"
               >
-                Create Client Profile
+                {userRole === 'owner' ? 'Create Business Profile' : 'Create Client Profile'}
               </button>
             </div>
           )}

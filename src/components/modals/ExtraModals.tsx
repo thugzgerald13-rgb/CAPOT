@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
 import { useAccounting } from '../../context/AccountingContext';
+import { useAuth } from '../../context/AuthContext';
 import { Users, TrendingUp, Key, Lightbulb, BookOpen, BookText, LineChart, Scale, Plus, Building2, Save, X, RotateCcw, Library, FileText, Receipt, ShoppingCart, Banknote, Wallet, CreditCard } from 'lucide-react';
 import { Client } from '../../types';
 import { RDO_CODES } from '../../lib/utils';
 
 export function ExtraModals() {
   const { clients, currentClientId, setCurrentClientId, addClient, openModal, currentClient, saveClient } = useAccounting();
+  const { userRole } = useAuth();
   const [newClientName, setNewClientName] = useState('');
   const [editingClient, setEditingClient] = useState<Client | null>(null);
 
@@ -36,7 +38,7 @@ export function ExtraModals() {
   
   return (
     <>
-      <Modal id="clients" title="Client Profiles" icon={<Users className="text-blue-500" />}>
+      <Modal id="clients" title={userRole === 'owner' ? "Business Profiles" : "Client Profiles"} icon={<Users className="text-blue-500" />}>
         {editingClient ? (
           <div className="bg-slate-100 dark:bg-slate-900 -m-6 p-6 h-full min-h-[600px] flex flex-col font-sans">
             {/* Form Header */}
@@ -305,7 +307,7 @@ export function ExtraModals() {
             <div className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-2xl mb-6 flex gap-4">
               <input 
                 type="text" 
-                placeholder="New Client Name" 
+                placeholder={userRole === 'owner' ? 'New Business Name' : 'New Client Name'} 
                 value={newClientName}
                 onChange={e => setNewClientName(e.target.value)}
                 className="form-input flex-1"
