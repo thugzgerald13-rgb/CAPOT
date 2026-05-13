@@ -1,21 +1,9 @@
-// Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
-
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
-  apiKey: "AIzaSyDW3uKzMhdtjI605_ULCnkQkYm22h85HqM",
-  authDomain: "capotbooks.firebaseapp.com",
-  projectId: "capotbooks",
-  storageBucket: "capotbooks.firebasestorage.app",
-  messagingSenderId: "459430347257",
-  appId: "1:459430347257:web:e823df33635bb064973d28",
-  measurementId: "G-B1RX1T7982"
-};
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
+{
+  "projectId": "capotbooks",
+  "appId": "1:459430347257:web:e823df33635bb064973d28",
+  "apiKey": "AIzaSyDW3uKzMhdtjI605_ULCnkQkYm22h85HqM",
+  "authDomain": "capotbooks.firebaseapp.com",
+  "storageBucket": "capotbooks.firebasestorage.app",
+  "messagingSenderId": "459430347257",
+  "measurementId": "G-B1RX1T7982"
+}
