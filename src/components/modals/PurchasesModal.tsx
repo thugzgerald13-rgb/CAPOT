@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
 import { useAccounting } from '../../context/AccountingContext';
 import { formatTIN, generateCSV, MONTHS, getMonthName } from '../../lib/utils';
-import { ShoppingCart, Plus, ArrowLeft, FolderClock, ChevronsLeft, ChevronsRight, ChevronLeft, ChevronRight, PlusCircle } from 'lucide-react';
+import { ShoppingCart, Plus, ArrowLeft, FolderClock, ChevronsLeft, ChevronsRight, ChevronLeft, ChevronRight, PlusCircle, Trash2 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 export function PurchasesModal() {
@@ -434,6 +434,19 @@ export function PurchasesModal() {
            </div>
            
            <div className="flex gap-3">
+             {viewIndex !== null && (
+               <button 
+                 onClick={() => {
+                   if (confirm('Are you sure you want to delete this entry?')) {
+                     handleDelete(periodPurchases[viewIndex].id);
+                     handleAddNew();
+                   }
+                 }}
+                 className="bg-red-100 hover:bg-red-200 text-red-700 font-bold px-6 py-2.5 rounded-xl transition-colors flex items-center gap-2 border border-red-200"
+               >
+                 <Trash2 className="w-5 h-5" /> Delete
+               </button>
+             )}
              <button onClick={handleAddPurchase} className="bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold px-8 py-2.5 rounded-xl transition-colors shadow-sm shadow-amber-500/20 flex items-center gap-2">
                <Plus className="w-5 h-5" /> {viewIndex !== null ? 'Update Entry' : 'Add Entry'}
              </button>
