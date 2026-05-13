@@ -350,27 +350,6 @@ export function ExtraModals() {
         )}
       </Modal>
 
-      <Modal id="pl" title="Profit & Loss" icon={<TrendingUp className="text-emerald-500" />}>
-         <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-            <table className="data-table">
-              <tbody>
-                <tr>
-                  <td className="font-semibold py-4">Total Revenue / Sales</td>
-                  <td className="text-right font-bold py-4 text-emerald-600">₱{salesTotal.toLocaleString()}</td>
-                </tr>
-                <tr>
-                  <td className="font-semibold py-4">Total Purchases / COGS</td>
-                  <td className="text-right font-bold py-4 text-amber-600">₱{purchasesTotal.toLocaleString()}</td>
-                </tr>
-                <tr className="bg-slate-50 dark:bg-slate-800/80 border-t-2 border-slate-300 dark:border-slate-600">
-                  <td className="font-extrabold text-lg py-4">Gross Profit</td>
-                  <td className="text-right font-extrabold text-lg py-4 text-blue-600">₱{gp.toLocaleString()}</td>
-                </tr>
-              </tbody>
-            </table>
-         </div>
-      </Modal>
-
       <Modal id="reports" title="Accounting Reports" icon={<TrendingUp className="text-indigo-500" />}>
          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
            <button 

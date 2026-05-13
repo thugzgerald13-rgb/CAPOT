@@ -86,6 +86,24 @@ export interface Client {
   gjColumns?: JournalColumn[];
   gjEntries?: JournalEntry[];
   glAccounts?: GeneralLedgerAccount[];
+  plData?: ProfitAndLossData;
+}
+
+export interface ProfitAndLossLine {
+  id: string;
+  particulars: string;
+  amount: string;
+}
+
+export interface ProfitAndLossData {
+  companyName: string;
+  address: string;
+  reportName: string;
+  period: string;
+  revenue: ProfitAndLossLine[];
+  costOfRevenue: ProfitAndLossLine[];
+  operatingExpenses: ProfitAndLossLine[];
+  provisionForIncomeTax: string;
 }
 
 export interface GeneralLedgerEntry {

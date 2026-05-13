@@ -15,6 +15,7 @@ import { CashDisbursementsJournalModal } from './components/modals/CashDisbursem
 import { PurchasesJournalModal } from './components/modals/PurchasesJournalModal';
 import { GeneralJournalModal } from './components/modals/GeneralJournalModal';
 import { GeneralLedgerModal } from './components/modals/GeneralLedgerModal';
+import { ProfitAndLossModal } from './components/modals/ProfitAndLossModal';
 import { ExtraModals } from './components/modals/ExtraModals';
 
 function AppLayout() {
@@ -57,6 +58,7 @@ function AppLayout() {
         <PurchasesJournalModal />
         <GeneralJournalModal />
         <GeneralLedgerModal />
+        <ProfitAndLossModal />
         <ExtraModals />
       </main>
     </div>
