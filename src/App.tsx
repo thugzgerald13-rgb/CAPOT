@@ -17,6 +17,8 @@ import { GeneralJournalModal } from './components/modals/GeneralJournalModal';
 import { GeneralLedgerModal } from './components/modals/GeneralLedgerModal';
 import { ProfitAndLossModal } from './components/modals/ProfitAndLossModal';
 import { ExtraModals } from './components/modals/ExtraModals';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { AuthContainer } from './components/AuthContainer';
 
 function AppLayout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -65,10 +67,32 @@ function AppLayout() {
   );
 }
 
-export default function App() {
+function MainApp() {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900 font-sans">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-600"></div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <AuthContainer />;
+  }
+
   return (
     <AccountingProvider>
       <AppLayout />
     </AccountingProvider>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <MainApp />
+    </AuthProvider>
   );
 }
