@@ -34,17 +34,7 @@ export function ChartOfAccountsModal() {
 
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
-  if (!currentClient || !currentClientId) {
-    return (
-      <Modal id="coa" title="Chart of Accounts" icon={<BookOpen />} maxWidth="max-w-4xl">
-        <div className="p-12 text-center flex flex-col items-center">
-          <BookOpen className="w-16 h-16 text-slate-300 mb-4" />
-          <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-2">No Active Profile</h3>
-          <p className="text-slate-500 dark:text-slate-400 mb-6">Please select or create a business profile to manage your Chart of Accounts.</p>
-        </div>
-      </Modal>
-    );
-  }
+  if (!currentClient || !currentClientId) return null;
 
   let accounts = currentClient.accounts || [];
   if (accounts.length === 0) {

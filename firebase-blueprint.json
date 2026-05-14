@@ -17,30 +17,14 @@
     },
     "Client": {
       "title": "Client/Business Profile",
-      "description": "Full accounting data for a specific business.",
+      "description": "Accounting data for a specific business.",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
         "ownerId": { "type": "string" },
         "name": { "type": "string" },
         "tin": { "type": "string" },
-        "taxpayerClassification": { "type": "string" },
-        "registeredName": { "type": "string" },
-        "tinLibrary": { "type": "object" },
-        "sales": { "type": "array" },
-        "purchases": { "type": "array" },
-        "expenses": { "type": "array" },
-        "accounts": { "type": "array" },
-        "crjColumns": { "type": "array" },
-        "crjEntries": { "type": "array" },
-        "cdjColumns": { "type": "array" },
-        "cdjEntries": { "type": "array" },
-        "pjColumns": { "type": "array" },
-        "pjEntries": { "type": "array" },
-        "gjColumns": { "type": "array" },
-        "gjEntries": { "type": "array" },
-        "glAccounts": { "type": "array" },
-        "plData": { "type": "object" }
+        "address": { "type": "string" }
       },
       "required": ["id", "ownerId", "name"]
     }
@@ -48,11 +32,11 @@
   "firestore": {
     "/users/{userId}": {
       "schema": "User",
-      "description": "User profiles and settings."
+      "description": "Global user profiles."
     },
     "/users/{userId}/clients/{clientId}": {
       "schema": "Client",
-      "description": "Accounting data for businesses belonging to a user."
+      "description": "Clients belonging to a specific user."
     }
   }
 }

@@ -1,8 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Client, DatSelection } from '../types';
-import { db, auth } from '../lib/firebase';
-import { collection, doc, setDoc, onSnapshot, query, where, getDoc } from 'firebase/firestore';
-import { useAuth } from './AuthContext';
 
 interface AccountingContextType {
   clients: Record<string, Client>;
@@ -22,8 +19,8 @@ interface AccountingContextType {
   setCurrentClientId: (id: string) => void;
   setCurrentDat: (dat: DatSelection | null) => void;
   
-  saveClient: (id: string, clientData: Client) => Promise<void>;
-  addClient: (name: string) => Promise<void>;
+  saveClient: (id: string, clientData: Client) => void;
+  addClient: (name: string) => void;
   showToast: (msg: string) => void;
 }
 
@@ -32,15 +29,8 @@ const AccountingContext = createContext<AccountingContextType | undefined>(undef
 const DEFAULT_DATA: Record<string, Client> = {};
 
 export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user } = useAuth();
   const [clients, setClients] = useState<Record<string, Client>>({});
-  const [currentClientId, setCurrentClientIdState] = useState<string | null>(null);
-  const currentClientIdRef = React.useRef<string | null>(null);
-
-  const setCurrentClientId = (id: string | null) => {
-    setCurrentClientIdState(id);
-    currentClientIdRef.current = id;
-  };
+  const [currentClientId, setCurrentClientId] = useState<string | null>(null);
   const [isDarkMode, setDarkMode] = useState(false);
   const [activeModal, setActiveModal] = useState<string | null>(null);
   const [pendingModal, setPendingModal] = useState<string | null>(null);
@@ -49,80 +39,30 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [isReady, setIsReady] = useState(false);
 
-  // Initialize data and sync with Firestore
+  // Initialize data
   useEffect(() => {
+    const saved = localStorage.getItem('capo_accounting_v14_react');
     const darkMode = localStorage.getItem('capo_dark_mode') === 'true';
     setDarkMode(darkMode);
 
-    if (!user) {
-      // Local mode if not logged in
-      const saved = localStorage.getItem('capo_accounting_v14_react');
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          setClients(parsed);
-          const keys = Object.keys(parsed);
-          if (keys.length > 0) setCurrentClientId(keys[0]);
-        } catch (e) {
-          setClients(DEFAULT_DATA);
-        }
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        setClients(parsed);
+        const keys = Object.keys(parsed);
+        if (keys.length > 0) setCurrentClientId(keys[0]);
+      } catch (e) {
+        console.error("Failed to parse local storage", e);
+        setClients(DEFAULT_DATA);
+        setCurrentClientId('client_default');
       }
-      setIsReady(true);
-      return;
+    } else {
+      setClients(DEFAULT_DATA);
+      setCurrentClientId('client_default');
+      localStorage.setItem('capo_accounting_v14_react', JSON.stringify(DEFAULT_DATA));
     }
-
-    // Firestore sync if logged in
-    const clientsRef = collection(db, 'users', user.uid, 'clients');
-    const unsubscribe = onSnapshot(clientsRef, async (snapshot) => {
-      const remoteClients: Record<string, Client> = {};
-      snapshot.forEach((doc) => {
-        remoteClients[doc.id] = doc.data() as Client;
-      });
-      
-      const remoteKeys = Object.keys(remoteClients);
-      
-      if (remoteKeys.length === 0) {
-        // Potential migration needed: check local storage if firestore is empty
-        const saved = localStorage.getItem('capo_accounting_v14_react');
-        if (saved) {
-          try {
-            const localClients = JSON.parse(saved);
-            const localKeys = Object.keys(localClients);
-            if (localKeys.length > 0) {
-              console.log("Migrating local data to Firestore...");
-              // Push local clients to Firestore
-              for (const id of localKeys) {
-                const clientRef = doc(db, 'users', user.uid, 'clients', id);
-                await setDoc(clientRef, { ...localClients[id], ownerId: user.uid }, { merge: true });
-              }
-              // The next snapshot will catch these additions
-              return;
-            }
-          } catch (e) {
-            console.error("Migration failed", e);
-          }
-        }
-      }
-
-      setClients(remoteClients);
-
-      // Set active client if not set or if current one was removed
-      if (remoteKeys.length > 0) {
-        if (!currentClientIdRef.current || !remoteClients[currentClientIdRef.current]) {
-          setCurrentClientId(remoteKeys[0]);
-        }
-      } else {
-        setCurrentClientId(null);
-      }
-      
-      setIsReady(true);
-    }, (error) => {
-      console.error("Firestore sync error:", error);
-      setIsReady(true);
-    });
-
-    return () => unsubscribe();
-  }, [user]);
+    setIsReady(true);
+  }, []);
 
   // Sync dark mode class
   useEffect(() => {
@@ -137,25 +77,13 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }
   }, [isDarkMode]);
 
-  const saveClient = async (id: string, clientData: Client) => {
+  const saveClient = (id: string, clientData: Client) => {
     const newClients = { ...clients, [id]: clientData };
     setClients(newClients);
-    
-    if (user) {
-      try {
-        const clientRef = doc(db, 'users', user.uid, 'clients', id);
-        await setDoc(clientRef, { ...clientData, ownerId: user.uid }, { merge: true });
-      } catch (error) {
-        console.error("Error saving to Firestore:", error);
-        handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}/clients/${id}`);
-        showToast('Error saving to cloud');
-      }
-    } else {
-      localStorage.setItem('capo_accounting_v14_react', JSON.stringify(newClients));
-    }
+    localStorage.setItem('capo_accounting_v14_react', JSON.stringify(newClients));
   };
 
-  const addClient = async (name: string) => {
+  const addClient = (name: string) => {
     if (!name.trim()) return;
     const newId = 'client_' + Date.now();
     const newClient: Client = {
@@ -164,57 +92,19 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       tinLibrary: { customers: [], suppliers: [] },
       sales: [],
       purchases: [],
-      expenses: [],
-      accounts: [], // Ensure accounts array exists
-      accountingType: 'Calendar',
-      taxpayerClassification: 'Individual'
+      expenses: []
     };
-
-    if (user) {
-      try {
-        const clientRef = doc(db, 'users', user.uid, 'clients', newId);
-        await setDoc(clientRef, { ...newClient, ownerId: user.uid });
-        setCurrentClientId(newId);
-        showToast('Business profile created');
-      } catch (error) {
-        console.error("Firestore creation error:", error);
-        handleFirestoreError(error, OperationType.CREATE, `users/${user.uid}/clients/${newId}`);
-        showToast('Creation failed');
-      }
-    } else {
-      const newClients = { ...clients, [newId]: newClient };
-      setClients(newClients);
-      localStorage.setItem('capo_accounting_v14_react', JSON.stringify(newClients));
-      setCurrentClientId(newId);
-      showToast('Client added locally');
-    }
+    const newClients = { ...clients, [newId]: newClient };
+    setClients(newClients);
+    localStorage.setItem('capo_accounting_v14_react', JSON.stringify(newClients));
+    setCurrentClientId(newId);
+    showToast('Client added');
   };
 
   const showToast = (msg: string) => {
     setToastMsg(msg);
     setTimeout(() => setToastMsg(null), 3000);
   };
-
-  // Helper for structured error reporting
-  const handleFirestoreError = (error: any, operation: string, path: string) => {
-    const errorInfo = {
-      error: error?.message || String(error),
-      code: error?.code,
-      operation,
-      path,
-      userId: user?.uid,
-      timestamp: new Date().toISOString()
-    };
-    console.error("Firestore Error Details:", JSON.stringify(errorInfo));
-  };
-
-  enum OperationType {
-    CREATE = 'CREATE',
-    UPDATE = 'UPDATE',
-    DELETE = 'DELETE',
-    LIST = 'LIST',
-    GET = 'GET'
-  }
 
   const openModal = (modal: string | null) => {
     setActiveModal(modal);
