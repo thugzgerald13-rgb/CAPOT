@@ -7,7 +7,7 @@ interface HeaderProps {
 }
 
 export function Header({ onMenuClick }: HeaderProps) {
-  const { currentClient, isDarkMode, setDarkMode } = useAccounting();
+  const { currentClient, isDarkMode, setDarkMode, isSyncing } = useAccounting();
   const { user, isAdmin, signOut } = useAuth();
 
   return (
@@ -21,10 +21,18 @@ export function Header({ onMenuClick }: HeaderProps) {
           >
             <Menu className="w-5 h-5" />
           </button>
-          <h1 className="text-xl md:text-2xl font-bold flex flex-wrap items-center gap-3">
-            <span className="hidden sm:inline">📊</span> 
-            {currentClient ? (currentClient.registeredName || currentClient.tradeName || 'CAPO Accounting Setup') : 'CAPO Accounting Setup'}
-          </h1>
+          <div className="flex flex-col">
+            <h1 className="text-xl md:text-2xl font-bold flex flex-wrap items-center gap-3">
+              <span className="hidden sm:inline">📊</span> 
+              {currentClient ? (currentClient.registeredName || currentClient.tradeName || 'CAPO Accounting Setup') : 'CAPO Accounting Setup'}
+            </h1>
+            {isSyncing && (
+              <span className="text-[10px] text-blue-200 animate-pulse flex items-center gap-1 mt-1 font-bold uppercase tracking-widest pl-9">
+                <span className="w-1 h-1 bg-blue-200 rounded-full animate-ping"></span>
+                Syncing with Cloud...
+              </span>
+            )}
+          </div>
         </div>
 
         <div className="flex items-center gap-2">

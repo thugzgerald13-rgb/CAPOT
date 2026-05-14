@@ -1,38 +1,84 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Default deny
+    // 0. Global Safety Net
     match /{document=**} {
       allow read, write: if false;
     }
 
-    // Helper functions
+    // --- Helpers ---
     function isSignedIn() {
       return request.auth != null;
     }
-
-    function isOwner(userId) {
+    
+    function isUser(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
-
-    function isAdmin() {
-      return isSignedIn() && request.auth.token.email == 'thugz.gerald13@gmail.com';
+    
+    function incoming() {
+      return request.resource.data;
     }
-
+    
+    function existing() {
+      return resource.data;
+    }
+    
     function isValidId(id) {
       return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
 
-    // User Profiles
-    match /users/{userId} {
-      allow read: if isOwner(userId) || isAdmin();
-      allow write: if isOwner(userId) || isAdmin();
+    // --- Enterprise Grade Validation Helpers ---
 
-      // Clients subcollection
-      match /clients/{clientId} {
-        allow read: if isOwner(userId) || isAdmin();
-        allow write: if isOwner(userId) || isAdmin();
-      }
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email']) 
+          && data.uid == request.auth.uid
+          && data.email == request.auth.token.email
+          && data.get('userRole', 'client') is string
+          && (!data.keys().contains('isDarkMode') || data.isDarkMode is bool);
+    }
+
+    function isValidClient(data) {
+      return data.keys().hasAll(['id', 'userId', 'name'])
+          && data.id is string
+          && data.userId == request.auth.uid
+          && data.name is string && data.name.size() > 0 && data.name.size() <= 200
+          && (!data.keys().contains('tin') || data.tin is string)
+          && (!data.keys().contains('taxpayerClassification') || data.taxpayerClassification is string)
+          && (!data.keys().contains('sales') || data.sales is list)
+          && (!data.keys().contains('purchases') || data.purchases is list)
+          && (!data.keys().contains('expenses') || data.expenses is list);
+    }
+
+    // --- Collections ---
+
+    // Users Collection
+    match /users/{userId} {
+      allow get: if isUser(userId);
+      allow create: if isUser(userId) && isValidUser(incoming()) && incoming().updatedAt == request.time;
+      allow update: if isUser(userId) && isValidUser(incoming()) 
+          && incoming().uid == existing().uid
+          && incoming().email == existing().email
+          && incoming().updatedAt == request.time;
+    }
+
+    // Clients Collection
+    match /clients/{clientId} {
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow get: if isSignedIn() && resource.data.userId == request.auth.uid;
+      
+      allow create: if isSignedIn() 
+          && isValidId(clientId)
+          && isValidClient(incoming())
+          && incoming().updatedAt == request.time;
+          
+      allow update: if isSignedIn()
+          && resource.data.userId == request.auth.uid
+          && isValidClient(incoming())
+          && incoming().userId == existing().userId
+          && incoming().id == existing().id
+          && incoming().updatedAt == request.time;
+          
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
     }
   }
 }

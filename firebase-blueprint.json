@@ -2,41 +2,58 @@
   "entities": {
     "User": {
       "title": "User Profile",
-      "description": "Basic information about the application user.",
+      "description": "Stores user-specific settings and role information.",
       "type": "object",
       "properties": {
         "uid": { "type": "string" },
         "email": { "type": "string" },
-        "displayName": { "type": "string" },
-        "photoURL": { "type": "string" },
-        "userRole": { "type": "string", "enum": ["owner", "accountant"] },
+        "userRole": { "type": "string" },
+        "isDarkMode": { "type": "boolean" },
         "lastLogin": { "type": "string", "format": "date-time" },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["uid", "email"]
     },
     "Client": {
-      "title": "Client/Business Profile",
-      "description": "Accounting data for a specific business.",
+      "title": "Business Profile",
+      "description": "A business entity containing all its accounting records.",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
-        "ownerId": { "type": "string" },
+        "userId": { "type": "string", "description": "The UID of the user who owns this profile." },
         "name": { "type": "string" },
         "tin": { "type": "string" },
-        "address": { "type": "string" }
+        "taxpayerClassification": { "type": "string" },
+        "registeredName": { "type": "string" },
+        "lastName": { "type": "string" },
+        "firstName": { "type": "string" },
+        "middleName": { "type": "string" },
+        "tradeName": { "type": "string" },
+        "substreet": { "type": "string" },
+        "street": { "type": "string" },
+        "barangay": { "type": "string" },
+        "district": { "type": "string" },
+        "city": { "type": "string" },
+        "zipCode": { "type": "string" },
+        "rdoCode": { "type": "string" },
+        "accountingType": { "type": "string", "enum": ["Calendar", "Fiscal"] },
+        "fiscalMonthEnd": { "type": "number" },
+        "sales": { "type": "array" },
+        "purchases": { "type": "array" },
+        "expenses": { "type": "array" },
+        "updatedAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["id", "ownerId", "name"]
+      "required": ["id", "userId", "name"]
     }
   },
   "firestore": {
     "/users/{userId}": {
       "schema": "User",
-      "description": "Global user profiles."
+      "description": "User profile and settings."
     },
-    "/users/{userId}/clients/{clientId}": {
+    "/clients/{clientId}": {
       "schema": "Client",
-      "description": "Clients belonging to a specific user."
+      "description": "Business profiles owned by users."
     }
   }
 }
