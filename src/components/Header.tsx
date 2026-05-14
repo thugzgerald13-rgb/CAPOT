@@ -58,9 +58,6 @@ export function Header({ onMenuClick }: HeaderProps) {
           </button>
         </div>
       </div>
-      <p className="text-blue-100 text-sm font-medium pl-14 sm:pl-0 sm:mt-2">
-        ✅ Manage transactions strictly within the selected DAT (Month & Year) for accurate compliance.
-      </p>
     </div>
   );
 }
