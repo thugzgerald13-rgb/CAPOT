@@ -180,7 +180,7 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       
       setSyncError(`${msg}\n\n${debugInfo}`);
       setIsSyncing(false);
-      // Let them skip the error screen if they want
+      setIsReady(true); // Allow skipping to local mode
     });
 
     return () => {

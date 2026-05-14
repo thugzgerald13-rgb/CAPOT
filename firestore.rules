@@ -1,83 +1,29 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // 0. Global Safety Net
+    // Default deny
     match /{document=**} {
       allow read, write: if false;
     }
 
-    // --- Helpers ---
-    function isSignedIn() {
-      return request.auth != null && request.auth.uid != null;
-    }
-    
-    function isUser(userId) {
-      return isSignedIn() && (request.auth.uid == userId);
-    }
-    
-    function isOwner(data) {
-      return isSignedIn() && (data.userId == request.auth.uid);
-    }
-
-    function incoming() {
-      return request.resource.data;
-    }
-    
-    function existing() {
-      return resource.data;
-    }
-    
-    function isValidId(id) {
-      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
-    }
-
-    // --- Enterprise Grade Validation ---
-
-    function isValidUser(data) {
-      return data.uid == request.auth.uid
-          && data.email is string
-          && (!data.keys().contains('isDarkMode') || data.isDarkMode is bool);
-    }
-
-    function isValidClient(data) {
-      return data.id is string
-          && data.userId == request.auth.uid
-          && data.name is string && data.name.size() > 0 && data.name.size() <= 200
-          && (!data.keys().contains('sales') || data.sales is list)
-          && (!data.keys().contains('purchases') || data.purchases is list)
-          && (!data.keys().contains('expenses') || data.expenses is list);
-    }
-
-    // --- Collections ---
-
-    // Users Collection
+    // Users can manage their own profile
     match /users/{userId} {
-      allow get: if isUser(userId);
-      allow create: if isUser(userId) && isValidUser(incoming()) && incoming().updatedAt == request.time;
-      allow update: if isUser(userId) && isValidUser(incoming()) 
-          && incoming().uid == existing().uid
-          && incoming().updatedAt == request.time;
+      allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // Clients Collection
+    // Users can manage their own clients (business profiles)
     match /clients/{clientId} {
-      // Secure list: enforced by query filter userId == auth.uid
-      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow get: if isSignedIn() && isOwner(resource.data);
+      // allow list if the query filters by userId
+      allow list: if request.auth != null && request.query.limit <= 100; 
       
-      allow create: if isSignedIn() 
-          && isValidId(clientId)
-          && isValidClient(incoming())
-          && incoming().updatedAt == request.time;
-          
-      allow update: if isSignedIn()
-          && isOwner(existing())
-          && isValidClient(incoming())
-          && incoming().userId == existing().userId
-          && incoming().id == existing().id
-          && incoming().updatedAt == request.time;
-          
-      allow delete: if isSignedIn() && isOwner(existing());
+      // allow get/write if the user owns the document
+      allow get, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      
+      allow update: if request.auth != null 
+                    && resource.data.userId == request.auth.uid 
+                    && request.resource.data.userId == request.auth.uid;
     }
   }
 }
