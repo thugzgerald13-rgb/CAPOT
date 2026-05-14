@@ -68,9 +68,11 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   useEffect(() => {
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
+      document.body.classList.add('dark');
       localStorage.setItem('capo_dark_mode', 'true');
     } else {
       document.documentElement.classList.remove('dark');
+      document.body.classList.remove('dark');
       localStorage.setItem('capo_dark_mode', 'false');
     }
   }, [isDarkMode]);
