@@ -1,29 +1,9 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Default deny
+    // TEMPORARY: Allow all reads/writes for anyone signed in to debug the connection
     match /{document=**} {
-      allow read: if request.auth != null;
-      allow write: if false;
-    }
-
-    // Users can manage their own profile
-    match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-    }
-
-    // Users can manage their own clients (business profiles)
-    match /clients/{clientId} {
-      // allow read to anyone signed in for debugging
-      allow read: if request.auth != null;
-      
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-      
-      allow update: if request.auth != null 
-                    && resource.data.userId == request.auth.uid 
-                    && request.resource.data.userId == request.auth.uid;
-      
-      allow delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow read, write: if request.auth != null;
     }
   }
 }

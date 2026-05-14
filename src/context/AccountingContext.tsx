@@ -182,6 +182,22 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       setSyncError(`${msg}\n\n[Context: ${debugInfo}]`);
       setIsSyncing(false);
       setIsReady(true);
+      
+      // Perform an extra check to see if we can at least ping the Firestore service
+      const testConnectivity = async () => {
+        try {
+          const { getDoc, doc } = await import('firebase/firestore');
+          await getDoc(doc(db, '_diagnostics', 'ping'));
+        } catch (e: any) {
+          console.warn("Diagnostics check failed:", e);
+          if (e.message?.includes('not found') || e.message?.includes('exists')) {
+             // This is fine, at least we reached the service
+          } else {
+             setSyncError(prev => `${prev}\n\n[Diagnostics: ${e.message}]`);
+          }
+        }
+      };
+      testConnectivity();
     });
 
     return () => {
@@ -307,10 +323,22 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
           </div>
-          <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-2">Sync Connection Failed</h2>
-          <p className="text-slate-500 dark:text-slate-400 mb-8 leading-relaxed whitespace-pre-wrap text-sm">
-            {syncError}
-          </p>
+          <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-2">Firestore Connection Required</h2>
+          <div className="text-slate-500 dark:text-slate-400 mb-8 text-sm text-left space-y-4">
+            <p className="bg-red-50 dark:bg-red-900/20 p-4 rounded-xl text-red-700 dark:text-red-300 font-medium whitespace-pre-wrap border border-red-100 dark:border-red-900/30">
+              {syncError}
+            </p>
+            
+            <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-900/30">
+              <p className="font-bold text-blue-800 dark:text-blue-300 mb-2">How to Fix (Required):</p>
+              <ol className="list-decimal list-inside space-y-2 text-blue-700 dark:text-blue-400">
+                <li>Go to <a href={`https://console.firebase.google.com/project/${db.app.options.projectId}/firestore`} target="_blank" rel="noreferrer" className="underline font-bold">Cloud Firestore</a> in your console.</li>
+                <li>Ensure it is <b>Enabled</b> (click "Create Database" if it's there).</li>
+                <li>Choose <b>"Start in test mode"</b> or deploy my rules.</li>
+                <li>Ensure you are using <b>Cloud Firestore</b>, not Realtime Database.</li>
+              </ol>
+            </div>
+          </div>
           <div className="flex flex-col gap-3">
             <button 
               onClick={() => window.location.reload()}
