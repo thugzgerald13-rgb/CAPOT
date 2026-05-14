@@ -167,15 +167,19 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }, (error) => {
       clearTimeout(timeout);
       console.error("Sync error:", error);
-      let msg = error instanceof Error ? error.message : "Unable to sync data from the cloud. Please check your internet connection or Firebase setup.";
+      let msg = error instanceof Error ? error.message : String(error);
+      
+      const authState = user ? `Signed in as ${user.email} (${user.uid})` : 'Not signed in';
+      const debugInfo = `Project: ${db.app.options.projectId} | ${authState}`;
       
       if (msg.includes('permission-denied')) {
-        msg = "Permission denied. This usually means the Firestore Security Rules are blocking access or weren't deployed correctly to this project.";
+        msg = "Permission denied. Please ensure Firestore is enabled in your Firebase console and rules are correctly deployed.";
       } else if (msg.includes('failed-precondition')) {
-        msg = "Missing Index. Firestore requires a composite index for this query. Check the console log for the link to create it.";
+        msg = "Missing Index. Please check the console log for the link to create the required Firestore index.";
       }
       
-      setSyncError(msg);
+      setSyncError(`${msg}\n\n${debugInfo}`);
+      setIsSyncing(false);
       // Let them skip the error screen if they want
     });
 

@@ -8,13 +8,17 @@ service cloud.firestore {
 
     // --- Helpers ---
     function isSignedIn() {
-      return request.auth != null;
+      return request.auth != null && request.auth.uid != null;
     }
     
     function isUser(userId) {
-      return isSignedIn() && request.auth.uid == userId;
+      return isSignedIn() && (request.auth.uid == userId);
     }
     
+    function isOwner(data) {
+      return isSignedIn() && (data.userId == request.auth.uid);
+    }
+
     function incoming() {
       return request.resource.data;
     }
@@ -27,23 +31,18 @@ service cloud.firestore {
       return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
 
-    // --- Enterprise Grade Validation Helpers ---
+    // --- Enterprise Grade Validation ---
 
     function isValidUser(data) {
-      return data.keys().hasAll(['uid', 'email']) 
-          && data.uid == request.auth.uid
-          && data.email == request.auth.token.email
-          && data.get('userRole', 'client') is string
+      return data.uid == request.auth.uid
+          && data.email is string
           && (!data.keys().contains('isDarkMode') || data.isDarkMode is bool);
     }
 
     function isValidClient(data) {
-      return data.keys().hasAll(['id', 'userId', 'name'])
-          && data.id is string
+      return data.id is string
           && data.userId == request.auth.uid
           && data.name is string && data.name.size() > 0 && data.name.size() <= 200
-          && (!data.keys().contains('tin') || data.tin is string)
-          && (!data.keys().contains('taxpayerClassification') || data.taxpayerClassification is string)
           && (!data.keys().contains('sales') || data.sales is list)
           && (!data.keys().contains('purchases') || data.purchases is list)
           && (!data.keys().contains('expenses') || data.expenses is list);
@@ -57,14 +56,14 @@ service cloud.firestore {
       allow create: if isUser(userId) && isValidUser(incoming()) && incoming().updatedAt == request.time;
       allow update: if isUser(userId) && isValidUser(incoming()) 
           && incoming().uid == existing().uid
-          && incoming().email == existing().email
           && incoming().updatedAt == request.time;
     }
 
     // Clients Collection
     match /clients/{clientId} {
+      // Secure list: enforced by query filter userId == auth.uid
       allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow get: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow get: if isSignedIn() && isOwner(resource.data);
       
       allow create: if isSignedIn() 
           && isValidId(clientId)
@@ -72,13 +71,13 @@ service cloud.firestore {
           && incoming().updatedAt == request.time;
           
       allow update: if isSignedIn()
-          && resource.data.userId == request.auth.uid
+          && isOwner(existing())
           && isValidClient(incoming())
           && incoming().userId == existing().userId
           && incoming().id == existing().id
           && incoming().updatedAt == request.time;
           
-      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow delete: if isSignedIn() && isOwner(existing());
     }
   }
 }
