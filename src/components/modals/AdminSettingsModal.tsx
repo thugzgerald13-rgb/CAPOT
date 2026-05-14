@@ -17,7 +17,7 @@ interface UserProfile {
 }
 
 export function AdminSettingsModal() {
-  const { currentClient } = useAccounting();
+  const { currentClient, showToast } = useAccounting();
   const { isAdmin, userRole, setUserRole } = useAuth();
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(false);

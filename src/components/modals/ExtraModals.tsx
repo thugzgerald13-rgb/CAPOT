@@ -13,14 +13,12 @@ export function ExtraModals() {
   const [editingClient, setEditingClient] = useState<Client | null>(null);
 
   useEffect(() => {
-    // If we want to auto-select the first client for owners if none is active
-    if (activeModal === 'clients' && userRole === 'owner' && !currentClientId) {
-      if (Object.keys(clients).length > 0) {
-        const firstClient = Object.values(clients)[0];
-        setCurrentClientId(firstClient.id);
+    if (activeModal === 'clients') {
+      if (currentClient && !editingClient) {
+        setEditingClient({ ...currentClient });
       }
     }
-  }, [activeModal, userRole, clients, currentClientId, setCurrentClientId]);
+  }, [activeModal, currentClient, editingClient]);
 
   const handleEditClient = (client: Client) => {
     setEditingClient({ ...client });
@@ -29,7 +27,11 @@ export function ExtraModals() {
   const handleSaveProfile = () => {
     if (editingClient) {
       saveClient(editingClient.id, editingClient);
-      setEditingClient(null);
+      if (Object.keys(clients).length <= 1) {
+        openModal(null);
+      } else {
+        setEditingClient(null);
+      }
     }
   };
 
@@ -306,11 +308,19 @@ export function ExtraModals() {
                 <RotateCcw className="w-4 h-4" /> Revert
               </button>
               <button 
-                onClick={() => setEditingClient(null)}
+                onClick={() => openModal(null)}
                 className="bg-slate-300 dark:bg-slate-800 text-slate-800 dark:text-slate-100 font-bold px-6 py-2 rounded border border-slate-400 dark:border-slate-600 shadow-sm hover:bg-slate-400 dark:hover:bg-slate-700 flex items-center gap-2"
               >
                 Close
               </button>
+              {Object.keys(clients).length > 1 && (
+                <button 
+                  onClick={() => setEditingClient(null)}
+                  className="bg-blue-600 text-white font-bold px-6 py-2 rounded shadow-sm hover:bg-blue-700 flex items-center gap-2"
+                >
+                  Switch Business
+                </button>
+              )}
             </div>
           </div>
         ) : (
