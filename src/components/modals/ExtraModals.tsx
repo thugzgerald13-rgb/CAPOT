@@ -308,7 +308,7 @@ export function ExtraModals() {
                 <RotateCcw className="w-4 h-4" /> Revert
               </button>
               <button 
-                onClick={() => setEditingClient(null)}
+                onClick={() => openModal(null)}
                 className="bg-slate-200 dark:bg-slate-700 font-bold px-6 py-2 rounded border border-slate-400 dark:border-slate-600 shadow-sm hover:bg-slate-300 dark:hover:bg-slate-600 flex items-center gap-2"
               >
                 Close
@@ -362,8 +362,18 @@ export function ExtraModals() {
                       </button>
                     </div>
                   ))}
+                  {Object.keys(clients).length === 0 && (
+                    <div className="col-span-full py-12 text-center text-slate-400">
+                      No client profiles found. Use the field above to add your first client.
+                    </div>
+                  )}
                 </div>
               </>
+            ) : Object.keys(clients).length > 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
+                <p className="text-slate-500">Loading business information...</p>
+              </div>
             ) : (
               <div className="flex flex-col items-center justify-center py-12 px-4 text-center bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm">
                 <Building2 className="w-16 h-16 text-slate-300 mb-4" />

@@ -36,7 +36,17 @@ export function HistoryModal() {
   const activeTab = historyTab as HistoryTab;
   const setActiveTab = (tab: HistoryTab) => setHistoryTab(tab);
 
-  if (!currentClient) return null;
+  if (!currentClient || !currentClientId) {
+    return (
+      <Modal id="history" title="History" icon={<History />} maxWidth="max-w-4xl">
+        <div className="p-12 text-center flex flex-col items-center">
+          <History className="w-16 h-16 text-slate-300 mb-4" />
+          <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-2">No Active Profile</h3>
+          <p className="text-slate-500 dark:text-slate-400 mb-6">Please select or create a business profile to view transaction history.</p>
+        </div>
+      </Modal>
+    );
+  }
 
   const TabConfig = {
     expenses: { label: 'Expense History', icon: ShoppingCart, color: 'text-amber-600', bg: 'bg-amber-50' },

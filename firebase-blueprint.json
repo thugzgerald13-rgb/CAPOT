@@ -29,7 +29,18 @@
         "tinLibrary": { "type": "object" },
         "sales": { "type": "array" },
         "purchases": { "type": "array" },
-        "expenses": { "type": "array" }
+        "expenses": { "type": "array" },
+        "accounts": { "type": "array" },
+        "crjColumns": { "type": "array" },
+        "crjEntries": { "type": "array" },
+        "cdjColumns": { "type": "array" },
+        "cdjEntries": { "type": "array" },
+        "pjColumns": { "type": "array" },
+        "pjEntries": { "type": "array" },
+        "gjColumns": { "type": "array" },
+        "gjEntries": { "type": "array" },
+        "glAccounts": { "type": "array" },
+        "plData": { "type": "object" }
       },
       "required": ["id", "ownerId", "name"]
     }

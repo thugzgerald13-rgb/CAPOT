@@ -34,7 +34,13 @@ const DEFAULT_DATA: Record<string, Client> = {};
 export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
   const [clients, setClients] = useState<Record<string, Client>>({});
-  const [currentClientId, setCurrentClientId] = useState<string | null>(null);
+  const [currentClientId, setCurrentClientIdState] = useState<string | null>(null);
+  const currentClientIdRef = React.useRef<string | null>(null);
+
+  const setCurrentClientId = (id: string | null) => {
+    setCurrentClientIdState(id);
+    currentClientIdRef.current = id;
+  };
   const [isDarkMode, setDarkMode] = useState(false);
   const [activeModal, setActiveModal] = useState<string | null>(null);
   const [pendingModal, setPendingModal] = useState<string | null>(null);
@@ -67,20 +73,46 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
     // Firestore sync if logged in
     const clientsRef = collection(db, 'users', user.uid, 'clients');
-    const unsubscribe = onSnapshot(clientsRef, (snapshot) => {
+    const unsubscribe = onSnapshot(clientsRef, async (snapshot) => {
       const remoteClients: Record<string, Client> = {};
       snapshot.forEach((doc) => {
         remoteClients[doc.id] = doc.data() as Client;
       });
       
-      setClients(prev => {
-        // If we just logged in and had local data, we might want to merge or prefer remote
-        // For simplicity, we prefer remote if it's not empty, otherwise we might push local to remote
-        return remoteClients;
-      });
+      const remoteKeys = Object.keys(remoteClients);
+      
+      if (remoteKeys.length === 0) {
+        // Potential migration needed: check local storage if firestore is empty
+        const saved = localStorage.getItem('capo_accounting_v14_react');
+        if (saved) {
+          try {
+            const localClients = JSON.parse(saved);
+            const localKeys = Object.keys(localClients);
+            if (localKeys.length > 0) {
+              console.log("Migrating local data to Firestore...");
+              // Push local clients to Firestore
+              for (const id of localKeys) {
+                const clientRef = doc(db, 'users', user.uid, 'clients', id);
+                await setDoc(clientRef, { ...localClients[id], ownerId: user.uid }, { merge: true });
+              }
+              // The next snapshot will catch these additions
+              return;
+            }
+          } catch (e) {
+            console.error("Migration failed", e);
+          }
+        }
+      }
 
-      if (!currentClientId && snapshot.docs.length > 0) {
-        setCurrentClientId(snapshot.docs[0].id);
+      setClients(remoteClients);
+
+      // Set active client if not set or if current one was removed
+      if (remoteKeys.length > 0) {
+        if (!currentClientIdRef.current || !remoteClients[currentClientIdRef.current]) {
+          setCurrentClientId(remoteKeys[0]);
+        }
+      } else {
+        setCurrentClientId(null);
       }
       
       setIsReady(true);
