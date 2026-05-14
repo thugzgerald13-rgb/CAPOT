@@ -67,10 +67,10 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   // Sync dark mode class
   useEffect(() => {
     if (isDarkMode) {
-      document.body.classList.add('dark');
+      document.documentElement.classList.add('dark');
       localStorage.setItem('capo_dark_mode', 'true');
     } else {
-      document.body.classList.remove('dark');
+      document.documentElement.classList.remove('dark');
       localStorage.setItem('capo_dark_mode', 'false');
     }
   }, [isDarkMode]);
