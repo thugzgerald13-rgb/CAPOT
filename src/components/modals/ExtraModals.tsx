@@ -17,11 +17,9 @@ export function ExtraModals() {
       if (currentClient) {
         setEditingClient({ ...currentClient });
       } else if (Object.keys(clients).length > 0) {
-        const firstClient = Object.values(clients)[0] as Client;
-        if (firstClient) {
-          setEditingClient({ ...firstClient });
-          setCurrentClientId(firstClient.id);
-        }
+        const firstClient = Object.values(clients)[0];
+        setEditingClient({ ...firstClient });
+        setCurrentClientId(firstClient.id);
       }
     }
   }, [activeModal, userRole, currentClient, clients, editingClient, setCurrentClientId]);
