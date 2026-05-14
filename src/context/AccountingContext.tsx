@@ -48,20 +48,6 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [isReady, setIsReady] = useState(false);
 
-  // Connection test
-  useEffect(() => {
-    async function testConnection() {
-      try {
-        await getDocFromServer(doc(db, 'test', 'connection'));
-      } catch (error) {
-        if(error instanceof Error && error.message.includes('the client is offline')) {
-          console.error("Please check your Firebase configuration.");
-        }
-      }
-    }
-    testConnection();
-  }, []);
-
   // Dark mode initialization and data reset on logout
   useEffect(() => {
     const darkMode = localStorage.getItem('capo_dark_mode') === 'true';
@@ -123,7 +109,17 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       
       setIsReady(true);
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, `users/${user.uid}/clients`);
+      console.error("Firestore sync error:", error);
+      setIsReady(true); // Don't hang the app even if sync fails
+      showToast("Cloud sync failed. Working in offline mode.");
+      
+      // Fallback to local storage if firestore fails
+      const saved = localStorage.getItem('capo_accounting_v14_react');
+      if (saved) {
+        try {
+          setClients(JSON.parse(saved));
+        } catch (e) {}
+      }
     });
 
     return () => unsubscribe();
