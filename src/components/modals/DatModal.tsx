@@ -1,11 +1,13 @@
 import { useState, useRef } from 'react';
 import { Modal } from '../ui/Modal';
 import { useAccounting } from '../../context/AccountingContext';
+import { useAuth } from '../../context/AuthContext';
 import { FolderClock, FileDown, Receipt, ShoppingCart, Upload } from 'lucide-react';
 import { MONTHS, getMonthName, generateDATFile } from '../../lib/utils';
 
 export function DatModal() {
   const { currentDat, setCurrentDat, openModal, currentClient, currentClientId, saveClient, showToast, pendingModal, setPendingModal } = useAccounting();
+  const { userRole } = useAuth();
   
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 11 }, (_, i) => currentYear - 10 + i);
@@ -377,24 +379,26 @@ export function DatModal() {
           </button>
         )}
 
-        <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
-          <input 
-            type="file" 
-            accept=".dat,.csv" 
-            ref={fileInputRef} 
-            onChange={handleFileUpload} 
-            className="hidden" 
-          />
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="w-full bg-slate-800 dark:bg-slate-900 hover:bg-slate-900 text-white font-bold py-3 rounded-xl transition-colors shadow-sm flex items-center justify-center gap-2"
-          >
-            <Upload className="w-5 h-5" /> Upload DAT/CSV File
-          </button>
-          <p className="text-[10px] text-slate-500 mt-2 text-center">
-            Upload RELIEF .DAT or CSV for the selected period
-          </p>
-        </div>
+        {userRole === 'developer' && (
+          <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
+            <input 
+              type="file" 
+              accept=".dat,.csv" 
+              ref={fileInputRef} 
+              onChange={handleFileUpload} 
+              className="hidden" 
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="w-full bg-slate-800 dark:bg-slate-900 hover:bg-slate-900 text-white font-bold py-3 rounded-xl transition-colors shadow-sm flex items-center justify-center gap-2"
+            >
+              <Upload className="w-5 h-5" /> Upload DAT/CSV File
+            </button>
+            <p className="text-[10px] text-slate-500 mt-2 text-center">
+              Upload RELIEF .DAT or CSV for the selected period
+            </p>
+          </div>
+        )}
 
         <button
           onClick={() => openModal(null)}
