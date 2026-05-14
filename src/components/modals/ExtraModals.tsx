@@ -7,10 +7,22 @@ import { Client } from '../../types';
 import { RDO_CODES } from '../../lib/utils';
 
 export function ExtraModals() {
-  const { clients, currentClientId, setCurrentClientId, addClient, openModal, currentClient, saveClient } = useAccounting();
+  const { clients, currentClientId, setCurrentClientId, addClient, openModal, currentClient, saveClient, activeModal } = useAccounting();
   const { userRole } = useAuth();
   const [newClientName, setNewClientName] = useState('');
   const [editingClient, setEditingClient] = useState<Client | null>(null);
+
+  useEffect(() => {
+    if (activeModal === 'clients' && userRole === 'owner' && !editingClient) {
+      if (currentClient) {
+        setEditingClient({ ...currentClient });
+      } else if (Object.keys(clients).length > 0) {
+        const firstClient = Object.values(clients)[0];
+        setEditingClient({ ...firstClient });
+        setCurrentClientId(firstClient.id);
+      }
+    }
+  }, [activeModal, userRole, currentClient, clients, editingClient, setCurrentClientId]);
 
   const handleEditClient = (client: Client) => {
     setEditingClient({ ...client });
@@ -304,50 +316,66 @@ export function ExtraModals() {
           </div>
         ) : (
           <>
-            <div className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-2xl mb-6 flex gap-4">
-              <input 
-                type="text" 
-                placeholder={userRole === 'owner' ? 'New Business Name' : 'New Client Name'} 
-                value={newClientName}
-                onChange={e => setNewClientName(e.target.value)}
-                className="form-input flex-1"
-              />
-              <button onClick={handleAddClient} className="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:bg-blue-700">
-                <Plus className="w-5 h-5" /> Add
-              </button>
-            </div>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-              {Object.values(clients).map((client: Client) => (
-                <div
-                  key={client.id}
-                  className={`p-4 rounded-xl border text-left flex flex-col gap-2 transition-all ${currentClientId === client.id ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 shadow-md ring-2 ring-blue-500/20' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-blue-400'}`}
-                >
-                  <div className="flex justify-between items-start">
-                    <span className="font-bold text-slate-800 dark:text-slate-100">{client.name}</span>
-                    <button 
-                      onClick={() => handleEditClient(client)}
-                      className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg text-blue-600 dark:text-blue-400"
-                      title="Edit Profile"
-                    >
-                      <Building2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                  <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                    {client.sales.length} Sales | {client.purchases.length} Purchases
-                  </span>
-                  <button
-                    onClick={() => {
-                      setCurrentClientId(client.id);
-                      openModal(null);
-                    }}
-                    className="mt-2 text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline text-left"
-                  >
-                    Select as Active
+            {userRole !== 'owner' ? (
+              <>
+                <div className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-2xl mb-6 flex gap-4">
+                  <input 
+                    type="text" 
+                    placeholder="New Client Name" 
+                    value={newClientName}
+                    onChange={e => setNewClientName(e.target.value)}
+                    className="form-input flex-1"
+                  />
+                  <button onClick={handleAddClient} className="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:bg-blue-700">
+                    <Plus className="w-5 h-5" /> Add
                   </button>
                 </div>
-              ))}
-            </div>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                  {Object.values(clients).map((client: Client) => (
+                    <div
+                      key={client.id}
+                      className={`p-4 rounded-xl border text-left flex flex-col gap-2 transition-all ${currentClientId === client.id ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 shadow-md ring-2 ring-blue-500/20' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-blue-400'}`}
+                    >
+                      <div className="flex justify-between items-start">
+                        <span className="font-bold text-slate-800 dark:text-slate-100">{client.name}</span>
+                        <button 
+                          onClick={() => handleEditClient(client)}
+                          className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg text-blue-600 dark:text-blue-400"
+                          title="Edit Profile"
+                        >
+                          <Building2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                        {client.sales.length} Sales | {client.purchases.length} Purchases
+                      </span>
+                      <button
+                        onClick={() => {
+                          setCurrentClientId(client.id);
+                          openModal(null);
+                        }}
+                        className="mt-2 text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline text-left"
+                      >
+                        Select as Active
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-12 px-4 text-center bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                <Building2 className="w-16 h-16 text-slate-300 mb-4" />
+                <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-2">No Business Profile Found</h2>
+                <p className="text-slate-500 dark:text-slate-400 max-w-md mb-8">Click the button below to initialize your company profile and start tracking your business information.</p>
+                <button 
+                   onClick={() => addClient("My Business")}
+                   className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold shadow-lg shadow-blue-500/30 transition-all active:scale-95"
+                >
+                  Register My Company
+                </button>
+              </div>
+            )}
           </>
         )}
       </Modal>
