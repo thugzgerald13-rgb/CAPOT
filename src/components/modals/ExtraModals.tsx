@@ -325,20 +325,18 @@ export function ExtraModals() {
           </div>
         ) : (
           <div className="p-2">
-            {userRole !== 'owner' && (
-              <div className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-2xl mb-6 flex gap-4 border border-slate-200 dark:border-slate-700">
-                <input 
-                  type="text" 
-                  placeholder="New Client Name" 
-                  value={newClientName}
-                  onChange={e => setNewClientName(e.target.value)}
-                  className="form-input flex-1"
-                />
-                <button onClick={handleAddClient} className="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:bg-blue-700 transition-colors">
-                  <Plus className="w-5 h-5" /> Add
-                </button>
-              </div>
-            )}
+            <div className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-2xl mb-6 flex gap-4 border border-slate-200 dark:border-slate-700">
+              <input 
+                type="text" 
+                placeholder={userRole === 'owner' ? "New Business Name" : "New Client Name"}
+                value={newClientName}
+                onChange={e => setNewClientName(e.target.value)}
+                className="form-input flex-1"
+              />
+              <button onClick={handleAddClient} className="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:bg-blue-700 transition-colors">
+                <Plus className="w-5 h-5" /> {userRole === 'owner' ? 'Register' : 'Add'}
+              </button>
+            </div>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
               {Object.values(clients).map((client: Client) => (

@@ -147,6 +147,7 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         await setDoc(clientRef, { ...clientData, ownerId: user.uid }, { merge: true });
       } catch (error) {
         console.error("Error saving to Firestore:", error);
+        handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}/clients/${id}`);
         showToast('Error saving to cloud');
       }
     } else {
@@ -163,7 +164,10 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       tinLibrary: { customers: [], suppliers: [] },
       sales: [],
       purchases: [],
-      expenses: []
+      expenses: [],
+      accounts: [], // Ensure accounts array exists
+      accountingType: 'Calendar',
+      taxpayerClassification: 'Individual'
     };
 
     if (user) {
@@ -171,10 +175,11 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         const clientRef = doc(db, 'users', user.uid, 'clients', newId);
         await setDoc(clientRef, { ...newClient, ownerId: user.uid });
         setCurrentClientId(newId);
-        showToast('Business profile added to cloud');
+        showToast('Business profile created');
       } catch (error) {
-        console.error("Error adding to Firestore:", error);
-        showToast('Error adding to cloud');
+        console.error("Firestore creation error:", error);
+        handleFirestoreError(error, OperationType.CREATE, `users/${user.uid}/clients/${newId}`);
+        showToast('Creation failed');
       }
     } else {
       const newClients = { ...clients, [newId]: newClient };
@@ -189,6 +194,27 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setToastMsg(msg);
     setTimeout(() => setToastMsg(null), 3000);
   };
+
+  // Helper for structured error reporting
+  const handleFirestoreError = (error: any, operation: string, path: string) => {
+    const errorInfo = {
+      error: error?.message || String(error),
+      code: error?.code,
+      operation,
+      path,
+      userId: user?.uid,
+      timestamp: new Date().toISOString()
+    };
+    console.error("Firestore Error Details:", JSON.stringify(errorInfo));
+  };
+
+  enum OperationType {
+    CREATE = 'CREATE',
+    UPDATE = 'UPDATE',
+    DELETE = 'DELETE',
+    LIST = 'LIST',
+    GET = 'GET'
+  }
 
   const openModal = (modal: string | null) => {
     setActiveModal(modal);
