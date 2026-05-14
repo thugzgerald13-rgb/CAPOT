@@ -135,17 +135,19 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setIsSyncing(true);
     setSyncError(null);
     
-    // Set a timeout to prevent hanging forever
+    let isTimedOut = false;
     const timeout = setTimeout(() => {
       if (!isReady) {
-        setSyncError("Connection timeout. Firestore is taking too long to respond. Please ensure you have enabled Firestore in your Firebase project.");
+        isTimedOut = true;
+        setSyncError("Connection timeout. Firestore is taking too long to respond. This usually happens if Firestore is not enabled in your Firebase console or if your internet is slow.");
         setIsSyncing(false);
       }
-    }, 15000); // 15 seconds timeout
+    }, 12000); // reduced to 12s for better UX
 
     const q = query(collection(db, 'clients'), where('userId', '==', user.uid));
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
+      if (isTimedOut) return;
       clearTimeout(timeout);
       const cloudClients: Record<string, Client> = {};
       snapshot.forEach((doc) => {
@@ -165,11 +167,12 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }, (error) => {
       clearTimeout(timeout);
       console.error("Sync error:", error);
-      setIsSyncing(false);
+      let msg = error instanceof Error ? error.message : "Unable to sync data from the cloud. Please check your internet connection or Firebase setup.";
       
-      let msg = "Unable to sync data from the cloud. Please check your internet connection or Firebase setup.";
-      if (error.message.includes('permission-denied')) {
-        msg = "Permission denied. Please ensure your Firestore Security Rules are deployed and you are authorized.";
+      if (msg.includes('permission-denied')) {
+        msg = "Permission denied. This usually means the Firestore Security Rules are blocking access or weren't deployed correctly to this project.";
+      } else if (msg.includes('failed-precondition')) {
+        msg = "Missing Index. Firestore requires a composite index for this query. Check the console log for the link to create it.";
       }
       
       setSyncError(msg);
@@ -322,10 +325,27 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   if (!isReady) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900">
-        <div className="flex flex-col items-center gap-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          <span className="text-slate-500 font-medium animate-pulse">Syncing your data...</span>
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900 px-6">
+        <div className="flex flex-col items-center gap-6 max-w-sm w-full text-center">
+          <div className="relative">
+            <div className="animate-spin rounded-full h-16 w-16 border-4 border-slate-200 dark:border-slate-800 border-t-blue-600"></div>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-ping"></div>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">Syncing your data...</h2>
+            <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed">
+              We're connecting to the cloud to ensure your records are up to date.
+            </p>
+          </div>
+          
+          <button 
+            onClick={() => setIsReady(true)}
+            className="mt-4 px-6 py-2 text-slate-400 hover:text-blue-500 text-xs font-semibold uppercase tracking-widest transition-colors"
+          >
+            Skip and start offline
+          </button>
         </div>
       </div>
     );
