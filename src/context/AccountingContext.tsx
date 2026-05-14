@@ -166,38 +166,20 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       setSyncError(null);
     }, (error) => {
       clearTimeout(timeout);
+      if (isTimedOut) return;
+      
       console.error("Sync error:", error);
-      
-      const authState = user ? `Signed in as ${user.email} (${user.uid})` : 'Not signed in';
-      const debugInfo = `Project: ${db.app.options.projectId} | ${authState}`;
-      
       let msg = error instanceof Error ? error.message : String(error);
       
       if (msg.includes('permission-denied')) {
-        msg = "Permission denied. This usually means the Firestore Security Rules are blocking access, the database is in production mode with expired rules, or Firestore hasn't been initialized for this project yet.";
+        msg = "Permission denied. Please ensure your Firestore Security Rules are deployed and you are authorized.";
       } else if (msg.includes('unavailable')) {
-        msg = "Service unavailable. Please check your internet connection or if the Firebase service is down.";
+        msg = "Service unavailable. Check your internet connection.";
       }
       
-      setSyncError(`${msg}\n\n[Context: ${debugInfo}]`);
+      setSyncError(msg);
       setIsSyncing(false);
-      setIsReady(true);
-      
-      // Perform an extra check to see if we can at least ping the Firestore service
-      const testConnectivity = async () => {
-        try {
-          const { getDoc, doc } = await import('firebase/firestore');
-          await getDoc(doc(db, '_diagnostics', 'ping'));
-        } catch (e: any) {
-          console.warn("Diagnostics check failed:", e);
-          if (e.message?.includes('not found') || e.message?.includes('exists')) {
-             // This is fine, at least we reached the service
-          } else {
-             setSyncError(prev => `${prev}\n\n[Diagnostics: ${e.message}]`);
-          }
-        }
-      };
-      testConnectivity();
+      setIsReady(true); // Allow skipping to local mode
     });
 
     return () => {
@@ -312,33 +294,19 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setActiveModal(modal);
   };
 
-  const [showRawError, setShowRawError] = useState(false);
-
   if (syncError) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900 px-6 py-12">
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900 px-6">
         <div className="bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-700 max-w-md w-full text-center">
           <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-2xl flex items-center justify-center mx-auto mb-6">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
           </div>
-          <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-2">Firestore Connection Required</h2>
-          <div className="text-slate-500 dark:text-slate-400 mb-8 text-sm text-left space-y-4">
-            <p className="bg-red-50 dark:bg-red-900/20 p-4 rounded-xl text-red-700 dark:text-red-300 font-medium whitespace-pre-wrap border border-red-100 dark:border-red-900/30">
-              {syncError}
-            </p>
-            
-            <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-900/30">
-              <p className="font-bold text-blue-800 dark:text-blue-300 mb-2">How to Fix (Required):</p>
-              <ol className="list-decimal list-inside space-y-2 text-blue-700 dark:text-blue-400">
-                <li>Go to <a href={`https://console.firebase.google.com/project/${db.app.options.projectId}/firestore`} target="_blank" rel="noreferrer" className="underline font-bold">Cloud Firestore</a> in your console.</li>
-                <li>Ensure it is <b>Enabled</b> (click "Create Database" if it's there).</li>
-                <li>Choose <b>"Start in test mode"</b> or deploy my rules.</li>
-                <li>Ensure you are using <b>Cloud Firestore</b>, not Realtime Database.</li>
-              </ol>
-            </div>
-          </div>
+          <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-2">Sync Connection Failed</h2>
+          <p className="text-slate-500 dark:text-slate-400 mb-8 leading-relaxed text-sm">
+            {syncError}
+          </p>
           <div className="flex flex-col gap-3">
             <button 
               onClick={() => window.location.reload()}
@@ -348,17 +316,13 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
             </button>
             <button 
               onClick={async () => {
-                try {
-                  await auth.signOut();
-                  localStorage.clear();
-                  window.location.reload();
-                } catch (e) {
-                  window.location.reload();
-                }
+                await auth.signOut();
+                localStorage.clear();
+                window.location.reload();
               }}
               className="w-full py-4 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 rounded-2xl font-bold transition-all"
             >
-              Sign Out & Clear Cache
+              Reset and Sign Out
             </button>
             <button 
               onClick={() => setSyncError(null)}
@@ -366,29 +330,6 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
             >
               Skip and Use Local Mode
             </button>
-          </div>
-
-          <div className="mt-8 pt-8 border-t border-slate-100 dark:border-slate-700">
-             <button 
-               onClick={() => setShowRawError(!showRawError)}
-               className="text-[10px] text-slate-400 hover:text-slate-500 uppercase tracking-widest font-bold"
-             >
-               {showRawError ? 'Hide' : 'Show'} Technical Details
-             </button>
-             {showRawError && (
-               <div className="mt-4 p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl text-left overflow-x-auto">
-                 <pre className="text-[10px] text-slate-500 font-mono">
-                   {JSON.stringify({
-                     config: {
-                       projectId: db.app.options.projectId,
-                       authDomain: db.app.options.authDomain,
-                       databaseId: (db as any)._databaseId?.database || 'unknown'
-                     },
-                     rules: "deployed 2026-05-14T07:50:18Z (ultra-permissive)"
-                   }, null, 2)}
-                 </pre>
-               </div>
-             )}
           </div>
         </div>
       </div>

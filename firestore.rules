@@ -1,9 +1,54 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // TEMPORARY: Allow all reads/writes for anyone signed in to debug the connection
+    // Default deny
     match /{document=**} {
-      allow read, write: if request.auth != null;
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+    
+    function incoming() {
+      return request.resource.data;
+    }
+    
+    function existing() {
+      return resource.data;
+    }
+    
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Users Collection
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow create: if isOwner(userId) && (incoming().isDarkMode is bool);
+      allow update: if isOwner(userId) && (incoming().isDarkMode is bool);
+    }
+
+    // Clients Collection
+    match /clients/{clientId} {
+      // allow list ONLY if the query filters by userId == auth.uid
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      
+      // allow individual document access
+      allow get, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      
+      allow create: if isSignedIn() 
+                    && isValidId(clientId)
+                    && request.resource.data.userId == request.auth.uid;
+      
+      allow update: if isSignedIn()
+                    && resource.data.userId == request.auth.uid 
+                    && request.resource.data.userId == request.auth.uid;
     }
   }
 }
