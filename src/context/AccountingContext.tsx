@@ -27,6 +27,7 @@ interface AccountingContextType {
   historyTab: string;
   toastMsg: string | null;
   isSyncing: boolean;
+  syncError: string | null;
   
   setDarkMode: (value: boolean) => void;
   openModal: (modal: string | null) => void;
@@ -56,6 +57,7 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
 
   // Initialize UI preferences (Dark Mode)
   useEffect(() => {
@@ -131,9 +133,20 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
     // When logged in, listen to Firestore
     setIsSyncing(true);
+    setSyncError(null);
+    
+    // Set a timeout to prevent hanging forever
+    const timeout = setTimeout(() => {
+      if (!isReady) {
+        setSyncError("Connection timeout. Firestore is taking too long to respond. Please ensure you have enabled Firestore in your Firebase project.");
+        setIsSyncing(false);
+      }
+    }, 15000); // 15 seconds timeout
+
     const q = query(collection(db, 'clients'), where('userId', '==', user.uid));
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
+      clearTimeout(timeout);
       const cloudClients: Record<string, Client> = {};
       snapshot.forEach((doc) => {
         cloudClients[doc.id] = doc.data() as Client;
@@ -148,11 +161,25 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       
       setIsSyncing(false);
       setIsReady(true);
+      setSyncError(null);
     }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'clients');
+      clearTimeout(timeout);
+      console.error("Sync error:", error);
+      setIsSyncing(false);
+      
+      let msg = "Unable to sync data from the cloud. Please check your internet connection or Firebase setup.";
+      if (error.message.includes('permission-denied')) {
+        msg = "Permission denied. Please ensure your Firestore Security Rules are deployed and you are authorized.";
+      }
+      
+      setSyncError(msg);
+      // Let them skip the error screen if they want
     });
 
-    return unsubscribe;
+    return () => {
+      clearTimeout(timeout);
+      unsubscribe();
+    };
   }, [user]);
 
   // Automatic Migration: Local -> Cloud
@@ -261,6 +288,38 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setActiveModal(modal);
   };
 
+  if (syncError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900 px-6">
+        <div className="bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-700 max-w-md w-full text-center">
+          <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-2xl flex items-center justify-center mx-auto mb-6">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-2">Sync Connection Failed</h2>
+          <p className="text-slate-500 dark:text-slate-400 mb-8 leading-relaxed">
+            {syncError}
+          </p>
+          <div className="flex flex-col gap-3">
+            <button 
+              onClick={() => window.location.reload()}
+              className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-bold shadow-lg shadow-blue-500/30 transition-all flex items-center justify-center gap-2"
+            >
+              <span>Retry Connection</span>
+            </button>
+            <button 
+              onClick={() => setSyncError(null)}
+              className="w-full py-4 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 rounded-2xl font-bold transition-all"
+            >
+              Skip and Use Local Mode
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (!isReady) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900">
@@ -287,6 +346,7 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         historyTab,
         toastMsg,
         isSyncing,
+        syncError,
         setDarkMode,
         openModal,
         setPendingModal,
