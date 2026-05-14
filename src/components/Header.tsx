@@ -24,11 +24,6 @@ export function Header({ onMenuClick }: HeaderProps) {
           <h1 className="text-xl md:text-2xl font-bold flex flex-wrap items-center gap-3">
             <span className="hidden sm:inline">📊</span> 
             {currentClient ? (currentClient.registeredName || currentClient.tradeName || 'CAPO Accounting Setup') : 'CAPO Accounting Setup'}
-            {currentClient && (
-              <span className="bg-yellow-400 text-blue-950 px-4 py-1 rounded-full text-sm font-bold shadow-sm whitespace-nowrap">
-                {currentClient.name}
-              </span>
-            )}
           </h1>
         </div>
 
