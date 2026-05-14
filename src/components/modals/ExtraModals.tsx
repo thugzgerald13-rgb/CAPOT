@@ -16,10 +16,13 @@ export function ExtraModals() {
     if (activeModal === 'clients' && userRole === 'owner' && !editingClient) {
       if (currentClient) {
         setEditingClient({ ...currentClient });
-      } else if (Object.keys(clients).length > 0) {
-        const firstClient = Object.values(clients)[0];
-        setEditingClient({ ...firstClient });
-        setCurrentClientId(firstClient.id);
+      } else {
+        const clientList = Object.values(clients);
+        if (clientList.length > 0) {
+          const firstClient = clientList[0] as Client;
+          setEditingClient({ ...firstClient });
+          setCurrentClientId(firstClient.id);
+        }
       }
     }
   }, [activeModal, userRole, currentClient, clients, editingClient, setCurrentClientId]);

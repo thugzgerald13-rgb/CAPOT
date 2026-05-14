@@ -28,6 +28,7 @@ interface AccountingContextType {
   toastMsg: string | null;
   isSyncing: boolean;
   syncError: string | null;
+  syncData: () => Promise<void>;
   
   setDarkMode: (value: boolean) => void;
   openModal: (modal: string | null) => void;
@@ -59,6 +60,58 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [isReady, setIsReady] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
+
+  const syncData = async () => {
+    if (!user || !isReady) return;
+    setIsSyncing(true);
+    
+    const keysToMigrate = [LOCAL_STORAGE_KEY, OLD_STORAGE_KEY];
+    let totalMigrated = 0;
+    
+    try {
+      for (const key of keysToMigrate) {
+        const saved = localStorage.getItem(key);
+        if (!saved) continue;
+        
+        const localData = JSON.parse(saved) as Record<string, Client>;
+        const localIds = Object.keys(localData);
+        if (localIds.length === 0) continue;
+
+        console.log(`Manual sync: migrating ${key}...`);
+        const batch = writeBatch(db);
+        let count = 0;
+
+        for (const id of localIds) {
+          const client = localData[id];
+          const clientRef = doc(db, 'clients', id);
+          
+          batch.set(clientRef, {
+            ...client,
+            userId: user.uid,
+            updatedAt: serverTimestamp()
+          }, { merge: true });
+          count++;
+        }
+        
+        if (count > 0) {
+          await batch.commit();
+          totalMigrated += count;
+          localStorage.removeItem(key);
+        }
+      }
+      
+      if (totalMigrated > 0) {
+        showToast(`Successfully synced ${totalMigrated} items to cloud`);
+      } else {
+        showToast("Cloud sync complete (no new local changes found)");
+      }
+    } catch (e) {
+      console.error("Manual sync failed", e);
+      showToast("Sync failed. Check console for details.");
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   // Initialize UI preferences (Dark Mode)
   useEffect(() => {
@@ -410,6 +463,7 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         toastMsg,
         isSyncing,
         syncError,
+        syncData,
         setDarkMode,
         openModal,
         setPendingModal,

@@ -7,7 +7,7 @@ import {
   Users, Building2, BookText, BookOpen, 
   LineChart, Scale, Receipt, ShoppingCart, 
   TrendingUp, FileText, Library, Lightbulb, FolderClock, History,
-  ChevronDown, LayoutGrid, Settings, Key, Banknote, Wallet, CreditCard, ShieldAlert
+  ChevronDown, LayoutGrid, Settings, Key, Banknote, Wallet, CreditCard, ShieldAlert, RefreshCw
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -16,7 +16,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
-  const { openModal, currentDat, setHistoryTab, setPendingModal } = useAccounting();
+  const { openModal, currentDat, setHistoryTab, setPendingModal, syncData, isSyncing } = useAccounting();
   const { isAdmin, userRole } = useAuth();
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isReportsOpen, setIsReportsOpen] = useState(false);
@@ -334,6 +334,17 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
                   >
                     <Lightbulb className="w-4 h-4" />
                     Tax Notes & RDO
+                  </button>
+                  <button
+                    onClick={() => {
+                       syncData();
+                       setIsOpen(false);
+                    }}
+                    disabled={isSyncing}
+                    className="flex items-center gap-3 px-4 py-2 text-xs font-bold text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all w-full text-left disabled:opacity-50"
+                  >
+                    <RefreshCw className={cn("w-4 h-4", isSyncing && "animate-spin")} />
+                    {isSyncing ? 'Syncing...' : 'Sync Data Now'}
                   </button>
                 </motion.div>
               )}
