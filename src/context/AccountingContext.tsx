@@ -44,6 +44,7 @@ interface AccountingContextType {
 const AccountingContext = createContext<AccountingContextType | undefined>(undefined);
 
 const LOCAL_STORAGE_KEY = 'capo_accounting_v14_react';
+const OLD_STORAGE_KEY = 'capo_accounting_v13_react';
 
 export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
@@ -150,16 +151,40 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       if (isTimedOut) return;
       clearTimeout(timeout);
       const cloudClients: Record<string, Client> = {};
-      snapshot.forEach((doc) => {
-        cloudClients[doc.id] = doc.data() as Client;
+      snapshot.forEach((docSnap) => {
+        cloudClients[docSnap.id] = docSnap.data() as Client;
       });
       
-      setClients(cloudClients);
+      // Merge logic: If we have local clients that are NOT in the cloud yet, 
+      // keep them in state so they don't "disappear" during migration
+      setClients(prev => {
+        const merged = { ...cloudClients };
+        // Check local storage directly for items not yet in cloud
+        const keysToCheck = [LOCAL_STORAGE_KEY, OLD_STORAGE_KEY];
+        keysToCheck.forEach(key => {
+          const saved = localStorage.getItem(key);
+          if (saved) {
+            try {
+              const localData = JSON.parse(saved) as Record<string, Client>;
+              Object.keys(localData).forEach(id => {
+                if (!merged[id]) {
+                  console.log(`Merging local record ${id} from ${key}`);
+                  merged[id] = localData[id];
+                }
+              });
+            } catch(e) {}
+          }
+        });
+        return merged;
+      });
       
       // Select first client if none selected
-      if (Object.keys(cloudClients).length > 0 && !currentClientId) {
-        setCurrentClientId(Object.keys(cloudClients)[0]);
-      }
+      setClients(currentMerged => {
+        if (Object.keys(currentMerged).length > 0 && !currentClientId) {
+          setCurrentClientId(Object.keys(currentMerged)[0]);
+        }
+        return currentMerged;
+      });
       
       setIsSyncing(false);
       setIsReady(true);
@@ -193,38 +218,43 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     const migrateData = async () => {
       if (!user || !isReady) return;
       
-      const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
-      if (!saved) return;
+      const keysToMigrate = [LOCAL_STORAGE_KEY, OLD_STORAGE_KEY];
       
-      try {
-        const localData = JSON.parse(saved) as Record<string, Client>;
-        if (Object.keys(localData).length === 0) return;
-
-        // Check if cloud is already populated
-        const q = query(collection(db, 'clients'), where('userId', '==', user.uid));
-        const snapshot = await getDocs(q);
+      for (const key of keysToMigrate) {
+        const saved = localStorage.getItem(key);
+        if (!saved) continue;
         
-        if (snapshot.empty) {
-          // Cloud is empty, migrate local data
-          console.log("Migrating local storage to cloud...");
+        try {
+          const localData = JSON.parse(saved) as Record<string, Client>;
+          const localIds = Object.keys(localData);
+          if (localIds.length === 0) continue;
+
+          console.log(`Checking for local data in ${key} to migrate...`);
           const batch = writeBatch(db);
-          
-          Object.values(localData).forEach((client) => {
-            const clientRef = doc(db, 'clients', client.id);
+          let count = 0;
+
+          for (const id of localIds) {
+            const client = localData[id];
+            const clientRef = doc(db, 'clients', id);
+            
+            // To be safe and respect user's local work, we upsert
             batch.set(clientRef, {
               ...client,
               userId: user.uid,
               updatedAt: serverTimestamp()
-            });
-          });
+            }, { merge: true });
+            count++;
+          }
           
-          await batch.commit();
-          console.log("Migration complete!");
-          showToast("Data synced to cloud");
-          localStorage.removeItem(LOCAL_STORAGE_KEY); // Clean up after successful migration
+          if (count > 0) {
+            await batch.commit();
+            console.log(`Successfully migrated ${count} records from ${key} to cloud.`);
+            showToast(`Synced ${count} items to cloud`);
+            localStorage.removeItem(key);
+          }
+        } catch (e) {
+          console.error(`Migration failed for ${key}`, e);
         }
-      } catch (e) {
-        console.error("Migration failed", e);
       }
     };
 
