@@ -129,12 +129,13 @@ export function ExtraModals() {
                 <label className="form-label">Registered Name:</label>
                 <input 
                   type="text" 
+                  disabled={editingClient.taxpayerClassification === 'Individual'}
                   value={editingClient.registeredName || ''} 
                   onChange={e => {
                     const val = e.target.value;
                     setEditingClient({...editingClient, registeredName: val, name: val || editingClient.name});
                   }}
-                  className="form-input border-slate-400 dark:border-slate-600"
+                  className="form-input border-slate-400 dark:border-slate-600 disabled:opacity-50"
                 />
               </div>
 
@@ -144,27 +145,30 @@ export function ExtraModals() {
                   <div className="flex flex-col items-center">
                     <input 
                       type="text" 
+                      disabled={editingClient.taxpayerClassification === 'Non-Individual'}
                       value={editingClient.lastName || ''} 
                       onChange={e => setEditingClient({...editingClient, lastName: e.target.value})}
-                      className="form-input border-slate-400 dark:border-slate-600"
+                      className="form-input border-slate-400 dark:border-slate-600 disabled:opacity-50"
                     />
                     <span className="text-[10px] text-slate-500 mt-1 uppercase font-bold">Last Name</span>
                   </div>
                   <div className="flex flex-col items-center">
                     <input 
                       type="text" 
+                      disabled={editingClient.taxpayerClassification === 'Non-Individual'}
                       value={editingClient.firstName || ''} 
                       onChange={e => setEditingClient({...editingClient, firstName: e.target.value})}
-                      className="form-input border-slate-400 dark:border-slate-600"
+                      className="form-input border-slate-400 dark:border-slate-600 disabled:opacity-50"
                     />
                     <span className="text-[10px] text-slate-500 mt-1 uppercase font-bold">First Name</span>
                   </div>
                   <div className="flex flex-col items-center">
                     <input 
                       type="text" 
+                      disabled={editingClient.taxpayerClassification === 'Non-Individual'}
                       value={editingClient.middleName || ''} 
                       onChange={e => setEditingClient({...editingClient, middleName: e.target.value})}
-                      className="form-input border-slate-400 dark:border-slate-600"
+                      className="form-input border-slate-400 dark:border-slate-600 disabled:opacity-50"
                     />
                     <span className="text-[10px] text-slate-500 mt-1 uppercase font-bold">Middle Name</span>
                   </div>
@@ -309,9 +313,6 @@ export function ExtraModals() {
               >
                 Close
               </button>
-            </div>
-            <div className="mt-4 text-xs font-bold text-slate-500 uppercase px-4">
-              NOTE: This does not replace TRU
             </div>
           </div>
         ) : (
