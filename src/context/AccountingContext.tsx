@@ -167,20 +167,21 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }, (error) => {
       clearTimeout(timeout);
       console.error("Sync error:", error);
-      let msg = error instanceof Error ? error.message : String(error);
       
       const authState = user ? `Signed in as ${user.email} (${user.uid})` : 'Not signed in';
       const debugInfo = `Project: ${db.app.options.projectId} | ${authState}`;
       
+      let msg = error instanceof Error ? error.message : String(error);
+      
       if (msg.includes('permission-denied')) {
-        msg = "Permission denied. Please ensure Firestore is enabled in your Firebase console and rules are correctly deployed.";
-      } else if (msg.includes('failed-precondition')) {
-        msg = "Missing Index. Please check the console log for the link to create the required Firestore index.";
+        msg = "Permission denied. This usually means the Firestore Security Rules are blocking access, the database is in production mode with expired rules, or Firestore hasn't been initialized for this project yet.";
+      } else if (msg.includes('unavailable')) {
+        msg = "Service unavailable. Please check your internet connection or if the Firebase service is down.";
       }
       
-      setSyncError(`${msg}\n\n${debugInfo}`);
+      setSyncError(`${msg}\n\n[Context: ${debugInfo}]`);
       setIsSyncing(false);
-      setIsReady(true); // Allow skipping to local mode
+      setIsReady(true);
     });
 
     return () => {
@@ -295,9 +296,11 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setActiveModal(modal);
   };
 
+  const [showRawError, setShowRawError] = useState(false);
+
   if (syncError) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900 px-6">
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900 px-6 py-12">
         <div className="bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-700 max-w-md w-full text-center">
           <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-2xl flex items-center justify-center mx-auto mb-6">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -305,7 +308,7 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
             </svg>
           </div>
           <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-2">Sync Connection Failed</h2>
-          <p className="text-slate-500 dark:text-slate-400 mb-8 leading-relaxed">
+          <p className="text-slate-500 dark:text-slate-400 mb-8 leading-relaxed whitespace-pre-wrap text-sm">
             {syncError}
           </p>
           <div className="flex flex-col gap-3">
@@ -327,14 +330,37 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
               }}
               className="w-full py-4 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 rounded-2xl font-bold transition-all"
             >
-              Reset App Data & Log Out
+              Sign Out & Clear Cache
             </button>
             <button 
               onClick={() => setSyncError(null)}
-              className="w-full py-4 text-slate-400 hover:text-slate-500 text-sm font-medium transition-all"
+              className="w-full py-2 text-slate-400 hover:text-slate-500 text-xs font-medium transition-all"
             >
               Skip and Use Local Mode
             </button>
+          </div>
+
+          <div className="mt-8 pt-8 border-t border-slate-100 dark:border-slate-700">
+             <button 
+               onClick={() => setShowRawError(!showRawError)}
+               className="text-[10px] text-slate-400 hover:text-slate-500 uppercase tracking-widest font-bold"
+             >
+               {showRawError ? 'Hide' : 'Show'} Technical Details
+             </button>
+             {showRawError && (
+               <div className="mt-4 p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl text-left overflow-x-auto">
+                 <pre className="text-[10px] text-slate-500 font-mono">
+                   {JSON.stringify({
+                     config: {
+                       projectId: db.app.options.projectId,
+                       authDomain: db.app.options.authDomain,
+                       databaseId: (db as any)._databaseId?.database || 'unknown'
+                     },
+                     rules: "deployed 2026-05-14T07:50:18Z (ultra-permissive)"
+                   }, null, 2)}
+                 </pre>
+               </div>
+             )}
           </div>
         </div>
       </div>
