@@ -316,8 +316,22 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
               <span>Retry Connection</span>
             </button>
             <button 
-              onClick={() => setSyncError(null)}
+              onClick={async () => {
+                try {
+                  await auth.signOut();
+                  localStorage.clear();
+                  window.location.reload();
+                } catch (e) {
+                  window.location.reload();
+                }
+              }}
               className="w-full py-4 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 rounded-2xl font-bold transition-all"
+            >
+              Reset App Data & Log Out
+            </button>
+            <button 
+              onClick={() => setSyncError(null)}
+              className="w-full py-4 text-slate-400 hover:text-slate-500 text-sm font-medium transition-all"
             >
               Skip and Use Local Mode
             </button>

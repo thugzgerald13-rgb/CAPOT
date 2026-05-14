@@ -13,10 +13,10 @@ service cloud.firestore {
 
     // Users can manage their own clients (business profiles)
     match /clients/{clientId} {
-      // allow list if the query filters by userId
-      allow list: if request.auth != null && request.query.limit <= 100; 
+      // allow list ONLY if the query filters by userId == auth.uid
+      allow list: if request.auth != null && resource.data.userId == request.auth.uid;
       
-      // allow get/write if the user owns the document
+      // allow individual document access
       allow get, delete: if request.auth != null && resource.data.userId == request.auth.uid;
       
       allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
