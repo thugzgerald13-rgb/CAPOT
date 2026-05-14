@@ -1,5 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Client, DatSelection } from '../types';
+import { db, auth } from '../lib/firebase';
+import { collection, doc, setDoc, onSnapshot, query, where, getDoc } from 'firebase/firestore';
+import { useAuth } from './AuthContext';
 
 interface AccountingContextType {
   clients: Record<string, Client>;
@@ -19,8 +22,8 @@ interface AccountingContextType {
   setCurrentClientId: (id: string) => void;
   setCurrentDat: (dat: DatSelection | null) => void;
   
-  saveClient: (id: string, clientData: Client) => void;
-  addClient: (name: string) => void;
+  saveClient: (id: string, clientData: Client) => Promise<void>;
+  addClient: (name: string) => Promise<void>;
   showToast: (msg: string) => void;
 }
 
@@ -29,6 +32,7 @@ const AccountingContext = createContext<AccountingContextType | undefined>(undef
 const DEFAULT_DATA: Record<string, Client> = {};
 
 export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user } = useAuth();
   const [clients, setClients] = useState<Record<string, Client>>({});
   const [currentClientId, setCurrentClientId] = useState<string | null>(null);
   const [isDarkMode, setDarkMode] = useState(false);
@@ -39,30 +43,54 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [isReady, setIsReady] = useState(false);
 
-  // Initialize data
+  // Initialize data and sync with Firestore
   useEffect(() => {
-    const saved = localStorage.getItem('capo_accounting_v14_react');
     const darkMode = localStorage.getItem('capo_dark_mode') === 'true';
     setDarkMode(darkMode);
 
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        setClients(parsed);
-        const keys = Object.keys(parsed);
-        if (keys.length > 0) setCurrentClientId(keys[0]);
-      } catch (e) {
-        console.error("Failed to parse local storage", e);
-        setClients(DEFAULT_DATA);
-        setCurrentClientId('client_default');
+    if (!user) {
+      // Local mode if not logged in
+      const saved = localStorage.getItem('capo_accounting_v14_react');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          setClients(parsed);
+          const keys = Object.keys(parsed);
+          if (keys.length > 0) setCurrentClientId(keys[0]);
+        } catch (e) {
+          setClients(DEFAULT_DATA);
+        }
       }
-    } else {
-      setClients(DEFAULT_DATA);
-      setCurrentClientId('client_default');
-      localStorage.setItem('capo_accounting_v14_react', JSON.stringify(DEFAULT_DATA));
+      setIsReady(true);
+      return;
     }
-    setIsReady(true);
-  }, []);
+
+    // Firestore sync if logged in
+    const clientsRef = collection(db, 'users', user.uid, 'clients');
+    const unsubscribe = onSnapshot(clientsRef, (snapshot) => {
+      const remoteClients: Record<string, Client> = {};
+      snapshot.forEach((doc) => {
+        remoteClients[doc.id] = doc.data() as Client;
+      });
+      
+      setClients(prev => {
+        // If we just logged in and had local data, we might want to merge or prefer remote
+        // For simplicity, we prefer remote if it's not empty, otherwise we might push local to remote
+        return remoteClients;
+      });
+
+      if (!currentClientId && snapshot.docs.length > 0) {
+        setCurrentClientId(snapshot.docs[0].id);
+      }
+      
+      setIsReady(true);
+    }, (error) => {
+      console.error("Firestore sync error:", error);
+      setIsReady(true);
+    });
+
+    return () => unsubscribe();
+  }, [user]);
 
   // Sync dark mode class
   useEffect(() => {
@@ -77,13 +105,24 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }
   }, [isDarkMode]);
 
-  const saveClient = (id: string, clientData: Client) => {
+  const saveClient = async (id: string, clientData: Client) => {
     const newClients = { ...clients, [id]: clientData };
     setClients(newClients);
-    localStorage.setItem('capo_accounting_v14_react', JSON.stringify(newClients));
+    
+    if (user) {
+      try {
+        const clientRef = doc(db, 'users', user.uid, 'clients', id);
+        await setDoc(clientRef, { ...clientData, ownerId: user.uid }, { merge: true });
+      } catch (error) {
+        console.error("Error saving to Firestore:", error);
+        showToast('Error saving to cloud');
+      }
+    } else {
+      localStorage.setItem('capo_accounting_v14_react', JSON.stringify(newClients));
+    }
   };
 
-  const addClient = (name: string) => {
+  const addClient = async (name: string) => {
     if (!name.trim()) return;
     const newId = 'client_' + Date.now();
     const newClient: Client = {
@@ -94,11 +133,24 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       purchases: [],
       expenses: []
     };
-    const newClients = { ...clients, [newId]: newClient };
-    setClients(newClients);
-    localStorage.setItem('capo_accounting_v14_react', JSON.stringify(newClients));
-    setCurrentClientId(newId);
-    showToast('Client added');
+
+    if (user) {
+      try {
+        const clientRef = doc(db, 'users', user.uid, 'clients', newId);
+        await setDoc(clientRef, { ...newClient, ownerId: user.uid });
+        setCurrentClientId(newId);
+        showToast('Business profile added to cloud');
+      } catch (error) {
+        console.error("Error adding to Firestore:", error);
+        showToast('Error adding to cloud');
+      }
+    } else {
+      const newClients = { ...clients, [newId]: newClient };
+      setClients(newClients);
+      localStorage.setItem('capo_accounting_v14_react', JSON.stringify(newClients));
+      setCurrentClientId(newId);
+      showToast('Client added locally');
+    }
   };
 
   const showToast = (msg: string) => {

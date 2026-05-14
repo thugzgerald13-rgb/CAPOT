@@ -17,14 +17,19 @@
     },
     "Client": {
       "title": "Client/Business Profile",
-      "description": "Accounting data for a specific business.",
+      "description": "Full accounting data for a specific business.",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
         "ownerId": { "type": "string" },
         "name": { "type": "string" },
         "tin": { "type": "string" },
-        "address": { "type": "string" }
+        "taxpayerClassification": { "type": "string" },
+        "registeredName": { "type": "string" },
+        "tinLibrary": { "type": "object" },
+        "sales": { "type": "array" },
+        "purchases": { "type": "array" },
+        "expenses": { "type": "array" }
       },
       "required": ["id", "ownerId", "name"]
     }
@@ -32,11 +37,11 @@
   "firestore": {
     "/users/{userId}": {
       "schema": "User",
-      "description": "Global user profiles."
+      "description": "User profiles and settings."
     },
     "/users/{userId}/clients/{clientId}": {
       "schema": "Client",
-      "description": "Clients belonging to a specific user."
+      "description": "Accounting data for businesses belonging to a user."
     }
   }
 }

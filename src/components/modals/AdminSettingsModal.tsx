@@ -13,6 +13,7 @@ interface UserProfile {
   userRole?: string;
   lastLogin?: any;
   updatedAt?: any;
+  clientCount?: number;
 }
 
 export function AdminSettingsModal() {
@@ -26,7 +27,15 @@ export function AdminSettingsModal() {
     try {
       const q = query(collection(db, 'users'), orderBy('updatedAt', 'desc'));
       const snapshot = await getDocs(q);
-      const userList = snapshot.docs.map(doc => doc.data() as UserProfile);
+      const userList = await Promise.all(snapshot.docs.map(async (userDoc) => {
+        const userData = userDoc.data() as UserProfile;
+        // Fetch client count for this user
+        const clientsSnapshot = await getDocs(collection(db, 'users', userData.uid, 'clients'));
+        return {
+          ...userData,
+          clientCount: clientsSnapshot.size
+        };
+      }));
       setUsers(userList);
     } catch (err) {
       console.error("Error fetching users:", err);
@@ -41,16 +50,36 @@ export function AdminSettingsModal() {
     }
   }, [isAdmin]);
 
-  const handleBackup = () => {
-    const dataStr = JSON.stringify(users, null, 2);
-    const blob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `capotbooks_users_backup_${new Date().toISOString().split('T')[0]}.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const handleBackup = async () => {
+    setLoading(true);
+    try {
+      const fullBackup: any[] = [];
+      
+      for (const u of users) {
+        const clientsSnapshot = await getDocs(collection(db, 'users', u.uid, 'clients'));
+        const userClients = clientsSnapshot.docs.map(doc => doc.data());
+        fullBackup.push({
+          user: u,
+          clients: userClients
+        });
+      }
+
+      const dataStr = JSON.stringify(fullBackup, null, 2);
+      const blob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `capotbooks_FULL_SYSTEM_BACKUP_${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      showToast('Full system backup generated');
+    } catch (err) {
+      console.error("Backup failed:", err);
+      showToast('Backup failed');
+    } finally {
+      setLoading(false);
+    }
   };
   
   if (!isAdmin) return null;
@@ -111,6 +140,7 @@ export function AdminSettingsModal() {
                 <tr className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
                   <th className="px-4 py-3 font-bold text-slate-600 dark:text-slate-400">User</th>
                   <th className="px-4 py-3 font-bold text-slate-600 dark:text-slate-400">Role</th>
+                  <th className="px-4 py-3 font-bold text-slate-600 dark:text-slate-400">Profiles</th>
                   <th className="px-4 py-3 font-bold text-slate-600 dark:text-slate-400 text-right">Last Sync</th>
                 </tr>
               </thead>
@@ -131,6 +161,11 @@ export function AdminSettingsModal() {
                     <td className="px-4 py-3 capitalize">
                       <span className={`px-2 py-0.5 rounded text-xs font-medium ${u.userRole === 'owner' ? 'bg-cyan-100 text-cyan-700' : 'bg-indigo-100 text-indigo-700'}`}>
                         {u.userRole || 'Not Set'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded text-xs font-bold text-slate-600 dark:text-slate-300">
+                        {u.clientCount || 0} Cloud Profiles
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right text-xs text-slate-400 tabular-nums">
