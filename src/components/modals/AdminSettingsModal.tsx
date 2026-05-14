@@ -1,28 +1,82 @@
-import React from 'react';
-import { ShieldAlert } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { ShieldAlert, Download, Users, RefreshCw, Mail, Calendar } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { useAccounting } from '../../context/AccountingContext';
 import { useAuth } from '../../context/AuthContext';
+import { db } from '../../lib/firebase';
+import { collection, getDocs, query, orderBy } from 'firebase/firestore';
+
+interface UserProfile {
+  uid: string;
+  email: string;
+  displayName: string;
+  userRole?: string;
+  lastLogin?: any;
+  updatedAt?: any;
+}
 
 export function AdminSettingsModal() {
   const { currentClient } = useAccounting();
   const { isAdmin, userRole, setUserRole } = useAuth();
+  const [users, setUsers] = useState<UserProfile[]>([]);
+  const [loading, setLoading] = useState(false);
+  
+  const fetchUsers = async () => {
+    setLoading(true);
+    try {
+      const q = query(collection(db, 'users'), orderBy('updatedAt', 'desc'));
+      const snapshot = await getDocs(q);
+      const userList = snapshot.docs.map(doc => doc.data() as UserProfile);
+      setUsers(userList);
+    } catch (err) {
+      console.error("Error fetching users:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isAdmin) {
+      fetchUsers();
+    }
+  }, [isAdmin]);
+
+  const handleBackup = () => {
+    const dataStr = JSON.stringify(users, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `capotbooks_users_backup_${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
   
   if (!isAdmin) return null;
 
   return (
     <Modal id="admin-settings" title="Developer System Config" icon={<ShieldAlert className="text-emerald-500" />}>
-      <div className="p-6">
-        <h3 className="text-lg font-bold mb-4 text-slate-800 dark:text-slate-100">Superuser Dashboard</h3>
+      <div className="p-6 overflow-y-auto max-h-[80vh]">
+        <div className="flex justify-between items-center mb-6">
+          <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">Superuser Dashboard</h3>
+          <button 
+            onClick={handleBackup}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow-md transition-all active:scale-95"
+          >
+            <Download className="w-4 h-4" />
+            Backup User Directory
+          </button>
+        </div>
         
-        <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl p-4 mb-6">
+        <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl p-4 mb-8">
           <p className="text-sm text-emerald-800 dark:text-emerald-300 font-medium mb-4">
-            You are logged in as the primary developer.
+            Authorized Developer: thugz.gerald13@gmail.com
           </p>
           
           <div className="flex items-center gap-4">
             <label className="text-sm font-bold text-emerald-900 dark:text-emerald-100">
-              Simulate Role:
+              Current Active View:
             </label>
             <select 
               value={userRole || ''} 
@@ -32,6 +86,70 @@ export function AdminSettingsModal() {
               <option value="owner">Business Owner</option>
               <option value="accountant">Accountant / Bookkeeper</option>
             </select>
+          </div>
+        </div>
+
+        {/* User List Table */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Users className="w-5 h-5 text-slate-500" />
+              <h4 className="font-bold text-slate-700 dark:text-slate-200">Registered Users ({users.length})</h4>
+            </div>
+            <button 
+              onClick={fetchUsers}
+              className="p-2 text-slate-400 hover:text-blue-500 transition-colors"
+              title="Refresh"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
+
+          <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-700">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
+                  <th className="px-4 py-3 font-bold text-slate-600 dark:text-slate-400">User</th>
+                  <th className="px-4 py-3 font-bold text-slate-600 dark:text-slate-400">Role</th>
+                  <th className="px-4 py-3 font-bold text-slate-600 dark:text-slate-400 text-right">Last Sync</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                {users.map((u) => (
+                  <tr key={u.uid} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                    <td className="px-4 py-3">
+                      <div className="flex flex-col">
+                        <span className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                          {u.displayName || 'Anonymous'}
+                          {u.email === 'thugz.gerald13@gmail.com' && <span className="bg-amber-100 dark:bg-amber-900/30 text-amber-600 text-[10px] px-1 rounded border border-amber-200">DEV</span>}
+                        </span>
+                        <span className="text-xs text-slate-400 flex items-center gap-1">
+                          <Mail className="w-3 h-3" /> {u.email}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 capitalize">
+                      <span className={`px-2 py-0.5 rounded text-xs font-medium ${u.userRole === 'owner' ? 'bg-cyan-100 text-cyan-700' : 'bg-indigo-100 text-indigo-700'}`}>
+                        {u.userRole || 'Not Set'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-right text-xs text-slate-400 tabular-nums">
+                      <div className="flex items-center justify-end gap-1">
+                        <Calendar className="w-3 h-3" />
+                        {u.lastLogin?.toDate ? u.lastLogin.toDate().toLocaleString() : 'N/A'}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {users.length === 0 && (
+                  <tr>
+                    <td colSpan={3} className="px-4 py-8 text-center text-slate-400 italic">
+                      No users synchronized with central database yet.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
 
