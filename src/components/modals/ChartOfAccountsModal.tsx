@@ -379,6 +379,19 @@ export function ChartOfAccountsModal() {
               )}
             </div>
           </div>
+          <button 
+            onClick={() => {
+              setAddingParentId(undefined);
+              setNewType('Assets');
+              setIdPrefix('');
+              setIdSuffix('');
+              setSuffixPlaceholder('');
+              setIsAdding(true);
+            }}
+            className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-xl flex items-center gap-2 transition-colors shadow-sm shrink-0"
+          >
+            <Plus className="w-4 h-4" /> Add Account
+          </button>
         </div>
 
         {isAdding && (
