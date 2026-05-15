@@ -26,11 +26,17 @@ export function PurchasesModal() {
   const [transactionDetails, setTransactionDetails] = useState('');
   const [inputTax, setInputTax] = useState(0);
 
+  const [selectedAccountType, setSelectedAccountType] = useState('Expenses');
+
   // Derive available accounts from Chart of Accounts
   const coaAccounts = (() => {
     let accs = currentClient?.accounts || [];
     if (accs.length === 0) accs = DEFAULT_ACCOUNTS;
-    return accs.filter(a => expenseType === 'Capital Goods' ? a.type === 'Asset' : a.type === 'Expense');
+    if (currentDat) {
+      return accs.filter(a => expenseType === 'Capital Goods' ? (a.type === 'Asset' || a.type === 'Assets') : (a.type === 'Expense' || a.type === 'Expenses'));
+    } else {
+      return accs.filter(a => a.type === selectedAccountType);
+    }
   })();
 
   // Reset account title when expense type changes, if not already in list
@@ -42,7 +48,7 @@ export function PurchasesModal() {
     } else {
       setAccountTitle('');
     }
-  }, [expenseType, coaAccounts, accountTitle]);
+  }, [expenseType, selectedAccountType, coaAccounts, accountTitle]);
 
   const [dateWarning, setDateWarning] = useState<string | null>(null);
   const [sequenceNumber, setSequenceNumber] = useState(1);
@@ -60,9 +66,18 @@ export function PurchasesModal() {
 
   const [autoLoadMsg, setAutoLoadMsg] = useState('');
 
-  const periodPurchases = currentClient 
-    ? (currentClient.purchases || []).filter(p => p.datMonthYear === (currentDat?.formatted || ''))
-    : [];
+  const periodPurchases = (() => {
+    if (!currentClient) return [];
+    const all = currentClient.purchases || [];
+    if (currentDat) {
+      return all.filter(p => p.datMonthYear === currentDat.formatted);
+    } else {
+      if (!date) return [];
+      const [y, m] = date.split('-');
+      const expected = `${MONTHS[parseInt(m) - 1]} ${y}`;
+      return all.filter(p => p.datMonthYear === expected);
+    }
+  })();
 
   const loadPurchase = (index: number) => {
     if (index < 0 || index >= periodPurchases.length) return;
@@ -83,6 +98,12 @@ export function PurchasesModal() {
       setVatType(p.vatType);
       setExpenseType(p.expenseType);
       setAccountTitle(p.accountTitle);
+      
+      const acct = currentClient?.accounts?.find(a => a.name === p.accountTitle);
+      if (acct?.type) {
+        setSelectedAccountType(acct.type);
+      }
+
       setTransactionDetails(p.transactionDetails || '');
       setSequenceNumber(p.sequenceNumber || (index + 1));
       setViewIndex(index);
@@ -409,8 +430,26 @@ export function PurchasesModal() {
           </div>
         )}
 
-        <div className={currentDat ? "lg:col-span-2" : "lg:col-span-2"}>
-          <label className="form-label">Account Title</label>
+        {!currentDat && (
+          <div className="lg:col-span-1">
+            <label className="form-label text-blue-500">Account Type</label>
+            <select 
+              value={selectedAccountType} 
+              onChange={e => setSelectedAccountType(e.target.value)} 
+              className="form-input"
+            >
+              <option value="Assets">Assets</option>
+              <option value="Liabilities">Liabilities</option>
+              <option value="Equity">Equity</option>
+              <option value="Income">Income</option>
+              <option value="Costs">Costs</option>
+              <option value="Expenses">Expenses</option>
+            </select>
+          </div>
+        )}
+
+        <div className={currentDat ? "lg:col-span-2" : "lg:col-span-3"}>
+          <label className="form-label">{currentDat ? "Account Title" : "Header Account"}</label>
           <select value={accountTitle} onChange={e => setAccountTitle(e.target.value)} className="form-input bg-blue-50 dark:bg-blue-900/10 border-blue-200 dark:border-blue-900/50 font-bold text-blue-800 dark:text-blue-300">
             {coaAccounts.map(account => (
               <option key={account.id} value={account.name}>{account.name}</option>
