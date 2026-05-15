@@ -46,7 +46,9 @@ export function ChartOfAccountsModal() {
   const [isAdding, setIsAdding] = useState(false);
   const [addingParentId, setAddingParentId] = useState<string | undefined>(undefined);
   
-  const [newId, setNewId] = useState('');
+  const [idPrefix, setIdPrefix] = useState('');
+  const [idSuffix, setIdSuffix] = useState('');
+  const [suffixPlaceholder, setSuffixPlaceholder] = useState('');
   const [newName, setNewName] = useState('');
   const [newType, setNewType] = useState('Assets');
 
@@ -80,11 +82,12 @@ export function ChartOfAccountsModal() {
   };
 
   const handleAddAccount = () => {
-    if (!newId || !newName || !newType) {
-      alert("Please fill out Account Code, Name, and Type.");
+    const computedId = idPrefix + idSuffix.padEnd(suffixPlaceholder.length, '0');
+    if (!computedId || !newName || !newType) {
+      alert("Please fill out Account Code and Name.");
       return;
     }
-    if (accounts.some(a => a.id === newId)) {
+    if (accounts.some(a => a.id === computedId)) {
       alert("Account Code already exists!");
       return;
     }
@@ -95,10 +98,12 @@ export function ChartOfAccountsModal() {
       if (parent) finalType = parent.type;
     }
 
-    const updatedAccounts = [...accounts, { id: newId, name: newName, type: finalType, parentId: addingParentId }];
+    const updatedAccounts = [...accounts, { id: computedId, name: newName, type: finalType, parentId: addingParentId }];
     handleSaveAccounts(updatedAccounts);
     setIsAdding(false);
-    setNewId('');
+    setIdPrefix('');
+    setIdSuffix('');
+    setSuffixPlaceholder('');
     setNewName('');
     setAddingParentId(undefined);
   };
@@ -161,6 +166,22 @@ export function ChartOfAccountsModal() {
                 onClick={() => {
                   setAddingParentId(account.id);
                   setNewType(account.type);
+                  
+                  let prefix = account.id;
+                  let placeholder = "";
+                  
+                  const match = account.id.match(/^(.+?)(0+)$/);
+                  if (match) {
+                    prefix = match[1];
+                    placeholder = match[2];
+                  } else {
+                    prefix = account.id + (account.id.includes('-') ? '' : '-');
+                    placeholder = "100";
+                  }
+                  
+                  setIdPrefix(prefix);
+                  setIdSuffix('');
+                  setSuffixPlaceholder(placeholder);
                   setIsAdding(true);
                 }}
                 className="text-xs px-2 py-1 bg-cyan-100 hover:bg-cyan-200 text-cyan-700 rounded-lg flex items-center gap-1 transition-colors"
@@ -227,13 +248,18 @@ export function ChartOfAccountsModal() {
               <div className="flex flex-col gap-4 mb-6">
                 <div>
                   <label className="block text-sm font-bold text-slate-600 dark:text-slate-400 mb-1">Account Code</label>
-                  <input 
-                    type="text" 
-                    value={newId} 
-                    onChange={e => setNewId(e.target.value)} 
-                    className="w-full form-input"
-                    placeholder="e.g. 1010 or A-101"
-                  />
+                  <div className="flex">
+                    <div className="px-3 py-2 bg-slate-100 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 border-r-0 rounded-l-lg text-slate-500 font-mono flex items-center shrink-0">
+                      {idPrefix}
+                    </div>
+                    <input 
+                      type="text" 
+                      value={idSuffix} 
+                      onChange={e => setIdSuffix(e.target.value.replace(/[^0-9A-Za-z_-]/g, '').slice(0, suffixPlaceholder.length))} 
+                      className="w-full form-input rounded-l-none"
+                      placeholder={suffixPlaceholder}
+                    />
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-slate-600 dark:text-slate-400 mb-1">Account Name</label>
