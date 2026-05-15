@@ -26,6 +26,18 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
   const [isDatHistoryOpen, setIsDatHistoryOpen] = useState(false);
   const [isDevOpen, setIsDevOpen] = useState(false);
 
+  const toggleDropdown = (dropdown: string) => {
+    setIsExpensesOpen(dropdown === 'expenses' ? !isExpensesOpen : false);
+    setIsBooksOpen(dropdown === 'books' ? !isBooksOpen : false);
+    setIsHistoryOpen(dropdown === 'history' ? !isHistoryOpen : false);
+    setIsReportsOpen(dropdown === 'reports' ? !isReportsOpen : false);
+    setIsSettingsOpen(dropdown === 'settings' ? !isSettingsOpen : false);
+    setIsDevOpen(dropdown === 'dev' ? !isDevOpen : false);
+    if (dropdown !== 'history') {
+      setIsDatHistoryOpen(false);
+    }
+  };
+
   const handleNavClick = (modalId: string, historyType?: string) => {
     if (historyType) {
       setHistoryTab(historyType);
@@ -112,7 +124,7 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
           {/* Expenses Collapsible Dropdown */}
           <div className="flex flex-col">
             <button
-              onClick={() => setIsExpensesOpen(!isExpensesOpen)}
+              onClick={() => toggleDropdown('expenses')}
               className={cn(
                 "flex items-center justify-between px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-300 rounded-xl transition-all w-full text-left group",
                 isExpensesOpen ? "bg-rose-50 text-rose-700 dark:bg-rose-900/20 dark:text-rose-400" : "hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-slate-800"
@@ -164,7 +176,7 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
           {/* Books Collapsible Dropdown */}
           <div className="flex flex-col">
             <button
-              onClick={() => setIsBooksOpen(!isBooksOpen)}
+              onClick={() => toggleDropdown('books')}
               className={cn(
                 "flex items-center justify-between px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-300 rounded-xl transition-all w-full text-left group",
                 isBooksOpen ? "bg-cyan-50 text-cyan-700 dark:bg-cyan-900/20 dark:text-cyan-400" : "hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-slate-800"
@@ -207,7 +219,7 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
           {/* History Collapsible Dropdown */}
           <div className="flex flex-col">
             <button
-              onClick={() => setIsHistoryOpen(!isHistoryOpen)}
+              onClick={() => toggleDropdown('history')}
               className={cn(
                 "flex items-center justify-between px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-300 rounded-xl transition-all w-full text-left group",
                 isHistoryOpen ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-900/20 dark:text-indigo-400" : "hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-slate-800"
@@ -301,7 +313,7 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
           {/* Reports Collapsible Dropdown */}
           <div className="flex flex-col">
             <button
-              onClick={() => setIsReportsOpen(!isReportsOpen)}
+              onClick={() => toggleDropdown('reports')}
               className={cn(
                 "flex items-center justify-between px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-300 rounded-xl transition-all w-full text-left group",
                 isReportsOpen ? "bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400" : "hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-slate-800"
@@ -344,7 +356,7 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
           {/* Settings Collapsible Dropdown */}
           <div className="flex flex-col">
             <button
-              onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+              onClick={() => toggleDropdown('settings')}
               className={cn(
                 "flex items-center justify-between px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-300 rounded-xl transition-all w-full text-left group",
                 isSettingsOpen ? "bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-slate-100" : "hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-slate-800"
@@ -407,7 +419,7 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
           {isAdmin && (
             <div className="flex flex-col mt-4 pt-4 border-t border-slate-200 dark:border-slate-800">
               <button
-                onClick={() => setIsDevOpen(!isDevOpen)}
+                onClick={() => toggleDropdown('dev')}
                 className={cn(
                   "flex items-center justify-between px-4 py-3 text-sm font-medium rounded-xl transition-all w-full text-left group",
                   isDevOpen ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400" : "text-emerald-600 dark:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/10"
