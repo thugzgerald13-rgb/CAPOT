@@ -218,60 +218,69 @@ export function ChartOfAccountsModal() {
         </div>
 
         {isAdding && (
-          <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700 mb-6 flex flex-wrap gap-4 items-end">
-            <div>
-              <label className="block text-xs font-bold text-slate-500 mb-1">Account Code</label>
-              <input 
-                type="text" 
-                value={newId} 
-                onChange={e => setNewId(e.target.value)} 
-                className="w-28 form-input"
-                placeholder="e.g. 1010 or A-101"
-              />
-            </div>
-            <div className="flex-1 min-w-[200px]">
-              <label className="block text-xs font-bold text-slate-500 mb-1">Account Name</label>
-              <input 
-                type="text" 
-                value={newName} 
-                onChange={e => setNewName(e.target.value)} 
-                className="w-full form-input"
-                placeholder="e.g. Petty Cash"
-              />
-            </div>
-            {!addingParentId && (
-              <div>
-                <label className="block text-xs font-bold text-slate-500 mb-1">Type</label>
-                <select 
-                  value={newType} 
-                  onChange={e => setNewType(e.target.value)} 
-                  className="form-input w-40"
-                >
-                  {ACCOUNT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
-              </div>
-            )}
-            {addingParentId && (
-              <div>
-                <label className="block text-xs font-bold text-slate-500 mb-1">Parent Account</label>
-                <div className="px-3 py-2 bg-slate-200 dark:bg-slate-700 rounded-lg text-slate-700 dark:text-slate-300 font-mono text-sm max-w-[200px] truncate">
-                  {addingParentId}
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl w-full max-w-md shadow-2xl border border-slate-200 dark:border-slate-700">
+              <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-6">
+                {addingParentId ? "Add Sub-account" : "Add Main Account"}
+              </h3>
+              
+              <div className="flex flex-col gap-4 mb-6">
+                <div>
+                  <label className="block text-sm font-bold text-slate-600 dark:text-slate-400 mb-1">Account Code</label>
+                  <input 
+                    type="text" 
+                    value={newId} 
+                    onChange={e => setNewId(e.target.value)} 
+                    className="w-full form-input"
+                    placeholder="e.g. 1010 or A-101"
+                  />
                 </div>
+                <div>
+                  <label className="block text-sm font-bold text-slate-600 dark:text-slate-400 mb-1">Account Name</label>
+                  <input 
+                    type="text" 
+                    value={newName} 
+                    onChange={e => setNewName(e.target.value)} 
+                    className="w-full form-input"
+                    placeholder="e.g. Petty Cash"
+                  />
+                </div>
+                {!addingParentId && (
+                  <div>
+                    <label className="block text-sm font-bold text-slate-600 dark:text-slate-400 mb-1">Type</label>
+                    <select 
+                      value={newType} 
+                      onChange={e => setNewType(e.target.value)} 
+                      className="w-full form-input"
+                    >
+                      {ACCOUNT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                  </div>
+                )}
+                {addingParentId && (
+                  <div>
+                    <label className="block text-sm font-bold text-slate-600 dark:text-slate-400 mb-1">Parent Account Code</label>
+                    <div className="px-3 py-2 bg-slate-100 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-300 font-mono text-sm">
+                      {addingParentId}
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
-            <div className="flex gap-2">
-              <button 
-                onClick={handleAddAccount}
-                className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-4 py-2 rounded-xl transition-colors shadow-sm"
-              >
-                Save
-              </button>
-              <button 
-                onClick={() => setIsAdding(false)}
-                className="bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 font-bold px-4 py-2 rounded-xl transition-colors"
-              >
-                Cancel
-              </button>
+              
+              <div className="flex gap-3 justify-end pt-4 border-t border-slate-100 dark:border-slate-700">
+                <button 
+                  onClick={() => setIsAdding(false)}
+                  className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 font-bold rounded-xl transition-colors"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleAddAccount}
+                  className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl transition-colors shadow-sm"
+                >
+                  Save
+                </button>
+              </div>
             </div>
           </div>
         )}
