@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import { useAccounting } from '../context/AccountingContext';
@@ -25,6 +25,26 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
   const [isBooksOpen, setIsBooksOpen] = useState(false);
   const [isDatHistoryOpen, setIsDatHistoryOpen] = useState(false);
   const [isDevOpen, setIsDevOpen] = useState(false);
+
+  const sidebarRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (sidebarRef.current && !sidebarRef.current.contains(event.target as Node)) {
+        setIsExpensesOpen(false);
+        setIsHistoryOpen(false);
+        setIsReportsOpen(false);
+        setIsSettingsOpen(false);
+        setIsBooksOpen(false);
+        setIsDatHistoryOpen(false);
+        setIsDevOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   const toggleDropdown = (dropdown: string) => {
     setIsExpensesOpen(dropdown === 'expenses' ? !isExpensesOpen : false);
@@ -96,7 +116,7 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
         />
       )}
 
-      <div className={cn(
+      <div ref={sidebarRef} className={cn(
         "fixed md:static inset-y-0 left-0 w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col z-50 transform transition-transform duration-300 md:translate-x-0 h-screen",
         isOpen ? "translate-x-0" : "-translate-x-full"
       )}>

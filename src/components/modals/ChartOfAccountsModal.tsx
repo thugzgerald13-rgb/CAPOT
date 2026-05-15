@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { BookOpen, Plus, Trash2, ChevronRight, ChevronDown, RefreshCcw } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { useAccounting } from '../../context/AccountingContext';
@@ -54,6 +54,19 @@ export function ChartOfAccountsModal() {
 
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [showPresets, setShowPresets] = useState(false);
+  const presetsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (presetsRef.current && !presetsRef.current.contains(event.target as Node)) {
+        setShowPresets(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [presetsRef]);
 
   if (!currentClient || !currentClientId) return null;
 
@@ -211,7 +224,7 @@ export function ChartOfAccountsModal() {
         <div className="flex justify-between items-start mb-6">
           <div>
             <p className="text-slate-500 dark:text-slate-400 mb-2">Manage your ledger accounts, sub-accounts, and formats.</p>
-            <div className="relative">
+            <div className="relative" ref={presetsRef}>
               <button 
                 onClick={() => setShowPresets(!showPresets)}
                 className="text-xs font-bold text-slate-600 dark:text-slate-300 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 px-3 py-1.5 rounded-lg flex items-center gap-2 transition-colors"
