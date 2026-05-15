@@ -225,6 +225,65 @@ export function ChartOfAccountsModal() {
     setExpanded(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
+  const missingTypes = ACCOUNT_TYPES.filter(t => !accounts.some(a => a.type === t && !a.parentId));
+
+  const handleRestoreMainAccount = (type: string) => {
+    const isAlpha = currentClient.coaFormat === 'alphanumeric';
+    const defaults = isAlpha ? DEFAULT_ACCOUNTS_ALPHA : DEFAULT_ACCOUNTS;
+    
+    // In numeric mode, if there are existing root accounts, we might need to adjust the ID length
+    const existingRoot = accounts.find(a => !a.parentId);
+    const rootLength = existingRoot ? existingRoot.id.length : 4;
+    
+    const parentToRestore = defaults.find(a => a.type === type && !a.parentId);
+    if (!parentToRestore) return;
+
+    let restoredId = parentToRestore.id;
+    if (!isAlpha && restoredId.length !== rootLength) {
+      if (restoredId.length < rootLength) {
+        restoredId = restoredId + '0'.repeat(rootLength - restoredId.length);
+      } else {
+        const toRemove = restoredId.length - rootLength;
+        if (restoredId.endsWith('0'.repeat(toRemove))) {
+          restoredId = restoredId.slice(0, restoredId.length - toRemove);
+        }
+      }
+    }
+
+    if (accounts.some(a => a.id === restoredId)) {
+      alert(`An account with the ID ${restoredId} already exists. Cannot restore automatically.`);
+      return;
+    }
+
+    const parentNode = { ...parentToRestore, id: restoredId };
+
+    const childrenToRestore = defaults.filter(a => a.parentId === parentToRestore.id).map(child => {
+      let childNewId = child.id;
+      if (!isAlpha) {
+         const oldPrefix = parentToRestore.id.replace(/0+$/, '');
+         const newPrefix = restoredId.replace(/0+$/, '');
+         if (childNewId.startsWith(oldPrefix)) {
+           childNewId = newPrefix + childNewId.slice(oldPrefix.length);
+         }
+         const lengthDiff = restoredId.length - parentToRestore.id.length;
+         if (lengthDiff > 0) {
+           childNewId = childNewId + '0'.repeat(lengthDiff);
+         } else if (lengthDiff < 0) {
+           const toRemove = Math.abs(lengthDiff);
+           if (childNewId.endsWith('0'.repeat(toRemove))) {
+              childNewId = childNewId.slice(0, childNewId.length - toRemove);
+           }
+         }
+      }
+      return { ...child, id: childNewId, parentId: restoredId };
+    });
+
+    const safeChildren = childrenToRestore.filter(c => !accounts.some(a => a.id === c.id));
+    
+    const updatedAccounts = [...accounts, parentNode, ...safeChildren];
+    handleSaveAccounts(updatedAccounts);
+  };
+
   const renderAccounts = (parentId?: string, depth = 0) => {
     const levelAccounts = accounts.filter(a => a.parentId === parentId).sort((a, b) => a.id.localeCompare(b.id));
 
@@ -379,19 +438,6 @@ export function ChartOfAccountsModal() {
               )}
             </div>
           </div>
-          <button 
-            onClick={() => {
-              setAddingParentId(undefined);
-              setNewType('Assets');
-              setIdPrefix('');
-              setIdSuffix('');
-              setSuffixPlaceholder('');
-              setIsAdding(true);
-            }}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-xl flex items-center gap-2 transition-colors shadow-sm shrink-0"
-          >
-            <Plus className="w-4 h-4" /> Add Account
-          </button>
         </div>
 
         {isAdding && (
@@ -485,6 +531,23 @@ export function ChartOfAccountsModal() {
             ) : renderAccounts()}
           </div>
         </div>
+
+        {missingTypes.length > 0 && (
+          <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-800">
+            <p className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-3">Restore Missing Main Accounts</p>
+            <div className="flex flex-wrap gap-2">
+              {missingTypes.map(type => (
+                <button
+                  key={type}
+                  onClick={() => handleRestoreMainAccount(type)}
+                  className="text-xs font-bold px-3 py-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-400 dark:hover:bg-indigo-900/50 rounded-lg flex items-center gap-1.5 transition-colors"
+                >
+                  <Plus className="w-3 h-3" /> {type}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </Modal>
   );
