@@ -148,19 +148,19 @@ export function ChartOfAccountsModal() {
     let currentList = [...accountsList];
     const oldPrefix = oldId.replace(/0+$/, '');
     const newPrefix = newId.replace(/0+$/, '');
-    const lengthDiff = newId.length - oldId.length;
 
     const children = currentList.filter(a => a.parentId === oldId);
     for (const child of children) {
       let childNewId = child.id;
       if (childNewId.startsWith(oldPrefix)) {
         childNewId = newPrefix + childNewId.slice(oldPrefix.length);
-      }
-      if (lengthDiff > 0) {
-        childNewId = childNewId + '0'.repeat(lengthDiff);
-      } else if (lengthDiff < 0) {
-        const toRemove = Math.abs(lengthDiff);
-        childNewId = childNewId.slice(0, childNewId.length - toRemove);
+        const targetLength = child.id.length; // target length is same as child.id because length diffs were already globally applied
+        
+        if (childNewId.length > targetLength) {
+          childNewId = childNewId.slice(0, targetLength);
+        } else if (childNewId.length < targetLength) {
+          childNewId = childNewId.padEnd(targetLength, '0');
+        }
       }
       
       const index = currentList.findIndex(a => a.id === child.id);
@@ -218,7 +218,7 @@ export function ChartOfAccountsModal() {
       const toRemove = Math.abs(lengthDiff);
       adjustedOldId = adjustedOldId.slice(0, adjustedOldId.length - toRemove);
     }
-
+    
     // 2. Perform the specific user edit (e.g. changing 10000 to 20000)
     const index = updatedAccounts.findIndex(a => a.id === adjustedOldId);
     if (index !== -1) {
