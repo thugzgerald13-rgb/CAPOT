@@ -178,43 +178,62 @@ export function ChartOfAccountsModal() {
       alert("Please fill out Account Code and Name.");
       return;
     }
-    if (editCode !== oldId && accounts.some(a => a.id === editCode)) {
+    
+    const isNumeric = (!currentClient.coaFormat || currentClient.coaFormat === 'numeric');
+    const lengthDiff = isNumeric ? editCode.length - oldId.length : 0;
+    
+    // We can't easily check for exists until after we determine the final adjusted IDs,
+    // but a direct collision check on user input is safe to keep.
+    if (editCode !== oldId && lengthDiff === 0 && accounts.some(a => a.id === editCode)) {
       alert("Account Code already exists!");
       return;
     }
 
     let updatedAccounts = [...accounts];
-    const index = updatedAccounts.findIndex(a => a.id === oldId);
-    if (index !== -1) {
-      const isRoot = !updatedAccounts[index].parentId;
-      updatedAccounts[index] = { ...updatedAccounts[index], id: editCode, name: editName };
-      if (editCode !== oldId) {
-        updatedAccounts = updateDescendants(updatedAccounts, oldId, editCode);
+
+    // 1. If length changed in a numeric chart, apply that length diff universally to ALL accounts.
+    if (lengthDiff !== 0) {
+      updatedAccounts = updatedAccounts.map(account => {
+        let newId = account.id;
+        let newParentId = account.parentId;
         
-        if (isRoot && (!currentClient.coaFormat || currentClient.coaFormat === 'numeric')) {
-          const lengthDiff = editCode.length - oldId.length;
-          if (lengthDiff !== 0) {
-            const otherRoots = updatedAccounts.filter(a => !a.parentId && a.id !== editCode);
-            for (const root of otherRoots) {
-              let newRootId = root.id;
-              if (lengthDiff > 0) {
-                newRootId = root.id + '0'.repeat(lengthDiff);
-              } else if (lengthDiff < 0) {
-                const toRemove = Math.abs(lengthDiff);
-                if (newRootId.endsWith('0'.repeat(toRemove))) {
-                  newRootId = newRootId.slice(0, newRootId.length - toRemove);
-                }
-              }
-              if (newRootId !== root.id) {
-                const rootIndex = updatedAccounts.findIndex(a => a.id === root.id);
-                if (rootIndex !== -1) {
-                  updatedAccounts[rootIndex] = { ...updatedAccounts[rootIndex], id: newRootId };
-                }
-                updatedAccounts = updateDescendants(updatedAccounts, root.id, newRootId);
-              }
-            }
+        if (lengthDiff > 0) {
+          const pad = '0'.repeat(lengthDiff);
+          newId += pad;
+          if (newParentId) newParentId += pad;
+        } else {
+          const toRemove = Math.abs(lengthDiff);
+          if (newId.endsWith('0'.repeat(toRemove))) {
+            newId = newId.slice(0, newId.length - toRemove);
+          }
+          if (newParentId && newParentId.endsWith('0'.repeat(toRemove))) {
+            newParentId = newParentId.slice(0, newParentId.length - toRemove);
           }
         }
+        return { ...account, id: newId, parentId: newParentId };
+      });
+    }
+
+    // Determine what oldId is known as NOW (after the global padding applies)
+    let adjustedOldId = oldId;
+    if (lengthDiff > 0) {
+      adjustedOldId += '0'.repeat(lengthDiff);
+    } else if (lengthDiff < 0) {
+      const toRemove = Math.abs(lengthDiff);
+      if (adjustedOldId.endsWith('0'.repeat(toRemove))) {
+        adjustedOldId = adjustedOldId.slice(0, adjustedOldId.length - toRemove);
+      }
+    }
+
+    // 2. Perform the specific user edit (e.g. changing 10000 to 20000)
+    const index = updatedAccounts.findIndex(a => a.id === adjustedOldId);
+    if (index !== -1) {
+      updatedAccounts[index] = { ...updatedAccounts[index], id: editCode, name: editName };
+      
+      if (editCode !== adjustedOldId) {
+        // Since adjustedOldId and editCode now have the same length (or stripped length),
+        // updateDescendants will ONLY do prefix replacement.
+        updatedAccounts = updateDescendants(updatedAccounts, adjustedOldId, editCode);
       }
       handleSaveAccounts(updatedAccounts);
     }
