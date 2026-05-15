@@ -160,9 +160,7 @@ export function ChartOfAccountsModal() {
         childNewId = childNewId + '0'.repeat(lengthDiff);
       } else if (lengthDiff < 0) {
         const toRemove = Math.abs(lengthDiff);
-        if (childNewId.endsWith('0'.repeat(toRemove))) {
-           childNewId = childNewId.slice(0, childNewId.length - toRemove);
-        }
+        childNewId = childNewId.slice(0, childNewId.length - toRemove);
       }
       
       const index = currentList.findIndex(a => a.id === child.id);
@@ -203,10 +201,8 @@ export function ChartOfAccountsModal() {
           if (newParentId) newParentId += pad;
         } else {
           const toRemove = Math.abs(lengthDiff);
-          if (newId.endsWith('0'.repeat(toRemove))) {
-            newId = newId.slice(0, newId.length - toRemove);
-          }
-          if (newParentId && newParentId.endsWith('0'.repeat(toRemove))) {
+          newId = newId.slice(0, newId.length - toRemove);
+          if (newParentId) {
             newParentId = newParentId.slice(0, newParentId.length - toRemove);
           }
         }
@@ -220,9 +216,7 @@ export function ChartOfAccountsModal() {
       adjustedOldId += '0'.repeat(lengthDiff);
     } else if (lengthDiff < 0) {
       const toRemove = Math.abs(lengthDiff);
-      if (adjustedOldId.endsWith('0'.repeat(toRemove))) {
-        adjustedOldId = adjustedOldId.slice(0, adjustedOldId.length - toRemove);
-      }
+      adjustedOldId = adjustedOldId.slice(0, adjustedOldId.length - toRemove);
     }
 
     // 2. Perform the specific user edit (e.g. changing 10000 to 20000)
