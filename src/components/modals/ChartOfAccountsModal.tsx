@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { BookOpen, Plus, Trash2, ChevronRight, ChevronDown, RefreshCcw } from 'lucide-react';
+import { BookOpen, Plus, Trash2, ChevronRight, ChevronDown, RefreshCcw, Edit2 } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { useAccounting } from '../../context/AccountingContext';
 import { CoaAccount } from '../../types';
@@ -55,6 +55,10 @@ export function ChartOfAccountsModal() {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [showPresets, setShowPresets] = useState(false);
   const presetsRef = useRef<HTMLDivElement>(null);
+
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editCode, setEditCode] = useState('');
+  const [editName, setEditName] = useState('');
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -140,6 +144,57 @@ export function ChartOfAccountsModal() {
     }
   };
 
+  const updateDescendants = (accountsList: CoaAccount[], oldId: string, newId: string): CoaAccount[] => {
+    let currentList = [...accountsList];
+    const oldPrefix = oldId.replace(/0+$/, '');
+    const newPrefix = newId.replace(/0+$/, '');
+    const lengthDiff = newId.length - oldId.length;
+
+    const children = currentList.filter(a => a.parentId === oldId);
+    for (const child of children) {
+      let childNewId = child.id;
+      if (childNewId.startsWith(oldPrefix)) {
+        childNewId = newPrefix + childNewId.slice(oldPrefix.length);
+      }
+      if (lengthDiff > 0) {
+        childNewId = childNewId + '0'.repeat(lengthDiff);
+      } else if (lengthDiff < 0) {
+        const toRemove = Math.abs(lengthDiff);
+        if (childNewId.endsWith('0'.repeat(toRemove))) {
+           childNewId = childNewId.slice(0, childNewId.length - toRemove);
+        }
+      }
+      
+      const index = currentList.findIndex(a => a.id === child.id);
+      currentList[index] = { ...currentList[index], id: childNewId, parentId: newId };
+      
+      currentList = updateDescendants(currentList, child.id, childNewId);
+    }
+    return currentList;
+  };
+
+  const handleSaveEdit = (oldId: string) => {
+    if (!editCode || !editName) {
+      alert("Please fill out Account Code and Name.");
+      return;
+    }
+    if (editCode !== oldId && accounts.some(a => a.id === editCode)) {
+      alert("Account Code already exists!");
+      return;
+    }
+
+    let updatedAccounts = [...accounts];
+    const index = updatedAccounts.findIndex(a => a.id === oldId);
+    if (index !== -1) {
+      updatedAccounts[index] = { ...updatedAccounts[index], id: editCode, name: editName };
+      if (editCode !== oldId) {
+        updatedAccounts = updateDescendants(updatedAccounts, oldId, editCode);
+      }
+      handleSaveAccounts(updatedAccounts);
+    }
+    setEditingId(null);
+  };
+
   const toggleExpand = (id: string) => {
     setExpanded(prev => ({ ...prev, [id]: !prev[id] }));
   };
@@ -165,50 +220,99 @@ export function ChartOfAccountsModal() {
               ) : (
                 <div className="w-6" /> // spacer
               )}
-              <span className="text-slate-600 dark:text-slate-400 font-mono text-sm">{account.id}</span>
-              <span className="text-slate-800 dark:text-slate-200">{account.name}</span>
-              {depth === 0 && (
-                <span className="text-xs px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400">
-                  {account.type}
-                </span>
+              {editingId === account.id ? (
+                <div className="flex items-center gap-2">
+                  <input 
+                    type="text" 
+                    value={editCode} 
+                    onChange={e => setEditCode(currentClient.coaFormat === 'numeric' ? e.target.value.replace(/\D/g, '') : e.target.value)} 
+                    className="form-input py-0.5 px-2 text-sm w-28"
+                  />
+                  <input 
+                    type="text" 
+                    value={editName} 
+                    onChange={e => setEditName(e.target.value)} 
+                    className="form-input py-0.5 px-2 text-sm max-w-[200px]"
+                  />
+                </div>
+              ) : (
+                <>
+                  <span className="text-slate-600 dark:text-slate-400 font-mono text-sm">{account.id}</span>
+                  <span className="text-slate-800 dark:text-slate-200">{account.name}</span>
+                  {depth === 0 && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400">
+                      {account.type}
+                    </span>
+                  )}
+                </>
               )}
             </div>
             
             <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-              <button 
-                onClick={() => {
-                  setAddingParentId(account.id);
-                  setNewType(account.type);
-                  
-                  let prefix = account.id;
-                  let placeholder = "";
-                  
-                  const match = account.id.match(/^(.+?)(0+)$/);
-                  if (match) {
-                    prefix = match[1];
-                    placeholder = match[2];
-                  } else {
-                    prefix = account.id + (account.id.includes('-') ? '' : '-');
-                    placeholder = "100";
-                  }
-                  
-                  setIdPrefix(prefix);
-                  setIdSuffix('');
-                  setSuffixPlaceholder(placeholder);
-                  setIsAdding(true);
-                }}
-                className="text-xs px-2 py-1 bg-cyan-100 hover:bg-cyan-200 text-cyan-700 rounded-lg flex items-center gap-1 transition-colors"
-                title="Add Sub-account"
-              >
-                <Plus className="w-3 h-3" /> Sub-account
-              </button>
-              <button 
-                onClick={() => handleDelete(account.id)}
-                className="p-1.5 text-red-500 hover:bg-red-100 rounded-lg transition-colors"
-                title="Delete Account"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
+              {editingId === account.id ? (
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => handleSaveEdit(account.id)}
+                    className="px-3 py-1 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-xs font-medium"
+                  >
+                    Save
+                  </button>
+                  <button 
+                    onClick={() => setEditingId(null)}
+                    className="px-3 py-1 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg text-xs font-medium"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <button
+                    onClick={() => {
+                      setEditingId(account.id);
+                      setEditCode(account.id);
+                      setEditName(account.name);
+                    }}
+                    className="p-1.5 text-blue-500 hover:bg-blue-100 dark:hover:bg-blue-900/40 rounded-lg transition-colors"
+                    title="Edit Account"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setAddingParentId(account.id);
+                      setNewType(account.type);
+                      
+                      let prefix = account.id;
+                      let placeholder = "";
+                      
+                      const match = account.id.match(/^(.+?)(0+)$/);
+                      if (match) {
+                        prefix = match[1];
+                        placeholder = match[2];
+                      } else {
+                        prefix = account.id + (account.id.includes('-') ? '' : '-');
+                        placeholder = "100";
+                      }
+                      
+                      setIdPrefix(prefix);
+                      setIdSuffix('');
+                      setSuffixPlaceholder(placeholder);
+                      setIsAdding(true);
+                    }}
+                    className="text-xs px-2 py-1 bg-cyan-100 hover:bg-cyan-200 text-cyan-700 rounded-lg flex items-center gap-1 transition-colors"
+                    title="Add Sub-account"
+                  >
+                    <Plus className="w-3 h-3" /> Sub-account
+                  </button>
+                  <button 
+                    onClick={() => handleDelete(account.id)}
+                    className="p-1.5 text-red-500 hover:bg-red-100 rounded-lg transition-colors"
+                    title="Delete Account"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </>
+              )}
             </div>
           </div>
           
@@ -262,15 +366,21 @@ export function ChartOfAccountsModal() {
                 <div>
                   <label className="block text-sm font-bold text-slate-600 dark:text-slate-400 mb-1">Account Code</label>
                   <div className="flex">
-                    <div className="px-3 py-2 bg-slate-100 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 border-r-0 rounded-l-lg text-slate-500 font-mono flex items-center shrink-0">
-                      {idPrefix}
-                    </div>
+                    {idPrefix && (
+                      <div className="px-3 py-2 bg-slate-100 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 border-r-0 rounded-l-lg text-slate-500 font-mono flex items-center shrink-0">
+                        {idPrefix}
+                      </div>
+                    )}
                     <input 
                       type="text" 
                       value={idSuffix} 
-                      onChange={e => setIdSuffix(e.target.value.replace(/[^0-9A-Za-z_-]/g, '').slice(0, suffixPlaceholder.length))} 
-                      className="w-full form-input rounded-l-none"
-                      placeholder={suffixPlaceholder}
+                      onChange={e => {
+                        let val = currentClient.coaFormat === 'numeric' ? e.target.value.replace(/\D/g, '') : e.target.value.replace(/[^0-9A-Za-z_-]/g, '');
+                        if (suffixPlaceholder) val = val.slice(0, suffixPlaceholder.length);
+                        setIdSuffix(val);
+                      }} 
+                      className={cn("w-full form-input", idPrefix ? "rounded-l-none" : "")}
+                      placeholder={suffixPlaceholder || "e.g. 1010 or A-101"}
                     />
                   </div>
                 </div>
