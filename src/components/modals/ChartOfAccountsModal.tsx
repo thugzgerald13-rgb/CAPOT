@@ -369,18 +369,53 @@ export function ChartOfAccountsModal() {
                       
                       let prefix = account.id;
                       let placeholder = "";
+                      let suggestedSuffix = "";
                       
+                      const children = accounts.filter(a => a.parentId === account.id);
+
                       const match = account.id.match(/^(.+?)(0+)$/);
-                      if (match) {
+                      if (match && currentClient.coaFormat !== 'alphanumeric') {
                         prefix = match[1];
                         placeholder = match[2];
+                        const zeroCount = placeholder.length;
+                        
+                        const childNums = children
+                          .map(c => c.id.substring(prefix.length))
+                          .filter(s => s.length === zeroCount)
+                          .map(s => parseInt(s, 10))
+                          .filter(n => !isNaN(n));
+                          
+                        let step = Math.pow(10, Math.max(0, zeroCount - 1));
+                        if (step < 1) step = 1;
+                        let nextNum = step;
+                        // Start checking from the step, find first gap
+                        while (childNums.includes(nextNum)) {
+                          nextNum += step;
+                        }
+                        if (nextNum < Math.pow(10, zeroCount)) {
+                          suggestedSuffix = nextNum.toString().padStart(zeroCount, '0');
+                        }
                       } else {
                         prefix = account.id + (account.id.includes('-') ? '' : '-');
                         placeholder = "100";
+                        
+                        const childNums = children
+                          .map(c => c.id.substring(prefix.length))
+                          .map(s => parseInt(s, 10))
+                          .filter(n => !isNaN(n));
+                          
+                        let step = 100;
+                        if (childNums.length > 0 && Math.min(...childNums) < 100) step = 10;
+                        
+                        let nextNum = step;
+                        while (childNums.includes(nextNum)) {
+                          nextNum += step;
+                        }
+                        suggestedSuffix = nextNum.toString();
                       }
                       
                       setIdPrefix(prefix);
-                      setIdSuffix('');
+                      setIdSuffix(suggestedSuffix);
                       setSuffixPlaceholder(placeholder);
                       setIsAdding(true);
                     }}
