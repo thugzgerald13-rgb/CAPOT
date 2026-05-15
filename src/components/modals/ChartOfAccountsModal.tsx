@@ -186,9 +186,35 @@ export function ChartOfAccountsModal() {
     let updatedAccounts = [...accounts];
     const index = updatedAccounts.findIndex(a => a.id === oldId);
     if (index !== -1) {
+      const isRoot = !updatedAccounts[index].parentId;
       updatedAccounts[index] = { ...updatedAccounts[index], id: editCode, name: editName };
       if (editCode !== oldId) {
         updatedAccounts = updateDescendants(updatedAccounts, oldId, editCode);
+        
+        if (isRoot && (!currentClient.coaFormat || currentClient.coaFormat === 'numeric')) {
+          const lengthDiff = editCode.length - oldId.length;
+          if (lengthDiff !== 0) {
+            const otherRoots = updatedAccounts.filter(a => !a.parentId && a.id !== editCode);
+            for (const root of otherRoots) {
+              let newRootId = root.id;
+              if (lengthDiff > 0) {
+                newRootId = root.id + '0'.repeat(lengthDiff);
+              } else if (lengthDiff < 0) {
+                const toRemove = Math.abs(lengthDiff);
+                if (newRootId.endsWith('0'.repeat(toRemove))) {
+                  newRootId = newRootId.slice(0, newRootId.length - toRemove);
+                }
+              }
+              if (newRootId !== root.id) {
+                const rootIndex = updatedAccounts.findIndex(a => a.id === root.id);
+                if (rootIndex !== -1) {
+                  updatedAccounts[rootIndex] = { ...updatedAccounts[rootIndex], id: newRootId };
+                }
+                updatedAccounts = updateDescendants(updatedAccounts, root.id, newRootId);
+              }
+            }
+          }
+        }
       }
       handleSaveAccounts(updatedAccounts);
     }
