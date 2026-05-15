@@ -51,8 +51,9 @@ export function PurchasesModal() {
 
   // Auto-count sequence number
   useEffect(() => {
-    if (currentClient && currentDat && viewIndex === null) {
-      const count = (currentClient.purchases || []).filter(p => p.datMonthYear === currentDat.formatted).length;
+    if (currentClient && viewIndex === null) {
+      const periodPurchases = currentClient.purchases || [];
+      const count = currentDat ? periodPurchases.filter(p => p.datMonthYear === currentDat.formatted).length : 0;
       setSequenceNumber(count + 1);
     }
   }, [currentClient?.purchases.length, currentDat?.formatted, viewIndex]);
@@ -153,7 +154,7 @@ export function PurchasesModal() {
   }, [date, currentDat]);
 
   const handleAddPurchase = () => {
-    if (!currentClient || !currentClientId || !currentDat) return;
+    if (!currentClient || !currentClientId) return;
     
     const parsedAmount = parseFloat(String(amount).replace(/,/g, ''));
     if (!date || !invoiceNo || !supplierTin || !supplierName || !amount || isNaN(parsedAmount)) {
@@ -171,7 +172,7 @@ export function PurchasesModal() {
     const purchaseData = {
       id: viewIndex !== null ? periodPurchases[viewIndex].id : Date.now(),
       sequenceNumber: viewIndex !== null ? (periodPurchases[viewIndex].sequenceNumber || sequenceNumber) : sequenceNumber,
-      datMonthYear: currentDat.formatted,
+      datMonthYear: currentDat ? currentDat.formatted : `${MONTHS[parseInt(m) - 1]} ${y}`,
       date: formattedDate,
       paymentMethod,
       bankName: paymentMethod === 'Check' ? bankName : null,
@@ -244,38 +245,34 @@ export function PurchasesModal() {
   return (
     <Modal
       id="purchases"
-      title="Expense Data Entry Screen"
+      title={currentDat ? "Expense Data Entry Screen (DAT)" : "Expense Data Entry Screen"}
       icon={<ShoppingCart className="w-5 h-5 text-amber-500" />}
     >
-      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between bg-slate-100 dark:bg-slate-800 p-4 rounded-2xl mb-6 gap-4 border border-slate-200 dark:border-slate-700">
-        <div className="flex flex-col md:flex-row items-start md:items-center gap-4 flex-1">
-          <div className="flex items-center gap-2 font-bold text-slate-700 dark:text-slate-300">
-            <FolderClock className="w-5 h-5 text-cyan-500" />
-            <span>DAT Period:</span>
-          </div>
-          
-          <div className="flex gap-2 w-full md:w-auto items-center">
-            {currentDat ? (
-              <>
-                <span className="bg-cyan-500 text-white px-4 py-1.5 rounded-lg font-bold text-sm shadow-sm ring-2 ring-cyan-500/20">
-                  {currentDat.formatted}
-                </span>
-                <div className="flex items-center gap-2 ml-2 pl-4 border-l border-slate-300 dark:border-slate-600">
-                  <span className="text-sm font-bold text-slate-700 dark:text-slate-300 whitespace-nowrap">Seq #:</span>
-                  <input 
-                    type="text" 
-                    readOnly 
-                    value={sequenceNumber} 
-                    className="w-14 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg text-center font-bold text-amber-600 py-1.5 focus:outline-none shadow-inner"
-                  />
-                </div>
-              </>
-            ) : (
-              <span className="text-red-500 font-bold animate-pulse italic">No DAT Selected</span>
-            )}
+      {currentDat && (
+        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between bg-slate-100 dark:bg-slate-800 p-4 rounded-2xl mb-6 gap-4 border border-slate-200 dark:border-slate-700">
+          <div className="flex flex-col md:flex-row items-start md:items-center gap-4 flex-1">
+            <div className="flex items-center gap-2 font-bold text-slate-700 dark:text-slate-300">
+              <FolderClock className="w-5 h-5 text-cyan-500" />
+              <span>DAT Period:</span>
+            </div>
+            
+            <div className="flex gap-2 w-full md:w-auto items-center">
+              <span className="bg-cyan-500 text-white px-4 py-1.5 rounded-lg font-bold text-sm shadow-sm ring-2 ring-cyan-500/20">
+                {currentDat.formatted}
+              </span>
+              <div className="flex items-center gap-2 ml-2 pl-4 border-l border-slate-300 dark:border-slate-600">
+                <span className="text-sm font-bold text-slate-700 dark:text-slate-300 whitespace-nowrap">Seq #:</span>
+                <input 
+                  type="text" 
+                  readOnly 
+                  value={sequenceNumber} 
+                  className="w-14 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg text-center font-bold text-amber-600 py-1.5 focus:outline-none shadow-inner"
+                />
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6 bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-700 relative">
         <div className="lg:col-span-3 pb-2 mb-2 border-b border-slate-200 dark:border-slate-700 flex flex-col md:flex-row gap-4 justify-between">
@@ -401,16 +398,18 @@ export function PurchasesModal() {
           <input type="text" readOnly value={netAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} className="form-input bg-slate-100 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 font-bold cursor-not-allowed" />
         </div>
 
-        <div className="lg:col-span-1">
-          <label className="form-label">Expense Class</label>
-          <select value={expenseType} onChange={e => setExpenseType(e.target.value)} className="form-input">
-            <option value="Capital Goods">🏭 Capital Goods</option>
-            <option value="Services">📋 Services</option>
-            <option value="Others">📦 Others</option>
-          </select>
-        </div>
+        {currentDat && (
+          <div className="lg:col-span-1">
+            <label className="form-label">Expense Class</label>
+            <select value={expenseType} onChange={e => setExpenseType(e.target.value)} className="form-input">
+              <option value="Capital Goods">🏭 Capital Goods</option>
+              <option value="Services">📋 Services</option>
+              <option value="Others">📦 Others</option>
+            </select>
+          </div>
+        )}
 
-        <div className="lg:col-span-2">
+        <div className={currentDat ? "lg:col-span-2" : "lg:col-span-2"}>
           <label className="form-label">Account Title</label>
           <select value={accountTitle} onChange={e => setAccountTitle(e.target.value)} className="form-input bg-blue-50 dark:bg-blue-900/10 border-blue-200 dark:border-blue-900/50 font-bold text-blue-800 dark:text-blue-300">
             {coaAccounts.map(account => (

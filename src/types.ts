@@ -69,6 +69,7 @@ export interface Client {
   rdoCode?: string;
   accountingType?: 'Calendar' | 'Fiscal';
   fiscalMonthEnd?: number;
+  coaFormat?: 'numeric' | 'alphanumeric';
   tinLibrary: {
     customers: TinEntry[];
     suppliers: TinEntry[];
