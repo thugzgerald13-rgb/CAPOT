@@ -35,7 +35,7 @@ export function PurchasesModal() {
     if (currentDat) {
       return accs.filter(a => expenseType === 'Capital Goods' ? (a.type === 'Asset' || a.type === 'Assets') : (a.type === 'Expense' || a.type === 'Expenses'));
     } else {
-      return accs.filter(a => a.type === selectedAccountType);
+      return accs.filter(a => a.type === selectedAccountType && a.parentId);
     }
   })();
 
@@ -448,7 +448,7 @@ export function PurchasesModal() {
           </div>
         )}
 
-        <div className={currentDat ? "lg:col-span-2" : "lg:col-span-3"}>
+        <div className={currentDat ? "lg:col-span-2" : "lg:col-span-3 md:col-span-2"}>
           <label className="form-label">{currentDat ? "Account Title" : "Header Account"}</label>
           <select value={accountTitle} onChange={e => setAccountTitle(e.target.value)} className="form-input bg-blue-50 dark:bg-blue-900/10 border-blue-200 dark:border-blue-900/50 font-bold text-blue-800 dark:text-blue-300">
             {coaAccounts.map(account => (
