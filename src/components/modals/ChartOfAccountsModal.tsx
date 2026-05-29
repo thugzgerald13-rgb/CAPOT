@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { BookOpen, Plus, Trash2, ChevronRight, ChevronDown, RefreshCcw, Edit2 } from 'lucide-react';
+import { BookOpen, Plus, Trash2, ChevronRight, ChevronDown, RefreshCcw, Edit2, Filter } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { useAccounting } from '../../context/AccountingContext';
 import { CoaAccount } from '../../types';
@@ -41,6 +41,155 @@ export const DEFAULT_ACCOUNTS_ALPHA: CoaAccount[] = [
 
 const ACCOUNT_TYPES = ['Assets', 'Liabilities', 'Equity', 'Income', 'Costs', 'Expenses'];
 
+export function resequenceAccounts(
+  accountsList: CoaAccount[],
+  coaFormat: 'numeric' | 'alphanumeric'
+): CoaAccount[] {
+  const isAlpha = coaFormat === 'alphanumeric';
+
+  if (isAlpha) {
+    const result: CoaAccount[] = [];
+
+    const processChildrenAlphaRecursive = (oldParentId: string, newParentId: string) => {
+      const children = accountsList
+        .filter(a => a.parentId === oldParentId)
+        .sort((a, b) => {
+          const cmp = a.id.localeCompare(b.id);
+          if (cmp !== 0) return cmp;
+          const defaults = DEFAULT_ACCOUNTS_ALPHA;
+          const idxA = defaults.findIndex(d => d.name.toLowerCase() === a.name.toLowerCase());
+          const idxB = defaults.findIndex(d => d.name.toLowerCase() === b.name.toLowerCase());
+          if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+          return a.name.localeCompare(b.name);
+        });
+
+      children.forEach((child, idx) => {
+        const prefix = newParentId + (newParentId.endsWith('-') ? '' : '-');
+        const newId = `${prefix}${(idx + 1) * 100}`;
+        
+        result.push({
+          ...child,
+          id: newId,
+          parentId: newParentId
+        });
+
+        processChildrenAlphaRecursive(child.id, newId);
+      });
+    };
+
+    const rootAccounts = accountsList
+      .filter(a => !a.parentId)
+      .sort((a, b) => {
+        const idxA = ACCOUNT_TYPES.indexOf(a.type);
+        const idxB = ACCOUNT_TYPES.indexOf(b.type);
+        if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+        return a.id.localeCompare(b.id);
+      });
+
+    rootAccounts.forEach(root => {
+      result.push(root);
+      processChildrenAlphaRecursive(root.id, root.id);
+    });
+
+    const processedIds = new Set(result.map(r => r.id));
+    accountsList.forEach(acc => {
+      if (!processedIds.has(acc.id)) {
+        result.push(acc);
+      }
+    });
+
+    return result;
+  } else {
+    // Numeric
+    const existingNumericRoot = accountsList.find(a => !a.parentId);
+    const rootLength = existingNumericRoot ? existingNumericRoot.id.length : 5;
+
+    const result: CoaAccount[] = [];
+
+    const rootAccounts = accountsList
+      .filter(a => !a.parentId)
+      .sort((a, b) => {
+        const idxA = ACCOUNT_TYPES.indexOf(a.type);
+        const idxB = ACCOUNT_TYPES.indexOf(b.type);
+        if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+        return a.id.localeCompare(b.id);
+      });
+
+    const processChildrenNumericRecursive = (oldParentId: string, newParentId: string) => {
+      const children = accountsList
+        .filter(a => a.parentId === oldParentId)
+        .sort((a, b) => {
+          const cmp = a.id.localeCompare(b.id);
+          if (cmp !== 0) return cmp;
+          const defaults = DEFAULT_ACCOUNTS;
+          const idxA = defaults.findIndex(d => d.name.toLowerCase() === a.name.toLowerCase());
+          const idxB = defaults.findIndex(d => d.name.toLowerCase() === b.name.toLowerCase());
+          if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+          return a.name.localeCompare(b.name);
+        });
+
+      if (children.length === 0) return;
+
+      const match = newParentId.match(/^(.*?)(0+)$/);
+      let prefix = newParentId;
+      let zeroCount = 0;
+      if (match) {
+        prefix = match[1];
+        zeroCount = match[2].length;
+      }
+
+      let step = 1;
+      if (zeroCount > 1) {
+        step = Math.pow(10, zeroCount - 1);
+      }
+
+      children.forEach((child, idx) => {
+        let childNewId = '';
+        if (zeroCount > 0) {
+          const suffixNum = (idx + 1) * step;
+          const suffixStr = String(suffixNum).padStart(zeroCount, '0');
+          childNewId = prefix + suffixStr;
+        } else {
+          childNewId = newParentId + String(idx + 1);
+        }
+
+        if (childNewId.length > rootLength) {
+          childNewId = childNewId.slice(0, rootLength);
+        } else if (childNewId.length < rootLength) {
+          childNewId = childNewId.padEnd(rootLength, '0');
+        }
+
+        result.push({
+          ...child,
+          id: childNewId,
+          parentId: newParentId
+        });
+
+        processChildrenNumericRecursive(child.id, childNewId);
+      });
+    };
+
+    rootAccounts.forEach((root, idx) => {
+      const rootIdVal = String(idx + 1).padEnd(rootLength, '0');
+      const newRoot = {
+        ...root,
+        id: rootIdVal
+      };
+      result.push(newRoot);
+      processChildrenNumericRecursive(root.id, rootIdVal);
+    });
+
+    const processedIds = new Set(result.map(r => r.id));
+    accountsList.forEach(acc => {
+      if (!processedIds.has(acc.id)) {
+        result.push(acc);
+      }
+    });
+
+    return result;
+  }
+}
+
 export function ChartOfAccountsModal() {
   const { currentClient, currentClientId, saveClient } = useAccounting();
   const [isAdding, setIsAdding] = useState(false);
@@ -55,6 +204,7 @@ export function ChartOfAccountsModal() {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [showPresets, setShowPresets] = useState(false);
   const presetsRef = useRef<HTMLDivElement>(null);
+  const [typeFilter, setTypeFilter] = useState<string>('All');
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editCode, setEditCode] = useState('');
@@ -80,10 +230,12 @@ export function ChartOfAccountsModal() {
   }
 
   const handleSaveAccounts = (updatedAccounts: CoaAccount[], coaFormat?: 'numeric' | 'alphanumeric') => {
+    const format = coaFormat || currentClient.coaFormat || 'numeric';
+    const resequenced = resequenceAccounts(updatedAccounts, format);
     saveClient(currentClientId, { 
       ...currentClient, 
-      accounts: updatedAccounts,
-      coaFormat: coaFormat || currentClient.coaFormat
+      accounts: resequenced,
+      coaFormat: format
     });
   };
 
@@ -104,8 +256,8 @@ export function ChartOfAccountsModal() {
       alert("Please fill out Account Code and Name.");
       return;
     }
-    if (accounts.some(a => a.id === computedId)) {
-      alert("Account Code already exists!");
+    if (accounts.some(a => a.id === computedId && a.parentId === addingParentId && a.name.toLowerCase() === newName.toLowerCase())) {
+      alert("This exact sub-account already exists!");
       return;
     }
     
@@ -177,19 +329,42 @@ export function ChartOfAccountsModal() {
       return;
     }
     
+    const editedAccount = accounts.find(a => a.id === oldId);
+    const isMainAccount = editedAccount && !editedAccount.parentId;
     const isNumeric = (!currentClient.coaFormat || currentClient.coaFormat === 'numeric');
-    const lengthDiff = isNumeric ? editCode.length - oldId.length : 0;
+
+    let finalEditCode = editCode;
+    const existingRoot = accounts.find(a => !a.parentId);
+    const uniformLength = existingRoot ? existingRoot.id.length : 5;
+
+    if (isNumeric) {
+      finalEditCode = finalEditCode.replace(/\D/g, '');
+      if (/\D/.test(finalEditCode) || finalEditCode.length === 0) {
+        alert("Account Code must contain only numbers.");
+        return;
+      }
+      
+      if (!isMainAccount) {
+        // Sub-accounts must match the current uniform length of root accounts
+        if (finalEditCode.length > uniformLength) {
+          finalEditCode = finalEditCode.slice(0, uniformLength);
+        } else if (finalEditCode.length < uniformLength) {
+          finalEditCode = finalEditCode.padEnd(uniformLength, '0');
+        }
+      }
+    }
+
+    const lengthDiff = (isNumeric && isMainAccount) ? finalEditCode.length - oldId.length : 0;
     
-    // We can't easily check for exists until after we determine the final adjusted IDs,
-    // but a direct collision check on user input is safe to keep.
-    if (editCode !== oldId && lengthDiff === 0 && accounts.some(a => a.id === editCode)) {
-      alert("Account Code already exists!");
-      return;
+    // Direct collision check using finalEditCode
+    if (finalEditCode !== oldId && lengthDiff === 0 && accounts.some(a => a.id === finalEditCode && a.name.toLowerCase() === editName.toLowerCase())) {
+       alert("An account with this code and name already exists!");
+       return;
     }
 
     let updatedAccounts = [...accounts];
 
-    // 1. If length changed in a numeric chart, apply that length diff universally to ALL accounts.
+    // 1. If length changed in a numeric chart on editing a main account, apply that length diff universally to ALL accounts.
     if (lengthDiff !== 0) {
       updatedAccounts = updatedAccounts.map(account => {
         let newId = account.id;
@@ -212,22 +387,24 @@ export function ChartOfAccountsModal() {
 
     // Determine what oldId is known as NOW (after the global padding applies)
     let adjustedOldId = oldId;
-    if (lengthDiff > 0) {
-      adjustedOldId += '0'.repeat(lengthDiff);
-    } else if (lengthDiff < 0) {
-      const toRemove = Math.abs(lengthDiff);
-      adjustedOldId = adjustedOldId.slice(0, adjustedOldId.length - toRemove);
+    if (isNumeric && isMainAccount) {
+      if (lengthDiff > 0) {
+        adjustedOldId += '0'.repeat(lengthDiff);
+      } else if (lengthDiff < 0) {
+        const toRemove = Math.abs(lengthDiff);
+        adjustedOldId = adjustedOldId.slice(0, adjustedOldId.length - toRemove);
+      }
     }
     
-    // 2. Perform the specific user edit (e.g. changing 10000 to 20000)
+    // 2. Perform the specific user edit
     const index = updatedAccounts.findIndex(a => a.id === adjustedOldId);
     if (index !== -1) {
-      updatedAccounts[index] = { ...updatedAccounts[index], id: editCode, name: editName };
+      updatedAccounts[index] = { ...updatedAccounts[index], id: finalEditCode, name: editName };
       
-      if (editCode !== adjustedOldId) {
-        // Since adjustedOldId and editCode now have the same length (or stripped length),
+      if (finalEditCode !== adjustedOldId) {
+        // Since adjustedOldId and finalEditCode now have the same length,
         // updateDescendants will ONLY do prefix replacement.
-        updatedAccounts = updateDescendants(updatedAccounts, adjustedOldId, editCode);
+        updatedAccounts = updateDescendants(updatedAccounts, adjustedOldId, finalEditCode);
       }
       handleSaveAccounts(updatedAccounts);
     }
@@ -298,7 +475,10 @@ export function ChartOfAccountsModal() {
   };
 
   const renderAccounts = (parentId?: string, depth = 0) => {
-    const levelAccounts = accounts.filter(a => a.parentId === parentId).sort((a, b) => a.id.localeCompare(b.id));
+    let levelAccounts = accounts.filter(a => a.parentId === parentId).sort((a, b) => a.id.localeCompare(b.id));
+    if (!parentId && typeFilter !== 'All') {
+      levelAccounts = levelAccounts.filter(a => a.type === typeFilter);
+    }
 
     return levelAccounts.map(account => {
       const hasChildren = accounts.some(a => a.parentId === account.id);
@@ -319,20 +499,43 @@ export function ChartOfAccountsModal() {
                 <div className="w-6" /> // spacer
               )}
               {editingId === account.id ? (
-                <div className="flex items-center gap-2">
-                  <input 
-                    type="text" 
-                    value={editCode} 
-                    onChange={e => setEditCode(currentClient.coaFormat === 'numeric' ? e.target.value.replace(/\D/g, '') : e.target.value)} 
-                    className="form-input py-0.5 px-2 text-sm w-28"
-                  />
-                  <input 
-                    type="text" 
-                    value={editName} 
-                    onChange={e => setEditName(e.target.value)} 
-                    className="form-input py-0.5 px-2 text-sm max-w-[200px]"
-                  />
-                </div>
+                (() => {
+                  const isMain = !account.parentId;
+                  const existingNumericRoot = accounts.find(a => !a.parentId);
+                  const uniformLength = existingNumericRoot ? existingNumericRoot.id.length : 5;
+                  return (
+                    <div className="flex items-center gap-2">
+                      <input 
+                        type="text" 
+                        value={editCode} 
+                        onChange={e => {
+                          let val = e.target.value;
+                          if (currentClient.coaFormat === 'numeric') {
+                            val = val.replace(/\D/g, '');
+                            if (!isMain && val.length > uniformLength) {
+                              val = val.slice(0, uniformLength);
+                            }
+                          }
+                          setEditCode(val);
+                        }}
+                        maxLength={(!isMain && currentClient.coaFormat === 'numeric') ? uniformLength : undefined}
+                        onKeyDown={e => {
+                          if (currentClient.coaFormat === 'numeric' && !/[\d]/.test(e.key) && e.key !== 'Backspace' && e.key !== 'Delete' && e.key !== 'ArrowLeft' && e.key !== 'ArrowRight' && e.key !== 'Tab') {
+                            e.preventDefault();
+                          }
+                        }}
+                        className="form-input py-0.5 px-2 text-sm w-28 font-mono"
+                        placeholder="Code"
+                      />
+                      <input 
+                        type="text" 
+                        value={editName} 
+                        onChange={e => setEditName(e.target.value)} 
+                        className="form-input py-0.5 px-2 text-sm max-w-[200px]"
+                      />
+                    </div>
+                  );
+                })()
               ) : (
                 <>
                   <span className="text-slate-600 dark:text-slate-400 font-mono text-sm">{account.id}</span>
@@ -458,7 +661,7 @@ export function ChartOfAccountsModal() {
   return (
     <Modal id="coa" title="Chart of Accounts" icon={<BookOpen />} maxWidth="max-w-4xl">
       <div className="p-6">
-        <div className="flex justify-between items-start mb-6">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6 pb-4 border-b border-slate-100 dark:border-slate-800">
           <div>
             <p className="text-slate-500 dark:text-slate-400 mb-2">Manage your ledger accounts, sub-accounts, and formats.</p>
             <div className="relative" ref={presetsRef}>
@@ -486,6 +689,25 @@ export function ChartOfAccountsModal() {
               )}
             </div>
           </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1.5 whitespace-nowrap">
+              <Filter className="w-3.5 h-3.5" /> Filter Type:
+            </span>
+            <select
+              id="coa-type-filter"
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              className="form-select text-xs font-medium border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg py-1.5 px-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400"
+            >
+              <option value="All">All Types</option>
+              {ACCOUNT_TYPES.map((type) => (
+                <option key={type} value={type}>
+                  {type} Only
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {isAdding && (
@@ -512,7 +734,12 @@ export function ChartOfAccountsModal() {
                         if (suffixPlaceholder) val = val.slice(0, suffixPlaceholder.length);
                         setIdSuffix(val);
                       }} 
-                      className={cn("w-full form-input", idPrefix ? "rounded-l-none" : "")}
+                      onKeyDown={e => {
+                        if (currentClient.coaFormat === 'numeric' && !/[\d]/.test(e.key) && e.key !== 'Backspace' && e.key !== 'Delete' && e.key !== 'ArrowLeft' && e.key !== 'ArrowRight' && e.key !== 'Tab') {
+                          e.preventDefault();
+                        }
+                      }}
+                      className={cn("w-full form-input font-mono", idPrefix ? "rounded-l-none" : "")}
                       placeholder={suffixPlaceholder || "e.g. 1010 or A-101"}
                     />
                   </div>
@@ -576,7 +803,18 @@ export function ChartOfAccountsModal() {
               <div className="p-8 text-center text-slate-500">
                 No accounts defined. Use the preset selection above or add an account.
               </div>
-            ) : renderAccounts()}
+            ) : (() => {
+              const rootMatches = accounts.filter(a => !a.parentId && (typeFilter === 'All' || a.type === typeFilter));
+              if (rootMatches.length === 0) {
+                return (
+                  <div className="p-12 text-center text-slate-500 flex flex-col items-center justify-center gap-1.5">
+                    <span className="font-semibold text-slate-700 dark:text-slate-300">No {typeFilter} accounts found.</span>
+                    <span className="text-xs text-slate-400">Try changing the filter type.</span>
+                  </div>
+                );
+              }
+              return renderAccounts();
+            })()}
           </div>
         </div>
 
