@@ -60,6 +60,46 @@ export function GeneralJournalModal() {
     handleSaveEntries([...entries, newEntry]);
   };
 
+  const balanceEntry = () => {
+    if (isBalanced || entries.length === 0) return;
+
+    const diff = Math.abs(totalDr - totalCr);
+    if (diff < 0.01) return;
+
+    const isDrNeeded = totalDr < totalCr;
+
+    const colId = isDrNeeded
+      ? (columns.find(c => c.category === 'Dr' && c.type === 'number')?.id || 'debit')
+      : (columns.find(c => c.category === 'Cr' && c.type === 'number')?.id || 'credit');
+
+    const formattedVal = diff.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    const lastEntry = entries[entries.length - 1];
+    const dateVal = lastEntry?.values?.date || '';
+    const refNoVal = lastEntry?.values?.ref_no || '';
+
+    const newValues: Record<string, string> = {};
+    columns.forEach(col => {
+      if (col.type !== 'number') {
+        newValues[col.id] = lastEntry?.values?.[col.id] || '';
+      } else {
+        newValues[col.id] = '';
+      }
+    });
+
+    newValues.date = dateVal;
+    newValues.ref_no = refNoVal;
+    newValues.particulars = 'Balancing Entry';
+    newValues[colId] = formattedVal;
+
+    const newEntry: JournalEntry = {
+      id: crypto.randomUUID(),
+      values: newValues
+    };
+
+    handleSaveEntries([...entries, newEntry]);
+  };
+
   const updateEntry = (id: string, colId: string, val: string) => {
     const updated = entries.map(e => {
       if (e.id === id) {
@@ -108,12 +148,23 @@ export function GeneralJournalModal() {
                Customize Columns
              </button>
           </div>
-          <button 
-            onClick={addEntry}
-            className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold px-4 py-2 rounded-xl transition-colors flex items-center gap-2"
-          >
-            <Plus className="w-4 h-4" /> Add Row
-          </button>
+          <div className="flex items-center gap-2">
+            {!isBalanced && entries.length > 0 && (
+              <button 
+                onClick={balanceEntry}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-xl transition-colors flex items-center gap-2 shadow-sm"
+                title="Automatically add a row to balance debits and credits"
+              >
+                <Check className="w-4 h-4" /> Balance Entry
+              </button>
+            )}
+            <button 
+              onClick={addEntry}
+              className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold px-4 py-2 rounded-xl transition-colors flex items-center gap-2"
+            >
+              <Plus className="w-4 h-4" /> Add Row
+            </button>
+          </div>
         </div>
 
         {isEditingHeaders && (
@@ -275,18 +326,29 @@ export function GeneralJournalModal() {
                 </p>
               </div>
             </div>
-            <div className={cn(
-              "px-4 py-2 rounded-xl font-bold flex items-center gap-2",
-              isBalanced ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-            )}>
-              {isBalanced ? (
-                <>
-                  <Check className="w-5 h-5" /> Balanced
-                </>
-              ) : (
-                <>
-                  <X className="w-5 h-5" /> Out of Balance: ₱{Math.abs(totalDr - totalCr).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </>
+            <div className="flex items-center gap-3">
+              <div className={cn(
+                "px-4 py-2 rounded-xl font-bold flex items-center gap-2",
+                isBalanced ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+              )}>
+                {isBalanced ? (
+                  <>
+                    <Check className="w-5 h-5" /> Balanced
+                  </>
+                ) : (
+                  <>
+                    <X className="w-5 h-5" /> Out of Balance: ₱{Math.abs(totalDr - totalCr).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </>
+                )}
+              </div>
+              {!isBalanced && (
+                <button 
+                  onClick={balanceEntry}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-2 rounded-xl text-xs transition-colors shadow-sm flex items-center gap-1.5 cursor-pointer"
+                  title="Add automatic balancing row to balance debits and credits"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Auto-Balance Entry
+                </button>
               )}
             </div>
           </div>
