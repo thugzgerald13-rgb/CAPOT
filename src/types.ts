@@ -22,6 +22,7 @@ export interface Purchase {
   accountTitle: string;
   transactionDetails?: string;
   inputTax: number;
+  isDatEntry?: boolean;
 }
 
 export interface Sale {

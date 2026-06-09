@@ -67,7 +67,7 @@ export function HistoryModal() {
     showToast('Income deleted');
   };
 
-  const purchases = currentDat ? (currentClient.purchases || []).filter(p => p.datMonthYear === currentDat.formatted) : [];
+  const purchases = currentDat ? (currentClient.purchases || []).filter(p => p.datMonthYear === currentDat.formatted && p.isDatEntry === true) : [];
   const sales = currentDat ? (currentClient.sales || []).filter(s => s.datMonthYear === currentDat.formatted) : [];
 
   const filteredPurchases = purchases.filter(p => 
@@ -84,7 +84,7 @@ export function HistoryModal() {
   // Derive unique DAT periods from transactions
   const allPeriods = Array.from(new Set([
     ...(currentClient.sales || []).map(s => s.datMonthYear),
-    ...(currentClient.purchases || []).map(p => p.datMonthYear)
+    ...(currentClient.purchases || []).filter(p => p.isDatEntry === true).map(p => p.datMonthYear)
   ])).filter(Boolean);
 
   const handleSwitchPeriod = (period: string) => {
