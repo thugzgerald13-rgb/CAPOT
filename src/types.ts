@@ -88,6 +88,7 @@ export interface Client {
   gjEntries?: JournalEntry[];
   glAccounts?: GeneralLedgerAccount[];
   plData?: ProfitAndLossData;
+  isOwnBusiness?: boolean;
 }
 
 export interface ProfitAndLossLine {

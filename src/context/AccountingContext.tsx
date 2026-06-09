@@ -11,7 +11,8 @@ import {
   serverTimestamp, 
   writeBatch,
   getDocs,
-  getDoc
+  getDoc,
+  deleteDoc
 } from 'firebase/firestore';
 import { useAuth } from './AuthContext';
 import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
@@ -38,7 +39,8 @@ interface AccountingContextType {
   setCurrentDat: (dat: DatSelection | null) => void;
   
   saveClient: (id: string, clientData: Client) => Promise<void>;
-  addClient: (name: string) => Promise<void>;
+  addClient: (name: string, isOwnBusiness?: boolean) => Promise<void>;
+  deleteClient: (id: string) => Promise<void>;
   showToast: (msg: string) => void;
 }
 
@@ -334,7 +336,7 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }
   };
 
-  const addClient = async (name: string) => {
+  const addClient = async (name: string, isOwnBusiness: boolean = false) => {
     if (!name.trim()) return;
     const newId = 'client_' + Date.now();
     const newClient: Client = {
@@ -343,7 +345,8 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       tinLibrary: { customers: [], suppliers: [] },
       sales: [],
       purchases: [],
-      expenses: []
+      expenses: [],
+      isOwnBusiness: isOwnBusiness
     } as Client;
 
     if (user) {
@@ -365,6 +368,39 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(newClients));
       setCurrentClientId(newId);
       showToast('Client added');
+    }
+  };
+
+  const deleteClient = async (id: string) => {
+    if (user) {
+      try {
+        const clientRef = doc(db, 'clients', id);
+        await deleteDoc(clientRef);
+        showToast('Client deleted');
+      } catch (error) {
+        handleFirestoreError(error, OperationType.DELETE, `clients/${id}`);
+      }
+    } else {
+      const newClients = { ...clients };
+      delete newClients[id];
+      setClients(newClients);
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(newClients));
+      showToast('Client deleted');
+    }
+
+    setClients(prev => {
+      const newClients = { ...prev };
+      delete newClients[id];
+      return newClients;
+    });
+
+    if (currentClientId === id) {
+      const remainingIds = Object.keys(clients).filter(cId => cId !== id);
+      if (remainingIds.length > 0) {
+        setCurrentClientId(remainingIds[0]);
+      } else {
+        setCurrentClientId(null);
+      }
     }
   };
 
@@ -472,6 +508,7 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         setCurrentDat,
         saveClient,
         addClient,
+        deleteClient,
         showToast
       }}
     >
