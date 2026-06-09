@@ -573,6 +573,15 @@ export function ChartOfAccountsModal() {
                             e.preventDefault();
                           }
                         }}
+                        onBlur={() => {
+                          if (!isMain && (!currentClient.coaFormat || currentClient.coaFormat === 'numeric')) {
+                            let val = editCode;
+                            if (val.length < uniformLength && val.length > 0) {
+                              val = val.padEnd(uniformLength, '0');
+                              setEditCode(val);
+                            }
+                          }
+                        }}
                         className="form-input py-0.5 px-2 text-sm w-28 font-mono"
                         placeholder="Code"
                       />
@@ -786,6 +795,13 @@ export function ChartOfAccountsModal() {
                       onKeyDown={e => {
                         if ((!currentClient.coaFormat || currentClient.coaFormat === 'numeric') && !/[\d]/.test(e.key) && e.key !== 'Backspace' && e.key !== 'Delete' && e.key !== 'ArrowLeft' && e.key !== 'ArrowRight' && e.key !== 'Tab' && !e.ctrlKey && !e.metaKey) {
                           e.preventDefault();
+                        }
+                      }}
+                      onBlur={() => {
+                        if (!currentClient.coaFormat || currentClient.coaFormat === 'numeric') {
+                          if (idSuffix.length < suffixPlaceholder.length && idSuffix.length > 0) {
+                            setIdSuffix(idSuffix.padEnd(suffixPlaceholder.length, '0'));
+                          }
                         }
                       }}
                       className={cn("w-full form-input font-mono", idPrefix ? "rounded-l-none" : "")}
