@@ -533,7 +533,11 @@ export function ExtraModals() {
          </div>
       </Modal>
 
-      <Modal id="taxnotes" title="Tax Notes & Estimates" icon={<Lightbulb className="text-yellow-500" />}>
+      <Modal id="taxnotes" title="" icon={null}>
+         <div />
+      </Modal>
+      {/* Removed taxnotes */}
+      <div style={{display: "none"}}>
          <div className="bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-200 dark:border-yellow-800 p-6 rounded-2xl flex flex-col gap-4">
             <div className="flex justify-between items-center bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm">
                <span className="font-semibold text-slate-700 dark:text-slate-300">Estimated Income Tax (25% based on Gross)</span>
@@ -544,7 +548,7 @@ export function ExtraModals() {
                <span className="font-extrabold text-lg text-blue-600">₱{totalIpTax.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
             </div>
          </div>
-      </Modal>
+      </div>
 
       {/* Placeholders for deep accounting features that were blank in the original HTML */}
       <Modal id="trialbalance" title="Trial Balance" icon={<Scale />}>

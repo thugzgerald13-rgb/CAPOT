@@ -559,7 +559,7 @@ export function ChartOfAccountsModal() {
                         value={editCode} 
                         onChange={e => {
                           let val = e.target.value;
-                          if (currentClient.coaFormat === 'numeric') {
+                          if (!currentClient.coaFormat || currentClient.coaFormat === 'numeric') {
                             val = val.replace(/\D/g, '');
                             if (!isMain && val.length > uniformLength) {
                               val = val.slice(0, uniformLength);
@@ -567,9 +567,9 @@ export function ChartOfAccountsModal() {
                           }
                           setEditCode(val);
                         }}
-                        maxLength={(!isMain && currentClient.coaFormat === 'numeric') ? uniformLength : undefined}
+                        maxLength={(!isMain && (!currentClient.coaFormat || currentClient.coaFormat === 'numeric')) ? uniformLength : undefined}
                         onKeyDown={e => {
-                          if (currentClient.coaFormat === 'numeric' && !/[\d]/.test(e.key) && e.key !== 'Backspace' && e.key !== 'Delete' && e.key !== 'ArrowLeft' && e.key !== 'ArrowRight' && e.key !== 'Tab' && !e.ctrlKey && !e.metaKey) {
+                          if ((!currentClient.coaFormat || currentClient.coaFormat === 'numeric') && !/[\d]/.test(e.key) && e.key !== 'Backspace' && e.key !== 'Delete' && e.key !== 'ArrowLeft' && e.key !== 'ArrowRight' && e.key !== 'Tab' && !e.ctrlKey && !e.metaKey) {
                             e.preventDefault();
                           }
                         }}
@@ -779,12 +779,12 @@ export function ChartOfAccountsModal() {
                       type="text" 
                       value={idSuffix} 
                       onChange={e => {
-                        let val = currentClient.coaFormat === 'numeric' ? e.target.value.replace(/\D/g, '') : e.target.value.replace(/[^0-9A-Za-z_-]/g, '');
+                        let val = (!currentClient.coaFormat || currentClient.coaFormat === 'numeric') ? e.target.value.replace(/\D/g, '') : e.target.value.replace(/[^0-9A-Za-z_-]/g, '');
                         if (suffixPlaceholder) val = val.slice(0, suffixPlaceholder.length);
                         setIdSuffix(val);
                       }} 
                       onKeyDown={e => {
-                        if (currentClient.coaFormat === 'numeric' && !/[\d]/.test(e.key) && e.key !== 'Backspace' && e.key !== 'Delete' && e.key !== 'ArrowLeft' && e.key !== 'ArrowRight' && e.key !== 'Tab' && !e.ctrlKey && !e.metaKey) {
+                        if ((!currentClient.coaFormat || currentClient.coaFormat === 'numeric') && !/[\d]/.test(e.key) && e.key !== 'Backspace' && e.key !== 'Delete' && e.key !== 'ArrowLeft' && e.key !== 'ArrowRight' && e.key !== 'Tab' && !e.ctrlKey && !e.metaKey) {
                           e.preventDefault();
                         }
                       }}
