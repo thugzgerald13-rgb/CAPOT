@@ -41,6 +41,11 @@ export const DEFAULT_ACCOUNTS_ALPHA: CoaAccount[] = [
 
 const ACCOUNT_TYPES = ['Assets', 'Liabilities', 'Equity', 'Income', 'Costs', 'Expenses'];
 
+export function getParentPrefix(parentId: string): string {
+  const match = parentId.match(/^(.+?)(0+)$/);
+  return match ? match[1] : parentId;
+}
+
 export function resequenceAccounts(
   accountsList: CoaAccount[],
   coaFormat: 'numeric' | 'alphanumeric'
@@ -118,41 +123,11 @@ export function resequenceAccounts(
     const processChildrenNumericRecursive = (oldParentId: string, newParentId: string) => {
       const children = accountsList
         .filter(a => a.parentId === oldParentId)
-        .sort((a, b) => {
-          const cmp = a.id.localeCompare(b.id);
-          if (cmp !== 0) return cmp;
-          const defaults = DEFAULT_ACCOUNTS;
-          const idxA = defaults.findIndex(d => d.name.toLowerCase() === a.name.toLowerCase());
-          const idxB = defaults.findIndex(d => d.name.toLowerCase() === b.name.toLowerCase());
-          if (idxA !== -1 && idxB !== -1) return idxA - idxB;
-          return a.name.localeCompare(b.name);
-        });
+        .sort((a, b) => a.id.localeCompare(b.id));
 
-      if (children.length === 0) return;
-
-      const match = newParentId.match(/^(.*?)(0+)$/);
-      let prefix = newParentId;
-      let zeroCount = 0;
-      if (match) {
-        prefix = match[1];
-        zeroCount = match[2].length;
-      }
-
-      let step = 1;
-      if (zeroCount > 1) {
-        step = Math.pow(10, zeroCount - 1);
-      }
-
-      children.forEach((child, idx) => {
-        let childNewId = '';
-        if (zeroCount > 0) {
-          const suffixNum = (idx + 1) * step;
-          const suffixStr = String(suffixNum).padStart(zeroCount, '0');
-          childNewId = prefix + suffixStr;
-        } else {
-          childNewId = newParentId + String(idx + 1);
-        }
-
+      children.forEach((child) => {
+        let childNewId = child.id;
+        
         if (childNewId.length > rootLength) {
           childNewId = childNewId.slice(0, rootLength);
         } else if (childNewId.length < rootLength) {
@@ -169,8 +144,14 @@ export function resequenceAccounts(
       });
     };
 
-    rootAccounts.forEach((root, idx) => {
-      const rootIdVal = String(idx + 1).padEnd(rootLength, '0');
+    rootAccounts.forEach((root) => {
+      let rootIdVal = root.id;
+      if (rootIdVal.length > rootLength) {
+        rootIdVal = rootIdVal.slice(0, rootLength);
+      } else if (rootIdVal.length < rootLength) {
+        rootIdVal = rootIdVal.padEnd(rootLength, '0');
+      }
+
       const newRoot = {
         ...root,
         id: rootIdVal
@@ -182,7 +163,13 @@ export function resequenceAccounts(
     const processedIds = new Set(result.map(r => r.id));
     accountsList.forEach(acc => {
       if (!processedIds.has(acc.id)) {
-        result.push(acc);
+        let fallbackId = acc.id;
+        if (fallbackId.length > rootLength) {
+          fallbackId = fallbackId.slice(0, rootLength);
+        } else if (fallbackId.length < rootLength) {
+          fallbackId = fallbackId.padEnd(rootLength, '0');
+        }
+        result.push({ ...acc, id: fallbackId });
       }
     });
 
@@ -279,6 +266,9 @@ export function ChartOfAccountsModal() {
 
   const handleDelete = (id: string) => {
     if (confirm("Are you sure you want to delete this account? This will also delete any sub-accounts.")) {
+      const deletedAccount = accounts.find(a => a.id === id);
+      const parentId = deletedAccount?.parentId;
+
       const idsToDelete = new Set([id]);
       let added = true;
       while (added) {
@@ -291,7 +281,54 @@ export function ChartOfAccountsModal() {
         });
       }
       
-      const updatedAccounts = accounts.filter(a => !idsToDelete.has(a.id));
+      let updatedAccounts = accounts.filter(a => !idsToDelete.has(a.id));
+
+      const isNumeric = (!currentClient.coaFormat || currentClient.coaFormat === 'numeric');
+      if (isNumeric && parentId && deletedAccount) {
+        const siblings = updatedAccounts
+          .filter(a => a.parentId === parentId)
+          .sort((a, b) => a.id.localeCompare(b.id));
+
+        if (siblings.length > 0) {
+          const match = parentId.match(/^(.+?)(0+)$/);
+          let prefix = parentId;
+          let zeroCount = 0;
+          if (match) {
+            prefix = match[1];
+            zeroCount = match[2].length;
+          }
+
+          let step = 1;
+          if (zeroCount > 1) {
+            step = Math.pow(10, zeroCount - 1);
+          }
+
+          siblings.forEach((sib, idx) => {
+            let childNewId = '';
+            if (zeroCount > 0) {
+              const suffixNum = (idx + 1) * step;
+              const suffixStr = String(suffixNum).padStart(zeroCount, '0');
+              childNewId = prefix + suffixStr;
+            } else {
+              childNewId = parentId + String(idx + 1);
+            }
+
+            if (childNewId !== sib.id) {
+              updatedAccounts = updatedAccounts.map(acc => {
+                if (acc.id === sib.id) {
+                  return { ...acc, id: childNewId };
+                }
+                if (acc.parentId === sib.id) {
+                  return { ...acc, parentId: childNewId };
+                }
+                return acc;
+              });
+              updatedAccounts = updateDescendants(updatedAccounts, sib.id, childNewId);
+            }
+          });
+        }
+      }
+
       handleSaveAccounts(updatedAccounts);
     }
   };
@@ -351,14 +388,26 @@ export function ChartOfAccountsModal() {
         } else if (finalEditCode.length < uniformLength) {
           finalEditCode = finalEditCode.padEnd(uniformLength, '0');
         }
+
+        // Sub-account must start with its parent prefix to maintain integrity
+        if (editedAccount?.parentId) {
+          const parentAccount = accounts.find(a => a.id === editedAccount.parentId);
+          if (parentAccount) {
+            const parentPrefix = getParentPrefix(parentAccount.id);
+            if (!finalEditCode.startsWith(parentPrefix)) {
+              alert(`Sub-account code must start with its parent prefix: "${parentPrefix}"`);
+              return;
+            }
+          }
+        }
       }
     }
 
     const lengthDiff = (isNumeric && isMainAccount) ? finalEditCode.length - oldId.length : 0;
     
-    // Direct collision check using finalEditCode
-    if (finalEditCode !== oldId && lengthDiff === 0 && accounts.some(a => a.id === finalEditCode && a.name.toLowerCase() === editName.toLowerCase())) {
-       alert("An account with this code and name already exists!");
+    // Direct collision check using finalEditCode (cannot collide with any other account's code)
+    if (finalEditCode !== oldId && lengthDiff === 0 && accounts.some(a => a.id === finalEditCode)) {
+       alert("An account with this code already exists!");
        return;
     }
 
@@ -520,7 +569,7 @@ export function ChartOfAccountsModal() {
                         }}
                         maxLength={(!isMain && currentClient.coaFormat === 'numeric') ? uniformLength : undefined}
                         onKeyDown={e => {
-                          if (currentClient.coaFormat === 'numeric' && !/[\d]/.test(e.key) && e.key !== 'Backspace' && e.key !== 'Delete' && e.key !== 'ArrowLeft' && e.key !== 'ArrowRight' && e.key !== 'Tab') {
+                          if (currentClient.coaFormat === 'numeric' && !/[\d]/.test(e.key) && e.key !== 'Backspace' && e.key !== 'Delete' && e.key !== 'ArrowLeft' && e.key !== 'ArrowRight' && e.key !== 'Tab' && !e.ctrlKey && !e.metaKey) {
                             e.preventDefault();
                           }
                         }}
@@ -735,7 +784,7 @@ export function ChartOfAccountsModal() {
                         setIdSuffix(val);
                       }} 
                       onKeyDown={e => {
-                        if (currentClient.coaFormat === 'numeric' && !/[\d]/.test(e.key) && e.key !== 'Backspace' && e.key !== 'Delete' && e.key !== 'ArrowLeft' && e.key !== 'ArrowRight' && e.key !== 'Tab') {
+                        if (currentClient.coaFormat === 'numeric' && !/[\d]/.test(e.key) && e.key !== 'Backspace' && e.key !== 'Delete' && e.key !== 'ArrowLeft' && e.key !== 'ArrowRight' && e.key !== 'Tab' && !e.ctrlKey && !e.metaKey) {
                           e.preventDefault();
                         }
                       }}
