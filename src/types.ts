@@ -51,6 +51,74 @@ export interface CoaAccount {
   parentId?: string;
 }
 
+export interface InvoicePayable {
+  id: string;
+  invoiceNo: string;
+  poNo: string;
+  rrNo: string;
+  date: string;
+  dueDate: string;
+  supplierTin: string;
+  supplierName: string;
+  supplierAddress: string;
+  poQty: number;
+  poUnitPrice: number;
+  rrQty: number;
+  rrUnitPrice: number;
+  viQty: number;
+  viUnitPrice: number;
+  amount: number;
+  matchingStatus: 'Matched' | 'Discrepancy' | 'Pending';
+  matchingDetails?: string;
+  status: 'Hold' | 'Released';
+  paymentStatus: 'Unpaid' | 'Paid' | 'Partially Paid';
+  amountPaid: number;
+  whtRate: number;
+  whtAmount: number;
+  atcCode?: string;
+}
+
+export interface CashDisbursementDetail {
+  id: string;
+  date: string;
+  voucherNo: string;
+  checkNo: string;
+  bankName: string;
+  payee: string;
+  payeeTin?: string;
+  amount: number;
+  whtAmount: number;
+  netAmountPaid: number;
+  accountTitle: string;
+  particulars: string;
+  payableInvoiceId?: string;
+  isReversed?: boolean;
+  reversalReason?: string;
+  reversalDate?: string;
+  type: 'Invoice' | 'Miscellaneous' | 'Advance';
+}
+
+export interface AdvanceToSupplier {
+  id: string;
+  date: string;
+  supplierName: string;
+  supplierTin: string;
+  bankName: string;
+  checkNo: string;
+  amount: number;
+  status: 'Unapplied' | 'Applied';
+  appliedInvoiceNo?: string;
+}
+
+export interface DebitCreditMemo {
+  id: string;
+  date: string;
+  type: 'Debit' | 'Credit';
+  invoiceId: string;
+  amount: number;
+  reason: string;
+}
+
 export interface Client {
   id: string;
   name: string; // Display name
@@ -90,6 +158,11 @@ export interface Client {
   glAccounts?: GeneralLedgerAccount[];
   plData?: ProfitAndLossData;
   isOwnBusiness?: boolean;
+  payables?: InvoicePayable[];
+  disbursements?: CashDisbursementDetail[];
+  advances?: AdvanceToSupplier[];
+  memos?: DebitCreditMemo[];
+  bankBalance?: number;
 }
 
 export interface ProfitAndLossLine {

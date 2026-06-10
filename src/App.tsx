@@ -18,6 +18,7 @@ import { GeneralLedgerModal } from './components/modals/GeneralLedgerModal';
 import { ProfitAndLossModal } from './components/modals/ProfitAndLossModal';
 import { ExtraModals } from './components/modals/ExtraModals';
 import { AdminSettingsModal } from './components/modals/AdminSettingsModal';
+import { PayablesDisbursementsModal } from './components/modals/PayablesDisbursementsModal';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { AuthContainer } from './components/AuthContainer';
 
@@ -80,6 +81,7 @@ function AppLayout() {
         <ProfitAndLossModal />
         <AdminSettingsModal />
         <ExtraModals />
+        <PayablesDisbursementsModal />
       </main>
     </div>
   );
