@@ -20,6 +20,7 @@ import { ExtraModals } from './components/modals/ExtraModals';
 import { AdminSettingsModal } from './components/modals/AdminSettingsModal';
 import { PayablesDisbursementsModal } from './components/modals/PayablesDisbursementsModal';
 import { LedgerAccountingModal } from './components/modals/LedgerAccountingModal';
+import { ReceivablesCollectionsModal } from './components/modals/ReceivablesCollectionsModal';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { AuthContainer } from './components/AuthContainer';
 
@@ -83,6 +84,7 @@ function AppLayout() {
         <AdminSettingsModal />
         <ExtraModals />
         <PayablesDisbursementsModal />
+        <ReceivablesCollectionsModal />
         <LedgerAccountingModal />
       </main>
     </div>

@@ -6,7 +6,8 @@ import {
   Building2, Landmark, Settings, Sliders, DollarSign, FileText, 
   ArrowRightLeft, Percent, Layers, Plus, Calendar, RotateCcw, 
   Trash2, Play, Eye, Save, AlertCircle, HelpCircle, ChevronRight, 
-  ChevronDown, HelpCircle as HelpIcon, TrendingUp, Scale, Settings2, BarChart2
+  ChevronDown, HelpCircle as HelpIcon, TrendingUp, Scale, Settings2, BarChart2,
+  Wallet
 } from 'lucide-react';
 
 // --- Types for Advanced G/L ---

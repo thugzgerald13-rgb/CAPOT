@@ -110,6 +110,50 @@ export interface AdvanceToSupplier {
   appliedInvoiceNo?: string;
 }
 
+export interface CashReceiptDetail {
+  id: string;
+  date: string;
+  receiptType: 'Provisional' | 'Collection' | 'Official';
+  receiptNo: string;
+  buyerName: string;
+  buyerTin?: string;
+  amount: number;
+  paymentMethod: 'Cash' | 'Check' | 'Bank Transfer';
+  checkNo?: string;
+  bankName?: string;
+  desc?: string;
+  status: 'Active' | 'Replaced' | 'Returned';
+  replacedByReceiptId?: string;
+  twasRate?: number;
+  twasAmount?: number;
+  atcCode?: string;
+  invoiceId?: string;
+}
+
+export interface DepositSlip {
+  id: string;
+  date: string;
+  bankName: string;
+  accountNo: string;
+  accountName: string;
+  receiptIds: string[];
+  cashAmount: number;
+  checksAmount: number;
+  checkDetails?: Array<{ checkNo: string; bank: string; amount: number }>;
+  totalAmount: number;
+  cashDenominations?: Record<string, number>;
+}
+
+export interface CustomerDeposit {
+  id: string;
+  date: string;
+  customerName: string;
+  customerTin: string;
+  amount: number;
+  status: 'Unapplied' | 'Applied';
+  appliedSaleId?: string;
+}
+
 export interface DebitCreditMemo {
   id: string;
   date: string;
@@ -161,6 +205,10 @@ export interface Client {
   payables?: InvoicePayable[];
   disbursements?: CashDisbursementDetail[];
   advances?: AdvanceToSupplier[];
+  receipts?: CashReceiptDetail[];
+  depositSlips?: DepositSlip[];
+  customerDeposits?: CustomerDeposit[];
+  customerMemos?: DebitCreditMemo[];
   memos?: DebitCreditMemo[];
   bankBalance?: number;
 }

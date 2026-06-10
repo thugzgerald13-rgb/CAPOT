@@ -19,6 +19,7 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
   const { openModal, currentDat, setCurrentDat, setHistoryTab, setPendingModal, syncData, isSyncing } = useAccounting();
   const { user, isAdmin, userRole, signOut } = useAuth();
   const [isExpensesOpen, setIsExpensesOpen] = useState(false);
+  const [isIncomeOpen, setIsIncomeOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isReportsOpen, setIsReportsOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -32,6 +33,7 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
     function handleClickOutside(event: MouseEvent) {
       if (sidebarRef.current && !sidebarRef.current.contains(event.target as Node)) {
         setIsExpensesOpen(false);
+        setIsIncomeOpen(false);
         setIsHistoryOpen(false);
         setIsReportsOpen(false);
         setIsSettingsOpen(false);
@@ -48,6 +50,7 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
 
   const toggleDropdown = (dropdown: string) => {
     setIsExpensesOpen(dropdown === 'expenses' ? !isExpensesOpen : false);
+    setIsIncomeOpen(dropdown === 'income' ? !isIncomeOpen : false);
     setIsBooksOpen(dropdown === 'books' ? !isBooksOpen : false);
     setIsHistoryOpen(dropdown === 'history' ? !isHistoryOpen : false);
     setIsReportsOpen(dropdown === 'reports' ? !isReportsOpen : false);
@@ -78,7 +81,6 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
 
   const navItems = [
     { id: 'coa', label: 'Chart of Accounts', icon: BookOpen },
-    { id: 'sales', label: 'Income', icon: Receipt },
   ];
 
   const historyItems = [
@@ -141,6 +143,68 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
               </button>
             );
           })}
+
+          {/* Income Collapsible Dropdown */}
+          <div className="flex flex-col">
+            <button
+              onClick={() => toggleDropdown('income')}
+              className={cn(
+                "flex items-center justify-between px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-300 rounded-xl transition-all w-full text-left group",
+                isIncomeOpen ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400" : "hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-slate-800"
+              )}
+            >
+              <div className="flex items-center gap-3">
+                <Receipt className="w-5 h-5 opacity-70 group-hover:opacity-100 transition-opacity" />
+                <span>Income</span>
+              </div>
+              <ChevronDown className={cn("w-4 h-4 transition-transform duration-300", isIncomeOpen ? "rotate-180" : "")} />
+            </button>
+
+            <AnimatePresence>
+              {isIncomeOpen && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="overflow-hidden flex flex-col gap-1 mt-1 pl-4"
+                >
+                  <button
+                    onClick={() => {
+                        setPendingModal('sales');
+                        openModal('dat');
+                        setIsOpen(false);
+                    }}
+                    className="flex items-center gap-3 px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 rounded-lg hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-slate-800 dark:hover:text-emerald-400 transition-all w-full text-left"
+                  >
+                    <FolderClock className="w-4 h-4" />
+                    DAT Entry
+                  </button>
+                  <button
+                    onClick={() => {
+                        setCurrentDat(null);
+                        openModal('sales');
+                        setIsOpen(false);
+                    }}
+                    className="flex items-center gap-3 px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 rounded-lg hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-slate-800 dark:hover:text-emerald-400 transition-all w-full text-left"
+                  >
+                    <Receipt className="w-4 h-4" />
+                    Normal Entry
+                  </button>
+                  <button
+                    onClick={() => {
+                        openModal('receivables_collections');
+                        setIsOpen(false);
+                    }}
+                    className="flex items-center gap-3 px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 rounded-lg hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-slate-800 dark:hover:text-emerald-400 transition-all w-full text-left"
+                  >
+                    <Landmark className="w-4 h-4" />
+                    Receivables & Collections Suite
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
 
           {/* Expenses Collapsible Dropdown */}
           <div className="flex flex-col">
