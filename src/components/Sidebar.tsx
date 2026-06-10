@@ -94,6 +94,7 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
   const reportItems = [
     { id: 'pl', label: 'Profit & Loss', icon: TrendingUp },
     { id: 'trialbalance', label: 'Trial Balance', icon: Scale },
+    { id: 'ledger_suite', label: 'Corporate G/L Suite', icon: Building2 },
     { id: 'reports', label: 'All Reports Dashboard', icon: LayoutGrid },
   ];
 
