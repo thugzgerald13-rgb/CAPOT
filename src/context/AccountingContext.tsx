@@ -557,6 +557,7 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       sales: [],
       purchases: [],
       expenses: [],
+      fixedAssets: [],
       isOwnBusiness: isOwnBusiness
     } as Client;
 

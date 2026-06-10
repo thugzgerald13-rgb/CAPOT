@@ -212,6 +212,7 @@ export interface Client {
   memos?: DebitCreditMemo[];
   bankBalance?: number;
   auditLogs?: AuditLogEntry[];
+  fixedAssets?: FixedAsset[];
 }
 
 export interface ProfitAndLossLine {
@@ -282,4 +283,35 @@ export interface AuditLogEntry {
   originalData?: string;  // string representation for rollback/verification
   newData?: string;       // string representation of updated state
 }
+
+export interface AssetTransferRecord {
+  id: string;
+  date: string;
+  fromCustodian: string;
+  toCustodian: string;
+  fromLocation: string;
+  toLocation: string;
+  reason: string;
+}
+
+export interface FixedAsset {
+  id: string; // unique code/tag No.
+  name: string;
+  category: string;
+  acquisitionDate: string; // YYYY-MM-DD
+  acquisitionCost: number;
+  salvageValue: number;
+  usefulLifeYrs: number;
+  depreciationMethod: 'StraightLine' | 'DecliningBalance' | 'DoubleDeclining' | 'SumOfYearsDigits';
+  decliningRate?: number; // rate for Declining Balance (e.g. 0.20 for 20%), if not standard
+  custodian: string;
+  location: string;
+  status: 'Active' | 'Transferred' | 'Disposed' | 'Abandoned';
+  disposalDate?: string;
+  disposalValue?: number;
+  disposalGainLoss?: number;
+  disposalReason?: string;
+  transferHistory?: AssetTransferRecord[];
+}
+
 

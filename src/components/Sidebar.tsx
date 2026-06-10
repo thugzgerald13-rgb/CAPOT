@@ -107,6 +107,7 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
     { id: 'purchase-journal', label: 'Purchase Journal', icon: ShoppingCart },
     { id: 'cash-disbursement', label: 'Cash Disbursement Book', icon: CreditCard },
     { id: 'cash-receipt', label: 'Cash Receipt Journal', icon: Wallet },
+    { id: 'fixed_assets', label: 'Fixed Assets Suite', icon: Building2 },
   ];
 
   return (
