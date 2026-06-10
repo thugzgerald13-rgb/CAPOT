@@ -314,4 +314,156 @@ export interface FixedAsset {
   transferHistory?: AssetTransferRecord[];
 }
 
+export interface Employee {
+  id: string; // Employee ID
+  fullName: string;
+  payBasis: 'Monthly' | 'Semi-Monthly' | 'Weekly' | 'Daily';
+  rate: number; // monthly rate or daily rate based on basis
+  sssNo?: string;
+  philhealthNo?: string;
+  pagibigNo?: string;
+  tinNo?: string;
+  bankAccountNo?: string;
+  bankName?: string;
+  deMinimisAllowance?: number; // non-taxable allowance
+  recurringOtherAllowance?: number; // taxable allowance
+  recurringOtherDeductions?: number;
+  securityQuestion?: string;
+  securityAnswer?: string;
+  password?: string; // simplicity
+  status: 'Active' | 'Resigned' | 'Terminated';
+  department: string;
+  designation: string;
+  benefitsPackageId?: string;
+  individualMessage?: string;
+}
+
+export interface AttendanceRecord {
+  id: string;
+  employeeId: string;
+  date: string; // YYYY-MM-DD
+  timeIn: string; // HH:MM
+  timeOut: string; // HH:MM
+  regularHours: number;
+  lateMinutes: number;
+  undertimeMinutes: number;
+  overtimeHours: number;
+  overtypeType?: 'Normal' | 'RestDay' | 'SpecialHoliday' | 'RegularHoliday';
+  status: 'Present' | 'Absent' | 'Leave' | 'RestDay';
+}
+
+export interface RequestApproval {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  type: 'Overtime' | 'Leave' | 'ShiftChange' | 'OfficialBusiness';
+  dateFiled: string;
+  targetDate: string;
+  details: string; // e.g. "Leave: Vacation", "OB: Client meeting at BIR"
+  hoursRequested?: number;
+  status: 'Pending' | 'Approved' | 'Rejected';
+  approvedBy?: string;
+  remarks?: string;
+}
+
+export interface PayrollPeriod {
+  id: string; // e.g. 'PP-2026-06-A'
+  startDate: string; // YYYY-MM-DD
+  endDate: string; // YYYY-MM-DD
+  payoutDate: string;
+  isPosted: boolean;
+  standardMessage?: string;
+}
+
+export interface PayrollResult {
+  employeeId: string;
+  employeeName: string;
+  payBasis: string;
+  basePay: number; // gross semi-monthly base or monthly
+  regularHoursWorked: number;
+  workedDays: number;
+  overtimePay: number;
+  grossPay: number;
+  sssContribution: number;
+  philhealthContribution: number;
+  pagibigContribution: number;
+  withholdingTax: number;
+  deMinimisAllowance: number;
+  otherAllowances: number;
+  otherDeductions: number;
+  netPay: number;
+  paymentMethod: 'Cash' | 'Check' | 'BankTransfer';
+}
+
+export interface PayrollConfig {
+  gracePeriodMinutes: number; // tolerance
+  overtimeRates: {
+    normal: number; // 1.25
+    restDay: number; // 1.30
+    specialHoliday: number; // 1.30
+    regularHoliday: number; // 2.00
+  };
+  holidays: { date: string; name: string; type: 'Regular' | 'Special' }[];
+  workDays: string[]; // ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
+}
+
+// Update Client interface
+export interface Client {
+  id: string;
+  name: string; // Display name
+  tin?: string;
+  taxpayerClassification?: string;
+  registeredName?: string;
+  lastName?: string;
+  firstName?: string;
+  middleName?: string;
+  tradeName?: string;
+  substreet?: string;
+  street?: string;
+  barangay?: string;
+  district?: string;
+  city?: string;
+  zipCode?: string;
+  rdoCode?: string;
+  accountingType?: 'Calendar' | 'Fiscal';
+  fiscalMonthEnd?: number;
+  coaFormat?: 'numeric' | 'alphanumeric';
+  tinLibrary: {
+    customers: TinEntry[];
+    suppliers: TinEntry[];
+  };
+  sales: Sale[];
+  purchases: Purchase[];
+  expenses: Expense[];
+  accounts?: CoaAccount[];
+  crjColumns?: JournalColumn[];
+  crjEntries?: JournalEntry[];
+  cdjColumns?: JournalColumn[];
+  cdjEntries?: JournalEntry[];
+  pjColumns?: JournalColumn[];
+  pjEntries?: JournalEntry[];
+  gjColumns?: JournalColumn[];
+  gjEntries?: JournalEntry[];
+  glAccounts?: GeneralLedgerAccount[];
+  plData?: ProfitAndLossData;
+  isOwnBusiness?: boolean;
+  payables?: InvoicePayable[];
+  disbursements?: CashDisbursementDetail[];
+  advances?: AdvanceToSupplier[];
+  receipts?: CashReceiptDetail[];
+  depositSlips?: DepositSlip[];
+  customerDeposits?: CustomerDeposit[];
+  customerMemos?: DebitCreditMemo[];
+  memos?: DebitCreditMemo[];
+  bankBalance?: number;
+  auditLogs?: AuditLogEntry[];
+  fixedAssets?: FixedAsset[];
+  employees?: Employee[];
+  attendance?: AttendanceRecord[];
+  payrollPeriods?: PayrollPeriod[];
+  payrollResults?: Record<string, PayrollResult[]>; // Key is periodId
+  payrollConfig?: PayrollConfig;
+  approvals?: RequestApproval[];
+}
+
 

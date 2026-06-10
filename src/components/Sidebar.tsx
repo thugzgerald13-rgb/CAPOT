@@ -108,6 +108,7 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
     { id: 'cash-disbursement', label: 'Cash Disbursement Book', icon: CreditCard },
     { id: 'cash-receipt', label: 'Cash Receipt Journal', icon: Wallet },
     { id: 'fixed_assets', label: 'Fixed Assets Suite', icon: Building2 },
+    { id: 'payroll_hr_suite', label: 'Payroll & HR Suite', icon: Users },
   ];
 
   return (

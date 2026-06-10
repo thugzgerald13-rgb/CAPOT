@@ -23,6 +23,7 @@ import { LedgerAccountingModal } from './components/modals/LedgerAccountingModal
 import { ReceivablesCollectionsModal } from './components/modals/ReceivablesCollectionsModal';
 import { AuditTrailModal } from './components/modals/AuditTrailModal';
 import { FixedAssetsModal } from './components/modals/FixedAssetsModal';
+import { PayrollHrSuiteModal } from './components/modals/PayrollHrSuiteModal';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { AuthContainer } from './components/AuthContainer';
 
@@ -90,6 +91,7 @@ function AppLayout() {
         <LedgerAccountingModal />
         <AuditTrailModal />
         <FixedAssetsModal />
+        <PayrollHrSuiteModal />
       </main>
     </div>
   );
