@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Modal } from '../ui/Modal';
 import { useAccounting } from '../../context/AccountingContext';
 import { 
-  Users, Clock, Calculator, Shield, FileSpreadsheet, Plus, Search, 
+  Users, Clock, Calculator, Shield, ShieldAlert, FileSpreadsheet, Plus, Search, 
   Trash2, UserCheck, AlertOctagon, Printer, Calendar, DollarSign, 
   Table, RefreshCw, BarChart2, User, MapPin, CheckCircle, Info,
   Settings, CheckSquare, Hourglass, ShieldCheck, Download, Inbox,
@@ -185,7 +185,34 @@ export function PayrollHrSuiteModal() {
     workDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
   };
 
-  if (activeModal !== 'fixed_assets' && activeModal !== 'payroll_hr_suite') return null;
+  if (activeModal !== 'payroll_hr_suite') return null;
+
+  if (!currentClient) {
+    return (
+      <Modal
+        id="payroll_hr_suite"
+        title="Statutory Payroll & Advanced HR Portal"
+        icon={<Users className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />}
+        maxWidth="max-w-md"
+      >
+        <div className="flex flex-col items-center justify-center p-8 text-center text-slate-800 dark:text-slate-100 gap-4">
+          <ShieldAlert className="w-16 h-16 text-rose-500 animate-bounce" />
+          <h3 className="text-lg font-black tracking-tight">Active Business Profile Required</h3>
+          <p className="text-xs text-slate-500 leading-relaxed">
+            Please create or select an active Business Profile/Client first using the Client/Business Profile menu in the sidebar before processing payrolls and personnel records.
+          </p>
+          <button
+            onClick={() => {
+              openModal('clients');
+            }}
+            className="mt-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-md transition-all active:scale-95"
+          >
+            Create or Select Profile
+          </button>
+        </div>
+      </Modal>
+    );
+  }
 
   // Handler for custom sandbox seeding
   const handleLoadSandboxHr = async () => {

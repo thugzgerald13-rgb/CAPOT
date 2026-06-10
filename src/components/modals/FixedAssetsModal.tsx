@@ -257,7 +257,34 @@ export function FixedAssetsModal() {
   });
   const [showDisposalForm, setShowDisposalForm] = useState(false);
 
-  if (activeModal !== 'fixed_assets' || !currentClient) return null;
+  if (activeModal !== 'fixed_assets') return null;
+
+  if (!currentClient) {
+    return (
+      <Modal
+        id="fixed_assets"
+        title="Fixed Asset Custody & Depreciation Suite"
+        icon={<Building className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />}
+        maxWidth="max-w-md"
+      >
+        <div className="flex flex-col items-center justify-center p-8 text-center text-slate-800 dark:text-slate-100 gap-4">
+          <ShieldAlert className="w-16 h-16 text-rose-500 animate-bounce" />
+          <h3 className="text-lg font-black tracking-tight">Active Business Profile Required</h3>
+          <p className="text-xs text-slate-500 leading-relaxed">
+            Please create or select an active Business Profile/Client first using the Client/Business Profile menu in the sidebar before tracking and depreciating assets.
+          </p>
+          <button
+            onClick={() => {
+              openModal('clients');
+            }}
+            className="mt-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-md transition-all active:scale-95"
+          >
+            Create or Select Profile
+          </button>
+        </div>
+      </Modal>
+    );
+  }
 
   const assetsList = currentClient.fixedAssets || [];
 
