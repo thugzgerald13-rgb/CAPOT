@@ -21,6 +21,7 @@ import { AdminSettingsModal } from './components/modals/AdminSettingsModal';
 import { PayablesDisbursementsModal } from './components/modals/PayablesDisbursementsModal';
 import { LedgerAccountingModal } from './components/modals/LedgerAccountingModal';
 import { ReceivablesCollectionsModal } from './components/modals/ReceivablesCollectionsModal';
+import { AuditTrailModal } from './components/modals/AuditTrailModal';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { AuthContainer } from './components/AuthContainer';
 
@@ -86,6 +87,7 @@ function AppLayout() {
         <PayablesDisbursementsModal />
         <ReceivablesCollectionsModal />
         <LedgerAccountingModal />
+        <AuditTrailModal />
       </main>
     </div>
   );

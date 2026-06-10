@@ -211,6 +211,7 @@ export interface Client {
   customerMemos?: DebitCreditMemo[];
   memos?: DebitCreditMemo[];
   bankBalance?: number;
+  auditLogs?: AuditLogEntry[];
 }
 
 export interface ProfitAndLossLine {
@@ -269,3 +270,16 @@ export interface DatSelection {
   year: number;
   formatted: string;
 }
+
+export interface AuditLogEntry {
+  id: string;
+  timestamp: string;      // ISO format string
+  userEmail: string;     // User email of worker executing the action
+  userRole: string;      // Role of the user
+  action: 'Add' | 'Update' | 'Delete' | 'Import' | 'Export' | 'View';
+  section: string;       // e.g. 'Cash Receipts' | 'Cash Disbursements' | 'Purchases Journal' | 'General Journal' | 'General Ledger' | 'Sales' | 'Expenses' | 'Chart of Accounts' | 'TIN Library' | 'System'
+  details: string;       // human description of what was changed/done
+  originalData?: string;  // string representation for rollback/verification
+  newData?: string;       // string representation of updated state
+}
+

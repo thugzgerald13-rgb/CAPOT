@@ -8,7 +8,7 @@ import * as XLSX from 'xlsx';
 type HistoryTab = 'expenses' | 'income' | 'slp' | 'sls';
 
 export function HistoryModal() {
-  const { currentClient, currentClientId, currentDat, saveClient, showToast, openModal, setCurrentDat, historyTab, setHistoryTab } = useAccounting();
+  const { currentClient, currentClientId, currentDat, saveClient, showToast, openModal, setCurrentDat, historyTab, setHistoryTab, logAuditTrail } = useAccounting();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedMonth, setSelectedMonth] = useState<number>(currentDat?.month || new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState<number>(currentDat?.year || new Date().getFullYear());
@@ -188,6 +188,9 @@ export function HistoryModal() {
 
     XLSX.utils.book_append_sheet(workbook, worksheet, 'SLP');
     XLSX.writeFile(workbook, `SLP_${currentDat.formatted.replace(' ', '_')}.xlsx`);
+    if (logAuditTrail) {
+      logAuditTrail('Export', 'Summary List of Purchases', `Exported Consolidated Summary List of Purchases (SLP) to Excel sheet for reporting period: ${currentDat.formatted}`);
+    }
   };
 
   const handleExportSLS = () => {
@@ -258,6 +261,9 @@ export function HistoryModal() {
 
     XLSX.utils.book_append_sheet(workbook, worksheet, 'SLS');
     XLSX.writeFile(workbook, `SLS_${currentDat.formatted.replace(' ', '_')}.xlsx`);
+    if (logAuditTrail) {
+      logAuditTrail('Export', 'Summary List of Sales', `Exported Consolidated Summary List of Sales (SLS) to Excel sheet for reporting period: ${currentDat.formatted}`);
+    }
   };
 
   return (
