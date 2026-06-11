@@ -68,17 +68,10 @@ export function resequenceAccounts(
           return a.name.localeCompare(b.name);
         });
 
-      children.forEach((child, idx) => {
-        const prefix = newParentId + (newParentId.endsWith('-') ? '' : '-');
-        const newId = `${prefix}${(idx + 1) * 100}`;
-        
-        result.push({
-          ...child,
-          id: newId,
-          parentId: newParentId
-        });
+      children.forEach((child) => {
+        result.push(child);
 
-        processChildrenAlphaRecursive(child.id, newId);
+        processChildrenAlphaRecursive(child.id, child.id);
       });
     };
 
