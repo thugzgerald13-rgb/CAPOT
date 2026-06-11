@@ -49,6 +49,13 @@ export interface CoaAccount {
   name: string;
   type: string;
   parentId?: string;
+  keyword?: string;
+  drOrCr?: 'Dr' | 'Cr';
+  accountLevel?: string;
+  accountCategory?: string;
+  operationType?: 'Income' | 'Payment' | 'Deposit' | 'None';
+  parentAccountFS?: string;
+  parentAccountOp?: string;
 }
 
 export interface InvoicePayable {

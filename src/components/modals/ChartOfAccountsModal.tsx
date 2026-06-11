@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { BookOpen, Plus, Trash2, ChevronRight, ChevronDown, RefreshCcw, Edit2, Filter } from 'lucide-react';
+import { BookOpen, Plus, Trash2, ChevronRight, ChevronDown, RefreshCcw, Edit2, Filter, ExternalLink, Pin, RotateCw, Minus, X, FileText, Search, CreditCard, Scale, Check } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { useAccounting } from '../../context/AccountingContext';
 import { CoaAccount } from '../../types';
@@ -197,6 +197,15 @@ export function ChartOfAccountsModal() {
   const [editCode, setEditCode] = useState('');
   const [editName, setEditName] = useState('');
 
+  const [activeFormTab, setActiveFormTab] = useState<'General' | 'Code Info.' | 'Display Method'>('General');
+  const [formKeyword, setFormKeyword] = useState('');
+  const [formDrOrCr, setFormDrOrCr] = useState<'Dr' | 'Cr'>('Dr');
+  const [formAccountLevel, setFormAccountLevel] = useState('Sub Account');
+  const [formCategory, setFormCategory] = useState('I/S');
+  const [formOperationType, setFormOperationType] = useState<'Income' | 'Payment' | 'Deposit' | 'None'>('None');
+  const [formParentFS, setFormParentFS] = useState('');
+  const [formParentOp, setFormParentOp] = useState('');
+
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (presetsRef.current && !presetsRef.current.contains(event.target as Node)) {
@@ -239,29 +248,95 @@ export function ChartOfAccountsModal() {
 
   const handleAddAccount = () => {
     const computedId = idPrefix + idSuffix.padEnd(suffixPlaceholder.length, '0');
-    if (!computedId || !newName || !newType) {
+    if (!computedId || !newName) {
       alert("Please fill out Account Code and Name.");
       return;
     }
-    if (accounts.some(a => a.id === computedId && a.parentId === addingParentId && a.name.toLowerCase() === newName.toLowerCase())) {
-      alert("This exact sub-account already exists!");
-      return;
-    }
-    
-    let finalType = newType;
-    if (addingParentId) {
-      const parent = accounts.find(a => a.id === addingParentId);
-      if (parent) finalType = parent.type;
+
+    if (editingId) {
+      // Editing Mode
+      if (computedId !== editingId && accounts.some(a => a.id === computedId)) {
+        alert("An account with this code already exists!");
+        return;
+      }
+
+      let updatedAccounts = accounts.map(a => {
+        if (a.id === editingId) {
+          return {
+            ...a,
+            id: computedId,
+            name: newName,
+            type: newType,
+            keyword: formKeyword,
+            drOrCr: formDrOrCr,
+            accountLevel: formAccountLevel,
+            accountCategory: formCategory,
+            operationType: formOperationType,
+            parentAccountFS: formParentFS,
+            parentAccountOp: formParentOp
+          };
+        }
+        return a;
+      });
+
+      if (computedId !== editingId) {
+        updatedAccounts = updatedAccounts.map(a => {
+          if (a.parentId === editingId) {
+            return { ...a, parentId: computedId };
+          }
+          return a;
+        });
+        updatedAccounts = updateDescendants(updatedAccounts, editingId, computedId);
+      }
+
+      handleSaveAccounts(updatedAccounts);
+    } else {
+      // Adding Mode
+      if (accounts.some(a => a.id === computedId && a.parentId === addingParentId && a.name.toLowerCase() === newName.toLowerCase())) {
+        alert("This exact sub-account already exists!");
+        return;
+      }
+
+      let finalType = newType;
+      if (addingParentId) {
+        const parent = accounts.find(a => a.id === addingParentId);
+        if (parent) finalType = parent.type;
+      }
+
+      const newAccountObj: CoaAccount = {
+        id: computedId,
+        name: newName,
+        type: finalType,
+        parentId: addingParentId,
+        keyword: formKeyword,
+        drOrCr: formDrOrCr,
+        accountLevel: formAccountLevel,
+        accountCategory: formCategory,
+        operationType: formOperationType,
+        parentAccountFS: formParentFS,
+        parentAccountOp: formParentOp
+      };
+
+      const updatedAccounts = [...accounts, newAccountObj];
+      handleSaveAccounts(updatedAccounts);
     }
 
-    const updatedAccounts = [...accounts, { id: computedId, name: newName, type: finalType, parentId: addingParentId }];
-    handleSaveAccounts(updatedAccounts);
     setIsAdding(false);
+    setEditingId(null);
     setIdPrefix('');
     setIdSuffix('');
     setSuffixPlaceholder('');
     setNewName('');
     setAddingParentId(undefined);
+
+    // Reset fields
+    setFormKeyword('');
+    setFormDrOrCr('Dr');
+    setFormAccountLevel('Sub Account');
+    setFormCategory('I/S');
+    setFormOperationType('None');
+    setFormParentFS('');
+    setFormParentOp('');
   };
 
   const handleDelete = (id: string) => {
@@ -547,95 +622,42 @@ export function ChartOfAccountsModal() {
               ) : (
                 <div className="w-6" /> // spacer
               )}
-              {editingId === account.id ? (
-                (() => {
-                  const isMain = !account.parentId;
-                  const existingNumericRoot = accounts.find(a => !a.parentId);
-                  const uniformLength = existingNumericRoot ? existingNumericRoot.id.length : 5;
-                  return (
-                    <div className="flex items-center gap-2">
-                      <input 
-                        type="text" 
-                        value={editCode} 
-                        onChange={e => {
-                          let val = e.target.value;
-                          if (!currentClient.coaFormat || currentClient.coaFormat === 'numeric') {
-                            val = val.replace(/\D/g, '');
-                            if (!isMain && val.length > uniformLength) {
-                              val = val.slice(0, uniformLength);
-                            }
-                          }
-                          setEditCode(val);
-                        }}
-                        maxLength={(!isMain && (!currentClient.coaFormat || currentClient.coaFormat === 'numeric')) ? uniformLength : undefined}
-                        onKeyDown={e => {
-                          if ((!currentClient.coaFormat || currentClient.coaFormat === 'numeric') && !/[\d]/.test(e.key) && e.key !== 'Backspace' && e.key !== 'Delete' && e.key !== 'ArrowLeft' && e.key !== 'ArrowRight' && e.key !== 'Tab' && !e.ctrlKey && !e.metaKey) {
-                            e.preventDefault();
-                          }
-                        }}
-                        onBlur={() => {
-                          if (!isMain && (!currentClient.coaFormat || currentClient.coaFormat === 'numeric')) {
-                            let val = editCode;
-                            if (val.length < uniformLength && val.length > 0) {
-                              val = val.padEnd(uniformLength, '0');
-                              setEditCode(val);
-                            }
-                          }
-                        }}
-                        className="form-input py-0.5 px-2 text-sm w-28 font-mono"
-                        placeholder="Code"
-                      />
-                      <input 
-                        type="text" 
-                        value={editName} 
-                        onChange={e => setEditName(e.target.value)} 
-                        className="form-input py-0.5 px-2 text-sm max-w-[200px]"
-                      />
-                    </div>
-                  );
-                })()
-              ) : (
-                <>
-                  <span className="text-slate-600 dark:text-slate-400 font-mono text-sm">{account.id}</span>
-                  <span className="text-slate-800 dark:text-slate-200">{account.name}</span>
-                  {depth === 0 && (
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400">
-                      {account.type}
-                    </span>
-                  )}
-                </>
-              )}
+              <>
+                <span className="text-slate-600 dark:text-slate-400 font-mono text-sm font-semibold">{account.id}</span>
+                <span className="text-slate-800 dark:text-slate-200">{account.name}</span>
+                {depth === 0 && (
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-705 text-slate-600 dark:text-slate-400">
+                    {account.type}
+                  </span>
+                )}
+              </>
             </div>
             
             <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-              {editingId === account.id ? (
-                <div className="flex items-center gap-2">
-                  <button 
-                    onClick={() => handleSaveEdit(account.id)}
-                    className="px-3 py-1 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-xs font-medium"
-                  >
-                    Save
-                  </button>
-                  <button 
-                    onClick={() => setEditingId(null)}
-                    className="px-3 py-1 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg text-xs font-medium"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <button
-                    onClick={() => {
-                      setEditingId(account.id);
-                      setEditCode(account.id);
-                      setEditName(account.name);
-                    }}
-                    className="p-1.5 text-blue-500 hover:bg-blue-100 dark:hover:bg-blue-900/40 rounded-lg transition-colors"
-                    title="Edit Account"
-                  >
-                    <Edit2 className="w-4 h-4" />
-                  </button>
+              <>
+                <button
+                  onClick={() => {
+                    setEditingId(account.id);
+                    setNewName(account.name);
+                    setIdPrefix('');
+                    setIdSuffix(account.id);
+                    setSuffixPlaceholder('');
+                    setNewType(account.type);
+                    setFormKeyword(account.keyword || '');
+                    setFormDrOrCr(account.drOrCr || (['Assets', 'Costs', 'Expenses'].includes(account.type) ? 'Dr' : 'Cr'));
+                    setFormAccountLevel(account.accountLevel || (account.parentId ? 'Sub Account' : 'Main Account'));
+                    setFormCategory(account.accountCategory || (['Income', 'Expenses', 'Costs'].includes(account.type) ? 'I/S' : 'B/S'));
+                    setFormOperationType(account.operationType || (account.type === 'Income' ? 'Income' : account.type === 'Expenses' ? 'Payment' : 'None'));
+                    setFormParentFS(account.parentAccountFS || (account.parentId ? (accounts.find(a => a.id === account.parentId)?.name || '') : ''));
+                    setFormParentOp(account.parentAccountOp || '');
+                    setActiveFormTab('General');
+                    setIsAdding(true);
+                  }}
+                  className="p-1.5 text-blue-500 hover:bg-blue-100 dark:hover:bg-blue-900/40 rounded-lg transition-colors"
+                  title="Edit Account"
+                >
+                  <Edit2 className="w-4 h-4" />
+                </button>
                   <button 
                     onClick={() => {
                       setAddingParentId(account.id);
@@ -706,8 +728,7 @@ export function ChartOfAccountsModal() {
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </>
-              )}
-            </div>
+              </div>
           </div>
           
           {hasChildren && isExpanded && renderAccounts(account.id, depth + 1)}
@@ -769,92 +790,389 @@ export function ChartOfAccountsModal() {
         </div>
 
         {isAdding && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-            <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl w-full max-w-md shadow-2xl border border-slate-200 dark:border-slate-700">
-              <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-6">
-                {addingParentId ? "Add Sub-account" : "Add Main Account"}
-              </h3>
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
+            <div className="bg-[#f0f4f8] dark:bg-slate-900 w-full max-w-xl shadow-2xl border border-slate-300 dark:border-slate-800 rounded-lg overflow-hidden flex flex-col font-sans">
               
-              <div className="flex flex-col gap-4 mb-6">
-                <div>
-                  <label className="block text-sm font-bold text-slate-600 dark:text-slate-400 mb-1">Account Code</label>
-                  <div className="flex">
-                    {idPrefix && (
-                      <div className="px-3 py-2 bg-slate-100 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 border-r-0 rounded-l-lg text-slate-500 font-mono flex items-center shrink-0">
-                        {idPrefix}
-                      </div>
-                    )}
-                    <input 
-                      type="text" 
-                      value={idSuffix} 
-                      onChange={e => {
-                        let val = (!currentClient.coaFormat || currentClient.coaFormat === 'numeric') ? e.target.value.replace(/\D/g, '') : e.target.value.replace(/[^0-9A-Za-z_-]/g, '');
-                        if (suffixPlaceholder) val = val.slice(0, suffixPlaceholder.length);
-                        setIdSuffix(val);
-                      }} 
-                      onKeyDown={e => {
-                        if ((!currentClient.coaFormat || currentClient.coaFormat === 'numeric') && !/[\d]/.test(e.key) && e.key !== 'Backspace' && e.key !== 'Delete' && e.key !== 'ArrowLeft' && e.key !== 'ArrowRight' && e.key !== 'Tab' && !e.ctrlKey && !e.metaKey) {
-                          e.preventDefault();
-                        }
-                      }}
-                      onBlur={() => {
-                        if (!currentClient.coaFormat || currentClient.coaFormat === 'numeric') {
-                          if (idSuffix.length < suffixPlaceholder.length && idSuffix.length > 0) {
-                            setIdSuffix(idSuffix.padEnd(suffixPlaceholder.length, '0'));
-                          }
-                        }
-                      }}
-                      className={cn("w-full form-input font-mono", idPrefix ? "rounded-l-none" : "")}
-                      placeholder={suffixPlaceholder || "e.g. 1010 or A-101"}
-                    />
-                  </div>
+              {/* Window-Style Title Bar */}
+              <div className="bg-[#005fa3] dark:bg-indigo-950 px-3.5 py-2 flex items-center justify-between text-white border-b border-blue-600/30">
+                <div className="flex items-center gap-2">
+                  <CreditCard className="w-4 h-4 text-blue-200" />
+                  <span className="text-xs sm:text-sm font-bold tracking-wide">Register Account</span>
                 </div>
-                <div>
-                  <label className="block text-sm font-bold text-slate-600 dark:text-slate-400 mb-1">Account Name</label>
-                  <input 
-                    type="text" 
-                    value={newName} 
-                    onChange={e => setNewName(e.target.value)} 
-                    className="w-full form-input"
-                    placeholder="e.g. Petty Cash"
-                  />
+                <div className="flex items-center gap-1.5">
+                  <button className="p-1 hover:bg-white/10 rounded transition-colors" title="Popout">
+                    <ExternalLink className="w-3.5 h-3.5 text-blue-200 hover:text-white" />
+                  </button>
+                  <button className="p-1 hover:bg-white/10 rounded transition-colors" title="Pin">
+                    <Pin className="w-3.5 h-3.5 text-blue-200 hover:text-white" />
+                  </button>
+                  <button className="p-1 hover:bg-white/10 rounded transition-colors" title="Reload form">
+                    <RotateCw className="w-3.5 h-3.5 text-blue-200 hover:text-white" />
+                  </button>
+                  <button className="p-1 hover:bg-white/10 rounded transition-colors" title="Minimize">
+                    <Minus className="w-3.5 h-3.5 text-blue-200 hover:text-white" />
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setIsAdding(false);
+                      setEditingId(null);
+                    }} 
+                    className="p-1 hover:bg-red-500/80 rounded transition-colors" 
+                    title="Close"
+                  >
+                    <X className="w-3.5 h-3.5 text-blue-200 hover:text-white" />
+                  </button>
                 </div>
-                {!addingParentId && (
-                  <div>
-                    <label className="block text-sm font-bold text-slate-600 dark:text-slate-400 mb-1">Type</label>
-                    <select 
-                      value={newType} 
-                      onChange={e => setNewType(e.target.value)} 
-                      className="w-full form-input"
+              </div>
+
+              {/* Sub-Header Bar */}
+              <div className="bg-white dark:bg-slate-800 px-4 py-2.5 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-slate-400" />
+                  <span className="text-sm font-bold text-slate-800 dark:text-slate-100">Register Account</span>
+                </div>
+                <button 
+                  onClick={() => alert("Options:\n- Export BIR Form Map Schema\n- Run integrity audit on ledger account ranges\n- Validate sub-account code alignment")}
+                  className="px-2.5 py-1 text-xs font-semibold bg-slate-50 hover:bg-slate-100 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-100 border border-slate-300 dark:border-slate-600 rounded shadow-xs transition-all active:scale-95"
+                >
+                  Option
+                </button>
+              </div>
+
+              {/* Angle Physical Folder Tabs */}
+              <div className="bg-slate-100 dark:bg-slate-800/60 px-4 pt-3 flex items-end gap-1.5 overflow-x-auto border-b border-slate-300 dark:border-slate-700">
+                {['General', 'Code Info.', 'Display Method'].map((tabName) => {
+                  const isActive = activeFormTab === tabName;
+                  return (
+                    <button
+                      key={tabName}
+                      type="button"
+                      onClick={() => setActiveFormTab(tabName as any)}
+                      className={cn(
+                        "relative px-5 py-2 text-xs font-black tracking-wider uppercase transition-all shrink-0 focus:outline-none",
+                        isActive ? "text-white z-10" : "text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
+                      )}
                     >
-                      {ACCOUNT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                    </select>
-                  </div>
-                )}
-                {addingParentId && (
-                  <div>
-                    <label className="block text-sm font-bold text-slate-600 dark:text-slate-400 mb-1">Parent Account Code</label>
-                    <div className="px-3 py-2 bg-slate-100 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-300 font-mono text-sm">
-                      {addingParentId}
+                      <div
+                        className={cn(
+                          "absolute inset-0 rounded-t-md -z-10 border-t border-r border-l",
+                          isActive 
+                            ? "bg-[#005fa3] dark:bg-blue-700 border-blue-600 shadow-xs" 
+                            : "bg-[#e2e8f0]/80 dark:bg-slate-800/80 border-slate-300 dark:border-slate-600"
+                        )}
+                        style={{ transform: 'skewX(-15deg)', originX: 0.5 }}
+                      />
+                      <span className="relative z-10 block font-bold">{tabName}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Form Content Area */}
+              <div className="p-4 bg-[#f8fafc] dark:bg-slate-900 flex-1 overflow-y-auto max-h-[480px]">
+                
+                {activeFormTab === 'General' && (
+                  <div className="space-y-4">
+                    {/* Pink highlighted border around Account Code & Name (matching image highlight) */}
+                    <div className="border border-rose-300 dark:border-rose-950 bg-rose-50/10 dark:bg-rose-950/5 p-4 rounded-lg space-y-3.5 shadow-xs">
+                      
+                      {/* Account Code row */}
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                        <label className="text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-300 sm:w-28 shrink-0">
+                          Account Code
+                        </label>
+                        <div className="flex items-center flex-1">
+                          {idPrefix && (
+                            <span className="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 border-r-0 rounded-l text-slate-500 font-mono text-xs font-bold leading-relaxed shrink-0">
+                              {idPrefix}
+                            </span>
+                          )}
+                          <input 
+                            type="text" 
+                            value={idSuffix} 
+                            onChange={e => {
+                              let val = (!currentClient.coaFormat || currentClient.coaFormat === 'numeric') ? e.target.value.replace(/\D/g, '') : e.target.value.replace(/[^0-9A-Za-z_-]/g, '');
+                              if (suffixPlaceholder) val = val.slice(0, suffixPlaceholder.length);
+                              setIdSuffix(val);
+                            }} 
+                            onKeyDown={e => {
+                              if ((!currentClient.coaFormat || currentClient.coaFormat === 'numeric') && !/[\d]/.test(e.key) && e.key !== 'Backspace' && e.key !== 'Delete' && e.key !== 'ArrowLeft' && e.key !== 'ArrowRight' && e.key !== 'Tab' && !e.ctrlKey && !e.metaKey) {
+                                e.preventDefault();
+                              }
+                            }}
+                            onBlur={() => {
+                              if (!currentClient.coaFormat || currentClient.coaFormat === 'numeric') {
+                                if (idSuffix.length < suffixPlaceholder.length && idSuffix.length > 0) {
+                                  setIdSuffix(idSuffix.padEnd(suffixPlaceholder.length, '0'));
+                                }
+                              }
+                            }}
+                            className={cn(
+                              "w-full px-2.5 py-1 text-xs sm:text-sm border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white font-mono rounded focus:ring-1 focus:ring-blue-500 focus:outline-none focus:border-blue-500",
+                              idPrefix ? "rounded-l-none" : ""
+                            )}
+                            placeholder={suffixPlaceholder || "8400"}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Account Name row */}
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                        <label className="text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-300 sm:w-28 shrink-0">
+                          Account Name
+                        </label>
+                        <input 
+                          type="text" 
+                          value={newName} 
+                          onChange={e => setNewName(e.target.value)} 
+                          className="flex-1 px-2.5 py-1 text-xs sm:text-sm border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white rounded focus:ring-1 focus:ring-blue-500 focus:outline-none focus:border-blue-500"
+                          placeholder="Events Expenses"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Outside highlight cards */}
+                    <div className="space-y-3.5 p-1">
+                      {/* Keyword row */}
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                        <label className="text-xs sm:text-sm font-bold text-slate-600 dark:text-slate-400 sm:w-28 shrink-0">
+                          Keyword
+                        </label>
+                        <input 
+                          type="text" 
+                          value={formKeyword} 
+                          onChange={e => setFormKeyword(e.target.value)} 
+                          className="flex-1 px-2.5 py-1 text-xs sm:text-sm border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white rounded focus:ring-1 focus:ring-blue-500 focus:outline-none focus:border-blue-500"
+                          placeholder="Keyword"
+                        />
+                      </div>
+
+                      {/* Dr./Cr. row */}
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                        <label className="text-xs sm:text-sm font-bold text-slate-600 dark:text-slate-400 sm:w-28 shrink-0">
+                          Dr./Cr.
+                        </label>
+                        <div className="flex items-center flex-wrap gap-4 flex-1">
+                          <label className="flex items-center gap-1.5 cursor-pointer text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300 select-none">
+                            <input 
+                              type="radio" 
+                              name="drOrCr" 
+                              checked={formDrOrCr === 'Dr'} 
+                              onChange={() => setFormDrOrCr('Dr')} 
+                              className="w-4 h-4 text-blue-600 border-slate-300 bg-white dark:bg-slate-800 focus:ring-blue-500"
+                            />
+                            <span>Dr.</span>
+                          </label>
+                          <label className="flex items-center gap-1.5 cursor-pointer text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300 select-none">
+                            <input 
+                              type="radio" 
+                              name="drOrCr" 
+                              checked={formDrOrCr === 'Cr'} 
+                              onChange={() => setFormDrOrCr('Cr')} 
+                              className="w-4 h-4 text-blue-600 border-slate-300 bg-white dark:bg-slate-800 focus:ring-blue-500"
+                            />
+                            <span>Cr.</span>
+                          </label>
+
+                          <div className="w-px h-5 bg-slate-350 dark:bg-slate-700 sm:mx-2 hidden sm:block" />
+
+                          {/* Account Level Select Dropdown */}
+                          <select
+                            value={formAccountLevel}
+                            onChange={e => setFormAccountLevel(e.target.value)}
+                            className="text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 py-1 px-2.5 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          >
+                            <option value="Sub Account">Sub Account</option>
+                            <option value="Main Account">Main Account</option>
+                            <option value="Detail Account">Detail Account</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Account Category dropdown */}
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                        <label className="text-xs sm:text-sm font-bold text-slate-600 dark:text-slate-400 sm:w-28 shrink-0">
+                          Account Category
+                        </label>
+                        <select
+                          value={formCategory}
+                          onChange={e => setFormCategory(e.target.value)}
+                          className="w-full sm:w-44 px-2.5 py-1 text-xs sm:text-sm border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white rounded focus:ring-1 focus:ring-blue-500 focus:outline-none focus:border-blue-500"
+                        >
+                          <option value="I/S">I/S</option>
+                          <option value="B/S">B/S</option>
+                        </select>
+                      </div>
+
+                      {/* Operation Type row */}
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                        <label className="text-xs sm:text-sm font-bold text-slate-600 dark:text-slate-400 sm:w-28 shrink-0">
+                          Operation Type
+                        </label>
+                        <div className="flex items-center flex-wrap gap-4">
+                          {['Income', 'Payment', 'Deposit', 'None'].map((op) => (
+                            <label key={op} className="flex items-center gap-1.5 cursor-pointer text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300 select-none">
+                              <input 
+                                type="radio" 
+                                name="operationType" 
+                                checked={formOperationType === op} 
+                                onChange={() => setFormOperationType(op as any)} 
+                                className="w-4 h-4 text-blue-600 border-slate-300 bg-white dark:bg-slate-800 focus:ring-blue-500"
+                              />
+                              <span>{op}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Parent Account Grid Group */}
+                      <div className="border-t border-slate-205 dark:border-slate-800 pt-3.5 mt-2">
+                        <div className="flex gap-4">
+                          {/* Left grouping text */}
+                          <div className="text-xs font-black text-slate-500 uppercase tracking-wider w-28 shrink-0 flex items-center pt-2">
+                            Account Type
+                          </div>
+                          {/* Right stack */}
+                          <div className="flex-1 space-y-2.5">
+                            {/* Parent FS */}
+                            <div className="flex items-center gap-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded px-2 py-0.5 shadow-2xs group focus-within:ring-1 focus-within:ring-blue-500">
+                              <button 
+                                type="button"
+                                onClick={() => {
+                                  const searchParent = prompt("Enter parent account query to search:");
+                                  if (searchParent) setFormParentFS(searchParent);
+                                }}
+                                className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded text-slate-400 group-hover:text-blue-500 transition-colors"
+                              >
+                                <Search className="w-3.5 h-3.5" />
+                              </button>
+                              <input 
+                                type="text"
+                                value={formParentFS}
+                                onChange={e => setFormParentFS(e.target.value)}
+                                className="w-full bg-transparent border-0 py-0.5 text-xs sm:text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-0 placeholder-slate-400"
+                                placeholder="Parent Account in F/S"
+                              />
+                              {formParentFS && (
+                                <button 
+                                  type="button" 
+                                  onClick={() => setFormParentFS('')}
+                                  className="text-slate-400 hover:text-rose-500"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+
+                            {/* Parent Op */}
+                            <div className="flex items-center gap-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded px-2 py-0.5 shadow-2xs group focus-within:ring-1 focus-within:ring-blue-500">
+                              <button 
+                                type="button" 
+                                onClick={() => {
+                                  alert("Scanning active analytical modules...");
+                                }}
+                                className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded text-slate-400 group-hover:text-blue-500 transition-colors"
+                              >
+                                <Search className="w-3.5 h-3.5" />
+                              </button>
+                              <input 
+                                type="text"
+                                value={formParentOp}
+                                onChange={e => setFormParentOp(e.target.value)}
+                                className="w-full bg-transparent border-0 py-0.5 text-xs sm:text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-0 placeholder-slate-400"
+                                placeholder="Parent Account in Operation"
+                              />
+                              {formParentOp && (
+                                <button 
+                                  type="button" 
+                                  onClick={() => setFormParentOp('')}
+                                  className="text-slate-400 hover:text-rose-500"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
                     </div>
                   </div>
                 )}
+
+                {activeFormTab === 'Code Info.' && (
+                  <div className="p-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg space-y-4">
+                    <h4 className="text-xs font-black tracking-wider text-slate-400 uppercase">Integrity Ledger Diagnostic</h4>
+                    <div className="grid grid-cols-2 gap-4 text-xs">
+                      <div className="space-y-1">
+                        <span className="text-slate-500 block">Ledger Code Range:</span>
+                        <span className="font-mono font-bold text-slate-700 dark:text-slate-200">
+                          {currentClient.coaFormat === 'alphanumeric' ? 'Alphanumeric Codes [A-Z0-9]' : 'Numeric 4-6 digits [BIR Compliant]'}
+                        </span>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-slate-500 block">Active Parent Context:</span>
+                        <span className="font-mono font-bold text-slate-700 dark:text-slate-200">
+                          {addingParentId ? `Parent ID: ${addingParentId}` : 'Root-Level Classification node'}
+                        </span>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-slate-500 block">Form map category alignment:</span>
+                        <span className="text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
+                          <Check className="w-3.5 h-3.5" /> Normal balance OK
+                        </span>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-slate-500 block">Hierarchy depth tier:</span>
+                        <span className="font-bold text-slate-700 dark:text-slate-200">
+                          {addingParentId ? 'Sub-Account Tier 2' : 'Root Class Account'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {activeFormTab === 'Display Method' && (
+                  <div className="p-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg space-y-4 text-xs">
+                    <h4 className="text-xs font-black tracking-wider text-slate-400 uppercase">Interactive Display Directives</h4>
+                    <div className="space-y-3">
+                      <label className="flex items-center gap-2 select-none cursor-pointer">
+                        <input type="checkbox" defaultChecked className="w-4 h-4 text-blue-600 border-gray-300 rounded" />
+                        <span className="text-slate-700 dark:text-slate-300 font-medium">Auto-Indicate Hierarchy padding in statements</span>
+                      </label>
+                      <label className="flex items-center gap-2 select-none cursor-pointer">
+                        <input type="checkbox" className="w-4 h-4 text-blue-600 border-gray-300 rounded" />
+                        <span className="text-slate-700 dark:text-slate-300 font-medium">Omit when cumulative balance represents 0.00</span>
+                      </label>
+                      <label className="flex items-center gap-2 select-none cursor-pointer">
+                        <input type="checkbox" defaultChecked className="w-4 h-4 text-blue-600 border-gray-300 rounded" />
+                        <span className="text-slate-700 dark:text-slate-300 font-medium">Force text uppercase in BIR attachments</span>
+                      </label>
+                    </div>
+                  </div>
+                )}
+
               </div>
-              
-              <div className="flex gap-3 justify-end pt-4 border-t border-slate-100 dark:border-slate-700">
+
+              {/* Action Footer */}
+              <div className="bg-slate-50 dark:bg-slate-850 px-4 py-3 border-t border-slate-200 dark:border-slate-700 flex gap-2.5 justify-end">
                 <button 
-                  onClick={() => setIsAdding(false)}
-                  className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 font-bold rounded-xl transition-colors"
+                  onClick={() => {
+                    setIsAdding(false);
+                    setEditingId(null);
+                  }}
+                  className="px-4 py-2 bg-white hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-250 font-bold border border-slate-300 dark:border-slate-600 text-xs rounded transition-colors"
                 >
                   Cancel
                 </button>
                 <button 
                   onClick={handleAddAccount}
-                  className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl transition-colors shadow-sm"
+                  className="px-4 py-2 bg-[#005fa3] hover:bg-blue-700 text-white font-bold text-xs rounded shadow-xs transition-colors"
                 >
-                  Save
+                  Save / Register
                 </button>
               </div>
+
             </div>
           </div>
         )}
