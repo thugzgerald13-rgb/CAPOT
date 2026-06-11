@@ -729,11 +729,7 @@ export function ChartOfAccountsModal() {
               </div>
 
               {/* Sub-Header Bar */}
-              <div className="bg-white dark:bg-slate-800 px-4 py-2.5 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
-                <div className="flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-slate-400" />
-                  <span className="text-sm font-bold text-slate-800 dark:text-slate-100">Register Account</span>
-                </div>
+              <div className="bg-white dark:bg-slate-800 px-4 py-2.5 border-b border-slate-200 dark:border-slate-700 flex justify-end items-center">
                 <button 
                   onClick={() => alert("Options:\n- Export BIR Form Map Schema\n- Run integrity audit on ledger account ranges\n- Validate sub-account code alignment")}
                   className="px-2.5 py-1 text-xs font-semibold bg-slate-50 hover:bg-slate-100 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-100 border border-slate-300 dark:border-slate-600 rounded shadow-xs transition-all active:scale-95"
