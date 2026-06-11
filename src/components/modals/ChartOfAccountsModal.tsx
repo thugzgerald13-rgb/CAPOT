@@ -99,9 +99,6 @@ export function resequenceAccounts(
     return result;
   } else {
     // Numeric
-    const existingNumericRoot = accountsList.find(a => !a.parentId);
-    const rootLength = existingNumericRoot ? existingNumericRoot.id.length : 5;
-
     const result: CoaAccount[] = [];
 
     const rootAccounts = accountsList
@@ -119,14 +116,8 @@ export function resequenceAccounts(
         .sort((a, b) => a.id.localeCompare(b.id));
 
       children.forEach((child) => {
-        let childNewId = child.id;
+        const childNewId = child.id;
         
-        if (childNewId.length > rootLength) {
-          childNewId = childNewId.slice(0, rootLength);
-        } else if (childNewId.length < rootLength) {
-          childNewId = childNewId.padEnd(rootLength, '0');
-        }
-
         result.push({
           ...child,
           id: childNewId,
@@ -138,12 +129,7 @@ export function resequenceAccounts(
     };
 
     rootAccounts.forEach((root) => {
-      let rootIdVal = root.id;
-      if (rootIdVal.length > rootLength) {
-        rootIdVal = rootIdVal.slice(0, rootLength);
-      } else if (rootIdVal.length < rootLength) {
-        rootIdVal = rootIdVal.padEnd(rootLength, '0');
-      }
+      const rootIdVal = root.id;
 
       const newRoot = {
         ...root,
@@ -156,13 +142,7 @@ export function resequenceAccounts(
     const processedIds = new Set(result.map(r => r.id));
     accountsList.forEach(acc => {
       if (!processedIds.has(acc.id)) {
-        let fallbackId = acc.id;
-        if (fallbackId.length > rootLength) {
-          fallbackId = fallbackId.slice(0, rootLength);
-        } else if (fallbackId.length < rootLength) {
-          fallbackId = fallbackId.padEnd(rootLength, '0');
-        }
-        result.push({ ...acc, id: fallbackId });
+        result.push({ ...acc });
       }
     });
 
@@ -257,8 +237,6 @@ export function ChartOfAccountsModal() {
       const isNumeric = (!currentClient.coaFormat || currentClient.coaFormat === 'numeric');
 
       let finalEditCode = computedId;
-      const existingRoot = accounts.find(a => !a.parentId);
-      const uniformLength = existingRoot ? existingRoot.id.length : 5;
 
       if (isNumeric) {
         finalEditCode = finalEditCode.replace(/\D/g, '');
@@ -268,13 +246,6 @@ export function ChartOfAccountsModal() {
         }
 
         if (!isMainAccount) {
-          // Sub-accounts must match the current uniform length of root accounts
-          if (finalEditCode.length > uniformLength) {
-            finalEditCode = finalEditCode.slice(0, uniformLength);
-          } else if (finalEditCode.length < uniformLength) {
-            finalEditCode = finalEditCode.padEnd(uniformLength, '0');
-          }
-
           // Sub-account must start with its parent prefix to maintain integrity
           if (editedAccount?.parentId) {
             const parentAccount = accounts.find(a => a.id === editedAccount.parentId);
@@ -289,45 +260,14 @@ export function ChartOfAccountsModal() {
         }
       }
 
-      const lengthDiff = (isNumeric && isMainAccount) ? finalEditCode.length - editingId.length : 0;
-      
-      if (finalEditCode !== editingId && lengthDiff === 0 && accounts.some(a => a.id === finalEditCode)) {
+      if (finalEditCode !== editingId && accounts.some(a => a.id === finalEditCode)) {
          setFormError("An account with this code already exists!");
          return;
       }
 
       let updatedAccounts = [...accounts];
 
-      if (lengthDiff !== 0) {
-        updatedAccounts = updatedAccounts.map(account => {
-          let newId = account.id;
-          let newParentId = account.parentId;
-          
-          if (lengthDiff > 0) {
-            const pad = '0'.repeat(lengthDiff);
-            newId += pad;
-            if (newParentId) newParentId += pad;
-          } else {
-            const toRemove = Math.abs(lengthDiff);
-            newId = newId.slice(0, newId.length - toRemove);
-            if (newParentId) {
-              newParentId = newParentId.slice(0, newParentId.length - toRemove);
-            }
-          }
-          return { ...account, id: newId, parentId: newParentId };
-        });
-      }
-
       let adjustedOldId = editingId;
-      if (isNumeric && isMainAccount) {
-        if (lengthDiff > 0) {
-          adjustedOldId += '0'.repeat(lengthDiff);
-        } else if (lengthDiff < 0) {
-          const toRemove = Math.abs(lengthDiff);
-          adjustedOldId = adjustedOldId.slice(0, adjustedOldId.length - toRemove);
-        }
-      }
-
       const index = updatedAccounts.findIndex(a => a.id === adjustedOldId);
       if (index !== -1) {
         updatedAccounts[index] = {
@@ -853,7 +793,8 @@ export function ChartOfAccountsModal() {
                             value={idSuffix} 
                             onChange={e => {
                               let val = (!currentClient.coaFormat || currentClient.coaFormat === 'numeric') ? e.target.value.replace(/\D/g, '') : e.target.value.replace(/[^0-9A-Za-z_-]/g, '');
-                              if (suffixPlaceholder) val = val.slice(0, suffixPlaceholder.length);
+                              const maxLen = 7 - (idPrefix ? idPrefix.length : 0);
+                              val = val.slice(0, maxLen);
                               setIdSuffix(val);
                             }} 
                             onKeyDown={e => {
