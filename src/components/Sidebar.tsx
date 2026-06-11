@@ -450,15 +450,6 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
             </AnimatePresence>
           </div>
 
-          {/* Audit Trail Button */}
-          <button
-            onClick={() => handleNavClick('audit_trail')}
-            className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-300 rounded-xl transition-all w-full text-left group hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-slate-800"
-          >
-            <ShieldAlert className="w-5 h-5 opacity-70 group-hover:opacity-100 text-rose-500 dark:text-rose-400 transition-opacity shrink-0" />
-            <span>Audit Compliance Log</span>
-          </button>
-
           {/* Settings Collapsible Dropdown */}
           <div className="flex flex-col">
             <button
