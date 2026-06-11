@@ -44,6 +44,11 @@ export interface Expense {
   description: string;
 }
 
+export interface AccountRemark {
+  code: string;
+  name: string;
+}
+
 export interface CoaAccount {
   id: string;
   name: string;
@@ -56,6 +61,7 @@ export interface CoaAccount {
   operationType?: 'Income' | 'Payment' | 'Deposit' | 'None';
   parentAccountFS?: string;
   parentAccountOp?: string;
+  remarks?: AccountRemark[];
 }
 
 export interface InvoicePayable {

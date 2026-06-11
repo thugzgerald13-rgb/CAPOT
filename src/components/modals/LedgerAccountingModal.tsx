@@ -39,6 +39,8 @@ export interface JournalVoucherLine {
   id: string;
   accountTitle: string;
   segmentCode: string; // segment combination like "01-10-101"
+  remarksCode?: string; // New field for remarks code
+  remarksName?: string; // New field for remarks name
   debit: number;
   credit: number;
 }
@@ -310,25 +312,42 @@ export function LedgerAccountingModal() {
   ]);
 
   const [addLineAccount, setAddLineAccount] = useState('Rent Expense');
+  const [addLineRemarks, setAddLineRemarks] = useState('');
   const [addLineSegment, setAddLineSegment] = useState('01-HEAD-OP01');
   const [addLineDebit, setAddLineDebit] = useState('');
   const [addLineCredit, setAddLineCredit] = useState('');
+
+  const coaList = currentClient?.coa || DEFAULT_ACCOUNTS;
 
   const handleAddLineToJv = () => {
     const d = parseFloat(addLineDebit) || 0;
     const c = parseFloat(addLineCredit) || 0;
     if (d === 0 && c === 0) return;
 
+    let rCode = undefined;
+    let rName = undefined;
+    const selectedAccountRef = coaList.find(a => a.name === addLineAccount);
+    if (addLineRemarks && selectedAccountRef && selectedAccountRef.remarks) {
+       const rm = selectedAccountRef.remarks.find(r => r.code === addLineRemarks);
+       if (rm) {
+         rCode = rm.code;
+         rName = rm.name;
+       }
+    }
+
     const newLine: JournalVoucherLine = {
       id: crypto.randomUUID(),
       accountTitle: addLineAccount,
       segmentCode: addLineSegment,
+      remarksCode: rCode,
+      remarksName: rName,
       debit: d,
       credit: c
     };
     setJvLines([...jvLines, newLine]);
     setAddLineDebit('');
     setAddLineCredit('');
+    setAddLineRemarks('');
   };
 
   const handleRemoveLineFromJv = (lineId: string) => {
@@ -1438,13 +1457,22 @@ export function LedgerAccountingModal() {
                     
                     <div className="bg-slate-50 dark:bg-slate-900 border border-slate-150 p-2.5 rounded-xl flex flex-col gap-2">
                       <div className="flex flex-wrap gap-2">
-                        <select value={addLineAccount} onChange={e => setAddLineAccount(e.target.value)} className="form-select text-[10px] py-1 max-w-[140px]">
-                          <option value="Cash in Bank">Cash in Bank</option>
-                          <option value="Accounts Payable">Accounts Payable</option>
-                          <option value="Professional Fees">Professional Fees</option>
-                          <option value="Rent Expense">Rent Expense</option>
-                          <option value="Repair/Maintenance">Repair and Maintenance</option>
+                        <select value={addLineAccount} onChange={e => { setAddLineAccount(e.target.value); setAddLineRemarks(''); }} className="form-select text-[10px] py-1 max-w-[140px]">
+                          <option value="">Select Account</option>
+                          {coaList.map(a => <option key={a.id} value={a.name}>{a.name}</option>)}
                         </select>
+                        {(() => {
+                           const selAcc = coaList.find(a => a.name === addLineAccount);
+                           if (selAcc && selAcc.remarks && selAcc.remarks.length > 0) {
+                             return (
+                               <select value={addLineRemarks} onChange={e => setAddLineRemarks(e.target.value)} className="form-select text-[10px] py-1 max-w-[120px]">
+                                 <option value="">No Remarks</option>
+                                 {selAcc.remarks.map(r => <option key={r.code} value={r.code}>{r.code} - {r.name}</option>)}
+                               </select>
+                             );
+                           }
+                           return null;
+                        })()}
                         <select value={addLineSegment} onChange={e => setAddLineSegment(e.target.value)} className="form-select text-[10px] py-1 max-w-[120px]">
                           <option value="01-HEAD-OP01">01 Metro</option>
                           <option value="02-NORT-EN05">02 Luzon</option>
@@ -1462,7 +1490,10 @@ export function LedgerAccountingModal() {
                       {jvLines.map((line, ix) => (
                         <div key={line.id} className="flex justify-between items-center bg-white dark:bg-slate-900 p-1.5 rounded-lg border border-slate-150">
                           <div>
-                            <p className="font-extrabold text-slate-700 dark:text-slate-300 text-[10.5px]">{line.accountTitle}</p>
+                            <p className="font-extrabold text-slate-700 dark:text-slate-300 text-[10.5px]">
+                               {line.accountTitle}
+                               {line.remarksCode && <span className="ml-1 text-[9px] text-blue-600 bg-blue-50 px-1 rounded border border-blue-200">[{line.remarksCode}] {line.remarksName}</span>}
+                            </p>
                             <p className="text-[9px] text-slate-400">Seg: {line.segmentCode}</p>
                           </div>
                           <div className="flex gap-4 items-center">
@@ -1518,7 +1549,11 @@ export function LedgerAccountingModal() {
                                   <p className="text-slate-700 dark:text-slate-300 leading-tight">{jv.narration}</p>
                                   <div className="mt-1 flex flex-col gap-0.5 font-mono scale-90 origin-left text-[9px] text-slate-400">
                                     {jv.lines.map((l, x) => (
-                                      <p key={x}>{l.accountTitle} ({l.debit > 0 ? `Dr ₱${l.debit}` : `Cr ₱${l.credit}`})</p>
+                                      <p key={x}>
+                                        {l.accountTitle} 
+                                        {l.remarksCode && <span className="mx-1 text-blue-500">[{l.remarksCode}]</span>}
+                                        ({l.debit > 0 ? `Dr ₱${l.debit}` : `Cr ₱${l.credit}`})
+                                      </p>
                                     ))}
                                   </div>
                                 </td>

@@ -194,8 +194,6 @@ export function ChartOfAccountsModal() {
   const [typeFilter, setTypeFilter] = useState<string>('All');
 
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editCode, setEditCode] = useState('');
-  const [editName, setEditName] = useState('');
 
   const [activeFormTab, setActiveFormTab] = useState<'General' | 'Code Info.' | 'Display Method'>('General');
   const [formKeyword, setFormKeyword] = useState('');
@@ -205,6 +203,9 @@ export function ChartOfAccountsModal() {
   const [formOperationType, setFormOperationType] = useState<'Income' | 'Payment' | 'Deposit' | 'None'>('None');
   const [formParentFS, setFormParentFS] = useState('');
   const [formParentOp, setFormParentOp] = useState('');
+
+  const [remarksModalAccount, setRemarksModalAccount] = useState<CoaAccount | null>(null);
+  const [remarksList, setRemarksList] = useState<{code: string, name: string}[]>([]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -280,12 +281,6 @@ export function ChartOfAccountsModal() {
       });
 
       if (computedId !== editingId) {
-        updatedAccounts = updatedAccounts.map(a => {
-          if (a.parentId === editingId) {
-            return { ...a, parentId: computedId };
-          }
-          return a;
-        });
         updatedAccounts = updateDescendants(updatedAccounts, editingId, computedId);
       }
 
@@ -410,21 +405,18 @@ export function ChartOfAccountsModal() {
 
   const updateDescendants = (accountsList: CoaAccount[], oldId: string, newId: string): CoaAccount[] => {
     let currentList = [...accountsList];
-    const oldPrefix = oldId.replace(/0+$/, '');
-    const newPrefix = newId.replace(/0+$/, '');
+    
+    // For numeric formats, the logical prefix excludes trailing zeros (e.g., 8000 -> 8).
+    // For alphanumeric formats, the prefix is the entire ID string (e.g., A-101 -> A-101).
+    const isNumeric = !currentClient.coaFormat || currentClient.coaFormat === 'numeric';
+    const oldPrefix = isNumeric ? oldId.replace(/0+$/, '') : oldId;
+    const newPrefix = isNumeric ? newId.replace(/0+$/, '') : newId;
 
     const children = currentList.filter(a => a.parentId === oldId);
     for (const child of children) {
       let childNewId = child.id;
       if (childNewId.startsWith(oldPrefix)) {
         childNewId = newPrefix + childNewId.slice(oldPrefix.length);
-        const targetLength = child.id.length; // target length is same as child.id because length diffs were already globally applied
-        
-        if (childNewId.length > targetLength) {
-          childNewId = childNewId.slice(0, targetLength);
-        } else if (childNewId.length < targetLength) {
-          childNewId = childNewId.padEnd(targetLength, '0');
-        }
       }
       
       const index = currentList.findIndex(a => a.id === child.id);
@@ -433,106 +425,6 @@ export function ChartOfAccountsModal() {
       currentList = updateDescendants(currentList, child.id, childNewId);
     }
     return currentList;
-  };
-
-  const handleSaveEdit = (oldId: string) => {
-    if (!editCode || !editName) {
-      alert("Please fill out Account Code and Name.");
-      return;
-    }
-    
-    const editedAccount = accounts.find(a => a.id === oldId);
-    const isMainAccount = editedAccount && !editedAccount.parentId;
-    const isNumeric = (!currentClient.coaFormat || currentClient.coaFormat === 'numeric');
-
-    let finalEditCode = editCode;
-    const existingRoot = accounts.find(a => !a.parentId);
-    const uniformLength = existingRoot ? existingRoot.id.length : 5;
-
-    if (isNumeric) {
-      finalEditCode = finalEditCode.replace(/\D/g, '');
-      if (/\D/.test(finalEditCode) || finalEditCode.length === 0) {
-        alert("Account Code must contain only numbers.");
-        return;
-      }
-      
-      if (!isMainAccount) {
-        // Sub-accounts must match the current uniform length of root accounts
-        if (finalEditCode.length > uniformLength) {
-          finalEditCode = finalEditCode.slice(0, uniformLength);
-        } else if (finalEditCode.length < uniformLength) {
-          finalEditCode = finalEditCode.padEnd(uniformLength, '0');
-        }
-
-        // Sub-account must start with its parent prefix to maintain integrity
-        if (editedAccount?.parentId) {
-          const parentAccount = accounts.find(a => a.id === editedAccount.parentId);
-          if (parentAccount) {
-            const parentPrefix = getParentPrefix(parentAccount.id);
-            if (!finalEditCode.startsWith(parentPrefix)) {
-              alert(`Sub-account code must start with its parent prefix: "${parentPrefix}"`);
-              return;
-            }
-          }
-        }
-      }
-    }
-
-    const lengthDiff = (isNumeric && isMainAccount) ? finalEditCode.length - oldId.length : 0;
-    
-    // Direct collision check using finalEditCode (cannot collide with any other account's code)
-    if (finalEditCode !== oldId && lengthDiff === 0 && accounts.some(a => a.id === finalEditCode)) {
-       alert("An account with this code already exists!");
-       return;
-    }
-
-    let updatedAccounts = [...accounts];
-
-    // 1. If length changed in a numeric chart on editing a main account, apply that length diff universally to ALL accounts.
-    if (lengthDiff !== 0) {
-      updatedAccounts = updatedAccounts.map(account => {
-        let newId = account.id;
-        let newParentId = account.parentId;
-        
-        if (lengthDiff > 0) {
-          const pad = '0'.repeat(lengthDiff);
-          newId += pad;
-          if (newParentId) newParentId += pad;
-        } else {
-          const toRemove = Math.abs(lengthDiff);
-          newId = newId.slice(0, newId.length - toRemove);
-          if (newParentId) {
-            newParentId = newParentId.slice(0, newParentId.length - toRemove);
-          }
-        }
-        return { ...account, id: newId, parentId: newParentId };
-      });
-    }
-
-    // Determine what oldId is known as NOW (after the global padding applies)
-    let adjustedOldId = oldId;
-    if (isNumeric && isMainAccount) {
-      if (lengthDiff > 0) {
-        adjustedOldId += '0'.repeat(lengthDiff);
-      } else if (lengthDiff < 0) {
-        const toRemove = Math.abs(lengthDiff);
-        adjustedOldId = adjustedOldId.slice(0, adjustedOldId.length - toRemove);
-      }
-    }
-    
-    // 2. Perform the specific user edit
-    const index = updatedAccounts.findIndex(a => a.id === adjustedOldId);
-    if (index !== -1) {
-      updatedAccounts[index] = { ...updatedAccounts[index], id: finalEditCode, name: editName };
-      
-      if (finalEditCode !== adjustedOldId) {
-        // Since adjustedOldId and finalEditCode now have the same length,
-        // updateDescendants will ONLY do prefix replacement.
-        updatedAccounts = updateDescendants(updatedAccounts, adjustedOldId, finalEditCode);
-      }
-      handleSaveAccounts(updatedAccounts);
-    }
-    setEditingId(null);
   };
 
   const toggleExpand = (id: string) => {
@@ -614,7 +506,7 @@ export function ChartOfAccountsModal() {
             "flex items-center justify-between p-2 hover:bg-slate-50 dark:hover:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800 group",
             depth === 0 ? "bg-slate-50 font-semibold dark:bg-slate-800/20" : ""
           )}>
-            <div className="flex items-center gap-2" style={{ paddingLeft: `${depth * 1.5}rem` }}>
+            <div className="flex items-center gap-2 flex-1" style={{ paddingLeft: `${depth * 1.5}rem` }}>
               {hasChildren ? (
                 <button onClick={() => toggleExpand(account.id)} className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-md text-slate-500">
                   {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
@@ -728,6 +620,17 @@ export function ChartOfAccountsModal() {
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </>
+              </div>
+              <div className="w-24 flex items-center justify-center shrink-0 ml-2">
+                <button
+                  onClick={() => {
+                    setRemarksModalAccount(account);
+                    setRemarksList(account.remarks || []);
+                  }}
+                  className="text-xs font-semibold text-blue-600 hover:text-blue-800 hover:underline"
+                >
+                  {account.remarks?.length ? `${account.remarks.length} Remarks` : 'Save'}
+                </button>
               </div>
           </div>
           
@@ -1177,9 +1080,135 @@ export function ChartOfAccountsModal() {
           </div>
         )}
 
+        {remarksModalAccount && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
+            <div className="bg-[#f0f4f8] dark:bg-slate-900 w-full max-w-sm shadow-2xl border border-slate-300 dark:border-slate-800 rounded-lg overflow-hidden flex flex-col font-sans">
+              <div className="bg-[#005fa3] dark:bg-indigo-950 px-3.5 py-2 flex items-center justify-between text-white border-b border-blue-600/30">
+                <div className="flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-blue-200" />
+                  <span className="text-xs sm:text-sm font-bold tracking-wide">Remarks List - {remarksModalAccount.id}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <button 
+                    onClick={() => {
+                      setRemarksModalAccount(null);
+                      setRemarksList([]);
+                    }} 
+                    className="p-1 hover:bg-red-500/80 rounded transition-colors" 
+                    title="Close"
+                  >
+                    <X className="w-3.5 h-3.5 text-blue-200 hover:text-white" />
+                  </button>
+                </div>
+              </div>
+              <div className="bg-white dark:bg-slate-800 px-4 py-2.5 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
+                <div className="flex items-center gap-2 text-slate-800 dark:text-slate-100">
+                  <span className="text-sm font-bold">Remarks List</span>
+                </div>
+              </div>
+              
+              <div className="p-2 bg-[#f8fafc] dark:bg-slate-900 flex-1 overflow-y-auto max-h-[480px]">
+                <table className="w-full text-xs text-left border-collapse border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+                  <thead className="bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
+                    <tr>
+                      <th className="p-2 border-r border-slate-200 dark:border-slate-700 w-16 text-center font-bold text-slate-500">Remarks Code</th>
+                      <th className="p-2 font-bold text-slate-500">Remarks Name</th>
+                      <th className="p-2 w-10"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {remarksList.map((rm, idx) => (
+                      <tr key={idx} className="border-b border-slate-100 dark:border-slate-700 hover:bg-rose-50/50 dark:hover:bg-rose-950/20">
+                        <td className="p-1.5 border-r border-slate-200 dark:border-slate-700 text-center text-blue-600 dark:text-blue-400 font-medium">
+                          <input
+                            type="text"
+                            value={rm.code}
+                            onChange={e => {
+                              const newArr = [...remarksList];
+                              newArr[idx].code = e.target.value;
+                              setRemarksList(newArr);
+                            }}
+                            className="w-full text-center bg-transparent border border-transparent hover:border-slate-300 focus:border-blue-500 rounded px-1 py-0.5 outline-none"
+                            placeholder="01"
+                          />
+                        </td>
+                        <td className="p-1.5 text-slate-700 dark:text-slate-300">
+                          <input
+                            type="text"
+                            value={rm.name}
+                            onChange={e => {
+                              const newArr = [...remarksList];
+                              newArr[idx].name = e.target.value;
+                              setRemarksList(newArr);
+                            }}
+                            className="w-full bg-transparent border border-transparent hover:border-slate-300 focus:border-blue-500 rounded px-1 py-0.5 outline-none"
+                            placeholder="Company Dinner Expense"
+                          />
+                        </td>
+                        <td className="p-1.5 text-center">
+                          <button
+                            onClick={() => {
+                              setRemarksList(remarksList.filter((_, i) => i !== idx));
+                            }}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              
+              <div className="bg-slate-50 dark:bg-slate-850 px-4 py-3 border-t border-slate-200 dark:border-slate-700 flex gap-2 justify-between">
+                <div>
+                  <button 
+                    onClick={() => {
+                      const nextCode = (remarksList.length + 1).toString().padStart(2, '0');
+                      setRemarksList([...remarksList, { code: nextCode, name: '' }]);
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[#005fa3] hover:bg-blue-700 text-white font-bold text-xs rounded shadow-xs transition-colors shrink-0"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    New
+                  </button>
+                </div>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => {
+                      setRemarksList([]);
+                    }}
+                    className="px-3 py-1.5 bg-white hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-250 border border-slate-300 dark:border-slate-600 font-bold text-xs rounded transition-colors"
+                  >
+                    Clear All
+                  </button>
+                  <button 
+                    onClick={() => {
+                      const updatedAccounts = accounts.map(a => 
+                        a.id === remarksModalAccount.id 
+                          ? { ...a, remarks: remarksList.filter(r => r.code.trim() && r.name.trim()) } 
+                          : a
+                      );
+                      handleSaveAccounts(updatedAccounts);
+                      setRemarksModalAccount(null);
+                      setRemarksList([]);
+                    }}
+                    className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded shadow-xs transition-colors"
+                  >
+                    Save Remarks
+                  </button>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        )}
+
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
           <div className="flex text-xs font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 p-3 border-b border-slate-200 dark:border-slate-700">
             <div className="flex-1" style={{ paddingLeft: '2.5rem' }}>Account Name</div>
+            <div className="w-24 text-center shrink-0 ml-2">Remarks</div>
           </div>
           <div className="divide-y divide-slate-100 dark:divide-slate-800/50">
             {accounts.length === 0 ? (
