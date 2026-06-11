@@ -197,6 +197,8 @@ export function ChartOfAccountsModal() {
   const [formParentFS, setFormParentFS] = useState('');
   const [formParentOp, setFormParentOp] = useState('');
 
+  const [formError, setFormError] = useState<string | null>(null);
+
   const [remarksModalAccount, setRemarksModalAccount] = useState<CoaAccount | null>(null);
   const [remarksList, setRemarksList] = useState<{code: string, name: string}[]>([]);
 
@@ -241,9 +243,10 @@ export function ChartOfAccountsModal() {
   };
 
   const handleAddAccount = () => {
+    setFormError(null);
     const computedId = idPrefix + idSuffix.padEnd(suffixPlaceholder.length, '0');
     if (!computedId || !newName) {
-      alert("Please fill out Account Code and Name.");
+      setFormError("Please fill out Account Code and Name.");
       return;
     }
 
@@ -260,7 +263,7 @@ export function ChartOfAccountsModal() {
       if (isNumeric) {
         finalEditCode = finalEditCode.replace(/\D/g, '');
         if (finalEditCode.length === 0) {
-          alert("Account Code must contain only numbers.");
+          setFormError("Account Code must contain only numbers.");
           return;
         }
 
@@ -278,7 +281,7 @@ export function ChartOfAccountsModal() {
             if (parentAccount) {
               const parentPrefix = getParentPrefix(parentAccount.id);
               if (!finalEditCode.startsWith(parentPrefix)) {
-                alert(`Sub-account code must start with its parent prefix: "${parentPrefix}"`);
+                setFormError(`Sub-account code must start with its parent prefix: "${parentPrefix}"`);
                 return;
               }
             }
@@ -289,7 +292,7 @@ export function ChartOfAccountsModal() {
       const lengthDiff = (isNumeric && isMainAccount) ? finalEditCode.length - editingId.length : 0;
       
       if (finalEditCode !== editingId && lengthDiff === 0 && accounts.some(a => a.id === finalEditCode)) {
-         alert("An account with this code already exists!");
+         setFormError("An account with this code already exists!");
          return;
       }
 
@@ -350,7 +353,7 @@ export function ChartOfAccountsModal() {
     } else {
       // Adding Mode
       if (accounts.some(a => a.id === computedId && a.parentId === addingParentId && a.name.toLowerCase() === newName.toLowerCase())) {
-        alert("This exact sub-account already exists!");
+        setFormError("This exact sub-account already exists!");
         return;
       }
 
@@ -496,6 +499,7 @@ export function ChartOfAccountsModal() {
   const missingTypes = ACCOUNT_TYPES.filter(t => !accounts.some(a => a.type === t && !a.parentId));
 
   const handleRestoreMainAccount = (type: string) => {
+    setFormError(null);
     const isAlpha = currentClient.coaFormat === 'alphanumeric';
     const defaults = isAlpha ? DEFAULT_ACCOUNTS_ALPHA : DEFAULT_ACCOUNTS;
     
@@ -519,7 +523,7 @@ export function ChartOfAccountsModal() {
     }
 
     if (accounts.some(a => a.id === restoredId)) {
-      alert(`An account with the ID ${restoredId} already exists. Cannot restore automatically.`);
+      setFormError(`An account with the ID ${restoredId} already exists. Cannot restore automatically.`);
       return;
     }
 
@@ -769,6 +773,7 @@ export function ChartOfAccountsModal() {
                     onClick={() => {
                       setIsAdding(false);
                       setEditingId(null);
+                      setFormError(null);
                     }} 
                     className="p-1 hover:bg-red-500/80 rounded transition-colors" 
                     title="Close"
@@ -806,6 +811,23 @@ export function ChartOfAccountsModal() {
                   );
                 })}
               </div>
+
+              {formError && (
+                <div className="bg-red-50 dark:bg-red-900/30 border-l-4 border-red-500 p-2.5 mx-4 mt-3 mb-1 shadow-sm">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <svg className="h-4 w-4 text-red-500" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div className="ml-2">
+                      <p className="text-xs text-red-700 dark:text-red-200 font-semibold">
+                        {formError}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Form Content Area */}
               <div className="p-4 bg-[#f8fafc] dark:bg-slate-900 flex-1 overflow-y-auto max-h-[480px]">
@@ -1099,6 +1121,7 @@ export function ChartOfAccountsModal() {
                   onClick={() => {
                     setIsAdding(false);
                     setEditingId(null);
+                    setFormError(null);
                   }}
                   className="px-4 py-2 bg-white hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-250 font-bold border border-slate-300 dark:border-slate-600 text-xs rounded transition-colors"
                 >
