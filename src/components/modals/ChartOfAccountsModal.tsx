@@ -224,7 +224,7 @@ export function ChartOfAccountsModal() {
 
   const handleAddAccount = () => {
     setFormError(null);
-    const computedId = idPrefix + idSuffix.padEnd(suffixPlaceholder.length, '0');
+    const computedId = (idPrefix + idSuffix.padEnd(suffixPlaceholder.length, '0')).replace(/[^0-9A-Za-z_-]/g, '');
     if (!computedId || !newName) {
       setFormError("Please fill out Account Code and Name.");
       return;
@@ -234,17 +234,17 @@ export function ChartOfAccountsModal() {
       // Editing Mode
       const editedAccount = accounts.find(a => a.id === editingId);
       const isMainAccount = editedAccount && !editedAccount.parentId;
-      const isNumeric = (!currentClient.coaFormat || currentClient.coaFormat === 'numeric');
+      
+      let finalEditCode = computedId.replace(/[^0-9A-Za-z_-]/g, '');
+      const hasLetters = /[A-Za-z_-]/.test(finalEditCode);
+      const isNumeric = !hasLetters && (!currentClient.coaFormat || currentClient.coaFormat === 'numeric');
 
-      let finalEditCode = computedId;
+      if (finalEditCode.length === 0) {
+        setFormError("Account Code cannot be empty.");
+        return;
+      }
 
       if (isNumeric) {
-        finalEditCode = finalEditCode.replace(/\D/g, '');
-        if (finalEditCode.length === 0) {
-          setFormError("Account Code must contain only numbers.");
-          return;
-        }
-
         if (!isMainAccount) {
           // Sub-account must start with its parent prefix to maintain integrity
           if (editedAccount?.parentId) {
@@ -793,7 +793,7 @@ export function ChartOfAccountsModal() {
                             maxLength={Math.max(1, 7 - (idPrefix ? idPrefix.length : 0))}
                             value={idSuffix} 
                             onChange={e => {
-                              let val = (!currentClient.coaFormat || currentClient.coaFormat === 'numeric') ? e.target.value.replace(/\D/g, '') : e.target.value.replace(/[^0-9A-Za-z_-]/g, '');
+                              let val = e.target.value.replace(/[^0-9A-Za-z_-]/g, '');
                               const totalLengthAllowed = 7;
                               const currentPrefixLength = idPrefix ? idPrefix.length : 0;
                               const maxLen = totalLengthAllowed - currentPrefixLength;
@@ -801,9 +801,7 @@ export function ChartOfAccountsModal() {
                               setIdSuffix(val);
                             }}
                             onKeyDown={e => {
-                              if ((!currentClient.coaFormat || currentClient.coaFormat === 'numeric') && !/[\d]/.test(e.key) && e.key !== 'Backspace' && e.key !== 'Delete' && e.key !== 'ArrowLeft' && e.key !== 'ArrowRight' && e.key !== 'Tab' && !e.ctrlKey && !e.metaKey) {
-                                e.preventDefault();
-                              }
+                              if (e.key === 'Enter') handleAddAccount();
                             }}
                             onBlur={() => {
                               if (!currentClient.coaFormat || currentClient.coaFormat === 'numeric') {
