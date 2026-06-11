@@ -700,21 +700,9 @@ export function ChartOfAccountsModal() {
               <div className="bg-[#005fa3] dark:bg-indigo-950 px-3.5 py-2 flex items-center justify-between text-white border-b border-blue-600/30">
                 <div className="flex items-center gap-2">
                   <CreditCard className="w-4 h-4 text-blue-200" />
-                  <span className="text-xs sm:text-sm font-bold tracking-wide">Register Account</span>
+                  <span className="text-xs sm:text-sm font-bold tracking-wide">Add/Edit Account</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <button className="p-1 hover:bg-white/10 rounded transition-colors" title="Popout">
-                    <ExternalLink className="w-3.5 h-3.5 text-blue-200 hover:text-white" />
-                  </button>
-                  <button className="p-1 hover:bg-white/10 rounded transition-colors" title="Pin">
-                    <Pin className="w-3.5 h-3.5 text-blue-200 hover:text-white" />
-                  </button>
-                  <button className="p-1 hover:bg-white/10 rounded transition-colors" title="Reload form">
-                    <RotateCw className="w-3.5 h-3.5 text-blue-200 hover:text-white" />
-                  </button>
-                  <button className="p-1 hover:bg-white/10 rounded transition-colors" title="Minimize">
-                    <Minus className="w-3.5 h-3.5 text-blue-200 hover:text-white" />
-                  </button>
                   <button 
                     onClick={() => {
                       setIsAdding(false);
@@ -1068,7 +1056,7 @@ export function ChartOfAccountsModal() {
                   onClick={handleAddAccount}
                   className="px-4 py-2 bg-[#005fa3] hover:bg-blue-700 text-white font-bold text-xs rounded shadow-xs transition-colors"
                 >
-                  Save / Register
+                  Save
                 </button>
               </div>
 
