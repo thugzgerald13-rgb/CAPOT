@@ -256,32 +256,101 @@ export function ChartOfAccountsModal() {
 
     if (editingId) {
       // Editing Mode
-      if (computedId !== editingId && accounts.some(a => a.id === computedId)) {
-        alert("An account with this code already exists!");
-        return;
+      const editedAccount = accounts.find(a => a.id === editingId);
+      const isMainAccount = editedAccount && !editedAccount.parentId;
+      const isNumeric = (!currentClient.coaFormat || currentClient.coaFormat === 'numeric');
+
+      let finalEditCode = computedId;
+      const existingRoot = accounts.find(a => !a.parentId);
+      const uniformLength = existingRoot ? existingRoot.id.length : 5;
+
+      if (isNumeric) {
+        finalEditCode = finalEditCode.replace(/\D/g, '');
+        if (finalEditCode.length === 0) {
+          alert("Account Code must contain only numbers.");
+          return;
+        }
+
+        if (!isMainAccount) {
+          // Sub-accounts must match the current uniform length of root accounts
+          if (finalEditCode.length > uniformLength) {
+            finalEditCode = finalEditCode.slice(0, uniformLength);
+          } else if (finalEditCode.length < uniformLength) {
+            finalEditCode = finalEditCode.padEnd(uniformLength, '0');
+          }
+
+          // Sub-account must start with its parent prefix to maintain integrity
+          if (editedAccount?.parentId) {
+            const parentAccount = accounts.find(a => a.id === editedAccount.parentId);
+            if (parentAccount) {
+              const parentPrefix = getParentPrefix(parentAccount.id);
+              if (!finalEditCode.startsWith(parentPrefix)) {
+                alert(`Sub-account code must start with its parent prefix: "${parentPrefix}"`);
+                return;
+              }
+            }
+          }
+        }
       }
 
-      let updatedAccounts = accounts.map(a => {
-        if (a.id === editingId) {
-          return {
-            ...a,
-            id: computedId,
-            name: newName,
-            type: newType,
-            keyword: formKeyword,
-            drOrCr: formDrOrCr,
-            accountLevel: formAccountLevel,
-            accountCategory: formCategory,
-            operationType: formOperationType,
-            parentAccountFS: formParentFS,
-            parentAccountOp: formParentOp
-          };
-        }
-        return a;
-      });
+      const lengthDiff = (isNumeric && isMainAccount) ? finalEditCode.length - editingId.length : 0;
+      
+      if (finalEditCode !== editingId && lengthDiff === 0 && accounts.some(a => a.id === finalEditCode)) {
+         alert("An account with this code already exists!");
+         return;
+      }
 
-      if (computedId !== editingId) {
-        updatedAccounts = updateDescendants(updatedAccounts, editingId, computedId);
+      let updatedAccounts = [...accounts];
+
+      if (lengthDiff !== 0) {
+        updatedAccounts = updatedAccounts.map(account => {
+          let newId = account.id;
+          let newParentId = account.parentId;
+          
+          if (lengthDiff > 0) {
+            const pad = '0'.repeat(lengthDiff);
+            newId += pad;
+            if (newParentId) newParentId += pad;
+          } else {
+            const toRemove = Math.abs(lengthDiff);
+            newId = newId.slice(0, newId.length - toRemove);
+            if (newParentId) {
+              newParentId = newParentId.slice(0, newParentId.length - toRemove);
+            }
+          }
+          return { ...account, id: newId, parentId: newParentId };
+        });
+      }
+
+      let adjustedOldId = editingId;
+      if (isNumeric && isMainAccount) {
+        if (lengthDiff > 0) {
+          adjustedOldId += '0'.repeat(lengthDiff);
+        } else if (lengthDiff < 0) {
+          const toRemove = Math.abs(lengthDiff);
+          adjustedOldId = adjustedOldId.slice(0, adjustedOldId.length - toRemove);
+        }
+      }
+
+      const index = updatedAccounts.findIndex(a => a.id === adjustedOldId);
+      if (index !== -1) {
+        updatedAccounts[index] = {
+          ...updatedAccounts[index],
+          id: finalEditCode,
+          name: newName,
+          type: newType,
+          keyword: formKeyword,
+          drOrCr: formDrOrCr,
+          accountLevel: formAccountLevel,
+          accountCategory: formCategory,
+          operationType: formOperationType,
+          parentAccountFS: formParentFS,
+          parentAccountOp: formParentOp
+        };
+        
+        if (finalEditCode !== adjustedOldId) {
+          updatedAccounts = updateDescendants(updatedAccounts, adjustedOldId, finalEditCode);
+        }
       }
 
       handleSaveAccounts(updatedAccounts);
