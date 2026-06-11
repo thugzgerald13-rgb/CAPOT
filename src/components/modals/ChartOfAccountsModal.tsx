@@ -779,10 +779,7 @@ export function ChartOfAccountsModal() {
                             value={idSuffix} 
                             onChange={e => {
                               let val = (!currentClient.coaFormat || currentClient.coaFormat === 'numeric') ? e.target.value.replace(/\D/g, '') : e.target.value.replace(/[^0-9A-Za-z_-]/g, '');
-                              const allowedLength = 8 - idPrefix.length;
-                              if (val.length > allowedLength) {
-                                val = val.slice(0, allowedLength);
-                              }
+                              if (suffixPlaceholder) val = val.slice(0, suffixPlaceholder.length);
                               setIdSuffix(val);
                             }} 
                             onKeyDown={e => {
