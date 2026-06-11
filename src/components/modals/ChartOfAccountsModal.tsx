@@ -790,13 +790,16 @@ export function ChartOfAccountsModal() {
                           )}
                           <input 
                             type="text" 
+                            maxLength={Math.max(1, 7 - (idPrefix ? idPrefix.length : 0))}
                             value={idSuffix} 
                             onChange={e => {
                               let val = (!currentClient.coaFormat || currentClient.coaFormat === 'numeric') ? e.target.value.replace(/\D/g, '') : e.target.value.replace(/[^0-9A-Za-z_-]/g, '');
-                              const maxLen = 7 - (idPrefix ? idPrefix.length : 0);
-                              val = val.slice(0, maxLen);
+                              const totalLengthAllowed = 7;
+                              const currentPrefixLength = idPrefix ? idPrefix.length : 0;
+                              const maxLen = totalLengthAllowed - currentPrefixLength;
+                              val = val.slice(0, Math.max(1, maxLen));
                               setIdSuffix(val);
-                            }} 
+                            }}
                             onKeyDown={e => {
                               if ((!currentClient.coaFormat || currentClient.coaFormat === 'numeric') && !/[\d]/.test(e.key) && e.key !== 'Backspace' && e.key !== 'Delete' && e.key !== 'ArrowLeft' && e.key !== 'ArrowRight' && e.key !== 'Tab' && !e.ctrlKey && !e.metaKey) {
                                 e.preventDefault();
