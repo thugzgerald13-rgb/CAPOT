@@ -398,13 +398,32 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
                   transition={{ duration: 0.2 }}
                   className="overflow-hidden flex flex-col gap-1 mt-1 pl-4"
                 >
-                  <button
-                    onClick={() => handleNavClick('clients')}
-                    className="flex items-center gap-3 px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 rounded-lg hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-slate-200 transition-all w-full text-left"
-                  >
-                    <Users className="w-4 h-4" />
-                    {userRole === 'owner' ? 'Business Profiles' : 'Client Profiles'}
-                  </button>
+                  {userRole === 'owner' ? (
+                    <button
+                      onClick={() => handleNavClick('business')}
+                      className="flex items-center gap-3 px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 rounded-lg hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-slate-200 transition-all w-full text-left"
+                    >
+                      <Building2 className="w-4 h-4" />
+                      Business Profiles
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => handleNavClick('clients')}
+                        className="flex items-center gap-3 px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 rounded-lg hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-slate-200 transition-all w-full text-left"
+                      >
+                        <Users className="w-4 h-4" />
+                        Client Profiles
+                      </button>
+                      <button
+                        onClick={() => handleNavClick('business')}
+                        className="flex items-center gap-3 px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 rounded-lg hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-slate-200 transition-all w-full text-left"
+                      >
+                        <Building2 className="w-4 h-4" />
+                        Business Profiles
+                      </button>
+                    </>
+                  )}
                   <button
                     onClick={() => handleNavClick('tinlibrary')}
                     className="flex items-center gap-3 px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 rounded-lg hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-slate-200 transition-all w-full text-left"
