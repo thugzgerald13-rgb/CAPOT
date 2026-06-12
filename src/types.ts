@@ -62,6 +62,11 @@ export interface CoaAccount {
   parentAccountFS?: string;
   parentAccountOp?: string;
   remarks?: AccountRemark[];
+  detailType?: string;
+  description?: string;
+  balance?: number;
+  bankBalance?: number;
+  status?: 'Active' | 'Inactive';
 }
 
 export interface InvoicePayable {
