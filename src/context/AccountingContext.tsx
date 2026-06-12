@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { Client, DatSelection, AuditLogEntry } from '../types';
+import { Client, DatSelection } from '../types';
 import { db, auth } from '../lib/firebase';
 import { 
   collection, 
@@ -11,8 +11,7 @@ import {
   serverTimestamp, 
   writeBatch,
   getDocs,
-  getDoc,
-  deleteDoc
+  getDoc
 } from 'firebase/firestore';
 import { useAuth } from './AuthContext';
 import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
@@ -39,184 +38,14 @@ interface AccountingContextType {
   setCurrentDat: (dat: DatSelection | null) => void;
   
   saveClient: (id: string, clientData: Client) => Promise<void>;
-  addClient: (name: string, isOwnBusiness?: boolean) => Promise<void>;
-  deleteClient: (id: string) => Promise<void>;
+  addClient: (name: string) => Promise<void>;
   showToast: (msg: string) => void;
-  logAuditTrail: (action: 'Add' | 'Update' | 'Delete' | 'Import' | 'Export' | 'View', section: string, details: string) => Promise<void>;
 }
 
 const AccountingContext = createContext<AccountingContextType | undefined>(undefined);
 
 const LOCAL_STORAGE_KEY = 'capo_accounting_v14_react';
 const OLD_STORAGE_KEY = 'capo_accounting_v13_react';
-
-const getAutoAuditLogs = (oldClient: Client, newClient: Client, userEmail: string, userRole: string): AuditLogEntry[] => {
-  const logs: AuditLogEntry[] = [];
-
-  const createLog = (action: 'Add' | 'Update' | 'Delete', section: string, details: string, originalData?: any, newData?: any): AuditLogEntry => ({
-    id: 'log_' + Math.random().toString(36).substring(2, 11) + '_' + Date.now(),
-    timestamp: new Date().toISOString(),
-    userEmail,
-    userRole,
-    action,
-    section,
-    details,
-    originalData: originalData ? JSON.stringify(originalData) : undefined,
-    newData: newData ? JSON.stringify(newData) : undefined,
-  });
-
-  const diffEntries = <T extends { id: string | number }>(
-    oldArr: T[] = [],
-    newArr: T[] = [],
-    section: string,
-    getDesc: (item: T) => string
-  ) => {
-    const oldArrSafe = oldArr || [];
-    const newArrSafe = newArr || [];
-    const oldMap = new Map(oldArrSafe.map(x => [String(x.id), x]));
-    const newMap = new Map(newArrSafe.map(x => [String(x.id), x]));
-
-    for (const item of oldArrSafe) {
-      if (!newMap.has(String(item.id))) {
-        logs.push(createLog('Delete', section, `Deleted entry: ${getDesc(item)}`, item));
-      }
-    }
-
-    for (const item of newArrSafe) {
-      const oldItem = oldMap.get(String(item.id));
-      if (!oldItem) {
-        logs.push(createLog('Add', section, `Added entry: ${getDesc(item)}`, undefined, item));
-      } else {
-        const cleanOld = { ...oldItem };
-        const cleanNew = { ...item };
-        if (JSON.stringify(cleanOld) !== JSON.stringify(cleanNew)) {
-          logs.push(createLog('Update', section, `Updated entry: ${getDesc(item)}`, oldItem, item));
-        }
-      }
-    }
-  };
-
-  // 1. CRJ Entries Diff
-  diffEntries(
-    oldClient.crjEntries || [],
-    newClient.crjEntries || [],
-    'Cash Receipts',
-    (entry) => {
-      const vals = entry.values || {};
-      const ref = vals.ref || vals.reference || vals.invoiceNo || 'No Ref';
-      const date = vals.date || 'No Date';
-      const payer = vals.payer || vals.entity || vals.particulars || 'No Name';
-      const amount = vals.amount || vals.debit || vals.credit || vals.total || '0';
-      return `Ref: ${ref} on ${date} (Customer: ${payer}) for ₱${Number(amount).toLocaleString()}`;
-    }
-  );
-
-  // 2. CDJ Entries Diff
-  diffEntries(
-    oldClient.cdjEntries || [],
-    newClient.cdjEntries || [],
-    'Cash Disbursements',
-    (entry) => {
-      const vals = entry.values || {};
-      const ref = vals.ref || vals.reference || vals.checkNo || 'No Ref';
-      const date = vals.date || 'No Date';
-      const payee = vals.payee || vals.entity || vals.particulars || 'No Name';
-      const amount = vals.amount || vals.debit || vals.credit || vals.total || '0';
-      return `Ref: ${ref} on ${date} (Payee: ${payee}) for ₱${Number(amount).toLocaleString()}`;
-    }
-  );
-
-  // 3. PJ Entries Diff
-  diffEntries(
-    oldClient.pjEntries || [],
-    newClient.pjEntries || [],
-    'Purchases Journal',
-    (entry) => {
-      const vals = entry.values || {};
-      const ref = vals.ref || vals.reference || vals.invoiceNo || 'No Ref';
-      const date = vals.date || 'No Date';
-      const supplier = vals.supplier || vals.entity || vals.particulars || 'No Name';
-      const amount = vals.amount || vals.debit || vals.credit || vals.total || '0';
-      return `Ref: ${ref} on ${date} (Supplier: ${supplier}) for ₱${Number(amount).toLocaleString()}`;
-    }
-  );
-
-  // 4. GJ Entries Diff
-  diffEntries(
-    oldClient.gjEntries || [],
-    newClient.gjEntries || [],
-    'General Journal',
-    (entry) => {
-      const vals = entry.values || {};
-      const ref = vals.ref || vals.reference || 'No Ref';
-      const date = vals.date || 'No Date';
-      const desc = vals.description || vals.particulars || 'No Desc';
-      const amount = vals.amount || vals.debit || vals.credit || '0';
-      return `JV Ref: ${ref} on ${date} (${desc}) for ₱${Number(amount).toLocaleString()}`;
-    }
-  );
-
-  // 5. Sales Ledgers / Normal Entry Diff
-  diffEntries(
-    oldClient.sales || [],
-    newClient.sales || [],
-    'Sales',
-    (s) => `SI/Ref: ${s.ref || 'No Ref'} on ${s.date} (Customer: ${s.buyerName || '—'}) for ₱${Number(s.amount).toLocaleString()}`
-  );
-
-  // 6. Purchases/Expenses Ledgers / Normal Entry Diff
-  diffEntries(
-    oldClient.purchases || [],
-    newClient.purchases || [],
-    'Expenses',
-    (p) => `Invoice No: ${p.invoiceNo || 'No Ref'} on ${p.date} (Supplier: ${p.supplierName || '—'}) for ₱${Number(p.amount).toLocaleString()}`
-  );
-
-  // 7. General Ledger Accounts / Accounts Diff
-  diffEntries(
-    oldClient.accounts || [],
-    newClient.accounts || [],
-    'Chart of Accounts',
-    (acc) => `Account: ${acc.id} - ${acc.name} (${acc.type})`
-  );
-
-  // 8. TIN Library Change
-  const oldSuppliers = oldClient.tinLibrary?.suppliers || [];
-  const newSuppliers = newClient.tinLibrary?.suppliers || [];
-  diffEntries(
-    oldSuppliers,
-    newSuppliers,
-    'TIN Library',
-    (tin) => `Supplier: ${tin.name} (TIN: ${tin.tin})`
-  );
-
-  const oldCustomers = oldClient.tinLibrary?.customers || [];
-  const newCustomers = newClient.tinLibrary?.customers || [];
-  diffEntries(
-    oldCustomers,
-    newCustomers,
-    'TIN Library',
-    (tin) => `Customer: ${tin.name} (TIN: ${tin.tin})`
-  );
-
-  // 9. Payables / Disbursements Suite
-  diffEntries(
-    oldClient.disbursements || [],
-    newClient.disbursements || [],
-    'Cash Disbursements',
-    (cd) => `Voucher/Check: ${cd.voucherNo || ('Check #' + cd.checkNo) || 'No Ref'} on ${cd.date} for ₱${cd.netAmountPaid.toLocaleString()}`
-  );
-
-  // 10. Receipts Suite
-  diffEntries(
-    oldClient.receipts || [],
-    newClient.receipts || [],
-    'Cash Receipts',
-    (cr) => `${cr.receiptType} OR: ${cr.receiptNo || ('Check #' + cr.checkNo) || 'No Ref'} on ${cr.date} for ₱${cr.amount.toLocaleString()}`
-  );
-
-  return logs;
-};
 
 export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
@@ -486,23 +315,11 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   }, [user, isReady]);
 
   const saveClient = async (id: string, clientData: Client) => {
-    const oldClient = clients[id];
-    let finalClientData = { ...clientData };
-
-    if (oldClient) {
-      const savedRole = user ? (localStorage.getItem(`user_role_${user.uid}`) || 'Staff') : 'Staff';
-      const userEmail = user?.email || 'Anonymous';
-      const autoLogs = getAutoAuditLogs(oldClient, clientData, userEmail, savedRole);
-      if (autoLogs.length > 0) {
-        finalClientData.auditLogs = [...autoLogs, ...(finalClientData.auditLogs || [])];
-      }
-    }
-
     if (user) {
       try {
         const clientRef = doc(db, 'clients', id);
         await setDoc(clientRef, {
-          ...finalClientData,
+          ...clientData,
           userId: user.uid,
           updatedAt: serverTimestamp()
         }, { merge: true });
@@ -511,43 +328,13 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         handleFirestoreError(error, OperationType.UPDATE, `clients/${id}`);
       }
     } else {
-      const newClients = { ...clients, [id]: finalClientData };
+      const newClients = { ...clients, [id]: clientData };
       setClients(newClients);
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(newClients));
     }
   };
 
-  const logAuditTrail = async (
-    action: 'Add' | 'Update' | 'Delete' | 'Import' | 'Export' | 'View',
-    section: string,
-    details: string
-  ) => {
-    const targetId = currentClientId;
-    if (!targetId || !clients[targetId]) return;
-    const client = clients[targetId];
-
-    const savedRole = user ? (localStorage.getItem(`user_role_${user.uid}`) || 'Staff') : 'Staff';
-    const userEmail = user?.email || 'Anonymous';
-
-    const newLog: AuditLogEntry = {
-      id: 'log_' + Math.random().toString(36).substring(2, 11) + '_' + Date.now(),
-      timestamp: new Date().toISOString(),
-      userEmail,
-      userRole: savedRole,
-      action,
-      section,
-      details
-    };
-
-    const updatedClient = {
-      ...client,
-      auditLogs: [newLog, ...(client.auditLogs || [])]
-    };
-
-    await saveClient(targetId, updatedClient);
-  };
-
-  const addClient = async (name: string, isOwnBusiness: boolean = false) => {
+  const addClient = async (name: string) => {
     if (!name.trim()) return;
     const newId = 'client_' + Date.now();
     const newClient: Client = {
@@ -556,9 +343,7 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       tinLibrary: { customers: [], suppliers: [] },
       sales: [],
       purchases: [],
-      expenses: [],
-      fixedAssets: [],
-      isOwnBusiness: isOwnBusiness
+      expenses: []
     } as Client;
 
     if (user) {
@@ -580,39 +365,6 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(newClients));
       setCurrentClientId(newId);
       showToast('Client added');
-    }
-  };
-
-  const deleteClient = async (id: string) => {
-    if (user) {
-      try {
-        const clientRef = doc(db, 'clients', id);
-        await deleteDoc(clientRef);
-        showToast('Client deleted');
-      } catch (error) {
-        handleFirestoreError(error, OperationType.DELETE, `clients/${id}`);
-      }
-    } else {
-      const newClients = { ...clients };
-      delete newClients[id];
-      setClients(newClients);
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(newClients));
-      showToast('Client deleted');
-    }
-
-    setClients(prev => {
-      const newClients = { ...prev };
-      delete newClients[id];
-      return newClients;
-    });
-
-    if (currentClientId === id) {
-      const remainingIds = Object.keys(clients).filter(cId => cId !== id);
-      if (remainingIds.length > 0) {
-        setCurrentClientId(remainingIds[0]);
-      } else {
-        setCurrentClientId(null);
-      }
     }
   };
 
@@ -720,9 +472,7 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         setCurrentDat,
         saveClient,
         addClient,
-        deleteClient,
-        showToast,
-        logAuditTrail
+        showToast
       }}
     >
       {children}

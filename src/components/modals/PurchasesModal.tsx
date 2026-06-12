@@ -59,7 +59,7 @@ export function PurchasesModal() {
   useEffect(() => {
     if (currentClient && viewIndex === null) {
       const periodPurchases = currentClient.purchases || [];
-      const count = currentDat ? periodPurchases.filter(p => p.datMonthYear === currentDat.formatted && p.isDatEntry === true).length : 0;
+      const count = currentDat ? periodPurchases.filter(p => p.datMonthYear === currentDat.formatted).length : 0;
       setSequenceNumber(count + 1);
     }
   }, [currentClient?.purchases.length, currentDat?.formatted, viewIndex]);
@@ -70,12 +70,12 @@ export function PurchasesModal() {
     if (!currentClient) return [];
     const all = currentClient.purchases || [];
     if (currentDat) {
-      return all.filter(p => p.datMonthYear === currentDat.formatted && p.isDatEntry === true);
+      return all.filter(p => p.datMonthYear === currentDat.formatted);
     } else {
       if (!date) return [];
       const [y, m] = date.split('-');
       const expected = `${MONTHS[parseInt(m) - 1]} ${y}`;
-      return all.filter(p => p.datMonthYear === expected && p.isDatEntry !== true);
+      return all.filter(p => p.datMonthYear === expected);
     }
   })();
 
@@ -207,8 +207,7 @@ export function PurchasesModal() {
       expenseType,
       accountTitle,
       transactionDetails,
-      inputTax,
-      isDatEntry: !!currentDat
+      inputTax
     };
 
     // Auto-add to TIN Library if new

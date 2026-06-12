@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { BookOpen, Plus, Trash2, ChevronRight, ChevronDown, RefreshCcw, Edit2, Filter, ExternalLink, Pin, RotateCw, Minus, X, FileText, Search, CreditCard, Scale, Check } from 'lucide-react';
+import { BookOpen, Plus, Trash2, ChevronRight, ChevronDown, RefreshCcw, Edit2 } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { useAccounting } from '../../context/AccountingContext';
 import { CoaAccount } from '../../types';
@@ -41,80 +41,6 @@ export const DEFAULT_ACCOUNTS_ALPHA: CoaAccount[] = [
 
 const ACCOUNT_TYPES = ['Assets', 'Liabilities', 'Equity', 'Income', 'Costs', 'Expenses'];
 
-export const DETAIL_TYPES: Record<string, string[]> = {
-  'Assets': [
-    'Checking (Bank)',
-    'Savings (Bank)',
-    'Cash on Hand (Bank)',
-    'Money Market (Bank)',
-    'Accounts Receivable (A/R)',
-    'Inventory (Asset)',
-    'Prepaid Expenses',
-    'Employee Advances',
-    'Undeposited Funds',
-    'Land (Fixed Asset)',
-    'Buildings',
-    'Machinery & Equipment',
-    'Vehicles',
-    'Accumulated Depreciation',
-    'Security Deposits',
-    'Goodwill',
-    'Other Asset'
-  ],
-  'Liabilities': [
-    'Accounts Payable (A/P)',
-    'Credit Card',
-    'Payroll Liabilities',
-    'Sales Tax Payable',
-    'Direct Deposit Payable',
-    'Line of Credit',
-    'Notes Payable',
-    'Mortgages',
-    'Other Current Liability',
-    'Long-Term Liability'
-  ],
-  'Equity': [
-    "Owner's Capital",
-    'Retained Earnings',
-    'Partner\'s Distribution',
-    'Common Stock',
-    'Opening Balance Equity'
-  ],
-  'Income': [
-    'Product Income',
-    'Service Fee Income',
-    'Discounts/Refunds Given',
-    'Non-Profit Income',
-    'Other Income'
-  ],
-  'Costs': [
-    'Cost of Labor',
-    'Equipment Rental',
-    'Supplies & Materials',
-    'Cost of Goods Sold',
-    'Other Costs of Services'
-  ],
-  'Expenses': [
-    'Advertising/Promotional',
-    'Automobile Expense',
-    'Bank Charges',
-    'Insurance',
-    'Legal & Professional Fees',
-    'Office Expense',
-    'Rent or Lease',
-    'Repairs & Maintenance',
-    'Utilities',
-    'Travel Expense',
-    'Salaries & Wages',
-    'Other Expense'
-  ]
-};
-
-export function getParentPrefix(parentId: string): string {
-  const match = parentId.match(/^(.+?)(0+)$/);
-  return match ? match[1] : parentId;
-}
-
 export function resequenceAccounts(
   accountsList: CoaAccount[],
   coaFormat: 'numeric' | 'alphanumeric'
@@ -123,12 +49,8 @@ export function resequenceAccounts(
 
   if (isAlpha) {
     const result: CoaAccount[] = [];
-    const visited = new Set<string>();
 
     const processChildrenAlphaRecursive = (oldParentId: string, newParentId: string) => {
-      if (visited.has(oldParentId)) return;
-      visited.add(oldParentId);
-
       const children = accountsList
         .filter(a => a.parentId === oldParentId)
         .sort((a, b) => {
@@ -141,10 +63,17 @@ export function resequenceAccounts(
           return a.name.localeCompare(b.name);
         });
 
-      children.forEach((child) => {
-        result.push(child);
+      children.forEach((child, idx) => {
+        const prefix = newParentId + (newParentId.endsWith('-') ? '' : '-');
+        const newId = `${prefix}${(idx + 1) * 100}`;
+        
+        result.push({
+          ...child,
+          id: newId,
+          parentId: newParentId
+        });
 
-        processChildrenAlphaRecursive(child.id, child.id);
+        processChildrenAlphaRecursive(child.id, newId);
       });
     };
 
@@ -172,8 +101,10 @@ export function resequenceAccounts(
     return result;
   } else {
     // Numeric
+    const existingNumericRoot = accountsList.find(a => !a.parentId);
+    const rootLength = existingNumericRoot ? existingNumericRoot.id.length : 5;
+
     const result: CoaAccount[] = [];
-    const visited = new Set<string>();
 
     const rootAccounts = accountsList
       .filter(a => !a.parentId)
@@ -185,16 +116,49 @@ export function resequenceAccounts(
       });
 
     const processChildrenNumericRecursive = (oldParentId: string, newParentId: string) => {
-      if (visited.has(oldParentId)) return;
-      visited.add(oldParentId);
-
       const children = accountsList
         .filter(a => a.parentId === oldParentId)
-        .sort((a, b) => a.id.localeCompare(b.id));
+        .sort((a, b) => {
+          const cmp = a.id.localeCompare(b.id);
+          if (cmp !== 0) return cmp;
+          const defaults = DEFAULT_ACCOUNTS;
+          const idxA = defaults.findIndex(d => d.name.toLowerCase() === a.name.toLowerCase());
+          const idxB = defaults.findIndex(d => d.name.toLowerCase() === b.name.toLowerCase());
+          if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+          return a.name.localeCompare(b.name);
+        });
 
-      children.forEach((child) => {
-        const childNewId = child.id;
-        
+      if (children.length === 0) return;
+
+      const match = newParentId.match(/^(.*?)(0+)$/);
+      let prefix = newParentId;
+      let zeroCount = 0;
+      if (match) {
+        prefix = match[1];
+        zeroCount = match[2].length;
+      }
+
+      let step = 1;
+      if (zeroCount > 1) {
+        step = Math.pow(10, zeroCount - 1);
+      }
+
+      children.forEach((child, idx) => {
+        let childNewId = '';
+        if (zeroCount > 0) {
+          const suffixNum = (idx + 1) * step;
+          const suffixStr = String(suffixNum).padStart(zeroCount, '0');
+          childNewId = prefix + suffixStr;
+        } else {
+          childNewId = newParentId + String(idx + 1);
+        }
+
+        if (childNewId.length > rootLength) {
+          childNewId = childNewId.slice(0, rootLength);
+        } else if (childNewId.length < rootLength) {
+          childNewId = childNewId.padEnd(rootLength, '0');
+        }
+
         result.push({
           ...child,
           id: childNewId,
@@ -205,9 +169,8 @@ export function resequenceAccounts(
       });
     };
 
-    rootAccounts.forEach((root) => {
-      const rootIdVal = root.id;
-
+    rootAccounts.forEach((root, idx) => {
+      const rootIdVal = String(idx + 1).padEnd(rootLength, '0');
       const newRoot = {
         ...root,
         id: rootIdVal
@@ -219,7 +182,7 @@ export function resequenceAccounts(
     const processedIds = new Set(result.map(r => r.id));
     accountsList.forEach(acc => {
       if (!processedIds.has(acc.id)) {
-        result.push({ ...acc });
+        result.push(acc);
       }
     });
 
@@ -241,43 +204,10 @@ export function ChartOfAccountsModal() {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [showPresets, setShowPresets] = useState(false);
   const presetsRef = useRef<HTMLDivElement>(null);
-  const [typeFilter, setTypeFilter] = useState<string>('All');
 
   const [editingId, setEditingId] = useState<string | null>(null);
-
-  const [formKeyword, setFormKeyword] = useState('');
-  const [formDrOrCr, setFormDrOrCr] = useState<'Dr' | 'Cr'>('Dr');
-  const [formAccountLevel, setFormAccountLevel] = useState('Sub Account');
-  const [formCategory, setFormCategory] = useState('I/S');
-  const [formOperationType, setFormOperationType] = useState<'Income' | 'Payment' | 'Deposit' | 'None'>('None');
-  const [formParentFS, setFormParentFS] = useState('');
-  const [formParentOp, setFormParentOp] = useState('');
-
-  // QuickBooks extended attributes
-  const [formDetailType, setFormDetailType] = useState('');
-  const [formDescription, setFormDescription] = useState('');
-  const [formBalance, setFormBalance] = useState<number | undefined>(undefined);
-  const [formBankBalance, setFormBankBalance] = useState<number | undefined>(undefined);
-  const [formStatus, setFormStatus] = useState<'Active' | 'Inactive'>('Active');
-  const [isSubAccount, setIsSubAccount] = useState(false);
-  const [subAccountParentId, setSubAccountParentId] = useState('');
-
-  const [searchQuery, setSearchQuery] = useState('');
-  const [showInactive, setShowInactive] = useState(false);
-
-  const handleTypeChange = (type: string) => {
-    setNewType(type);
-    if (DETAIL_TYPES[type] && DETAIL_TYPES[type].length > 0) {
-      setFormDetailType(DETAIL_TYPES[type][0]);
-    } else {
-      setFormDetailType('');
-    }
-  };
-
-  const [formError, setFormError] = useState<string | null>(null);
-
-  const [remarksModalAccount, setRemarksModalAccount] = useState<CoaAccount | null>(null);
-  const [remarksList, setRemarksList] = useState<{code: string, name: string}[]>([]);
+  const [editCode, setEditCode] = useState('');
+  const [editName, setEditName] = useState('');
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -320,160 +250,34 @@ export function ChartOfAccountsModal() {
   };
 
   const handleAddAccount = () => {
-    try {
-      setFormError(null);
-      const isNumericFormat = !currentClient.coaFormat || currentClient.coaFormat === 'numeric';
-      const computedId = (idPrefix + (isNumericFormat ? idSuffix.padEnd(suffixPlaceholder.length, '0') : idSuffix)).replace(/[^0-9A-Za-z_-]/g, '');
-      
-      if (!idSuffix.trim() || !newName) {
-        setFormError("Please fill out Account Code and Name.");
-        return;
-      }
-
-      const finalParentId = isSubAccount ? (subAccountParentId || undefined) : undefined;
-      
-      if (finalParentId && editingId && finalParentId === editingId) {
-        setFormError("An account cannot be a sub-account of itself.");
-        return;
-      }
-
-      if (editingId) {
-        // Editing Mode
-        const editedAccount = accounts.find(a => a.id === editingId);
-        const isMainAccount = !finalParentId;
-        
-        let finalEditCode = computedId.replace(/[^0-9A-Za-z_-]/g, '');
-        const hasLetters = /[A-Za-z_-]/.test(finalEditCode);
-        const isNumeric = !hasLetters && isNumericFormat;
-
-        if (finalEditCode.length === 0) {
-          setFormError("Account Code cannot be empty.");
-          return;
-        }
-
-        if (isNumeric) {
-          if (!isMainAccount) {
-            // Sub-account must start with its parent prefix to maintain integrity
-            if (finalParentId) {
-              const parentAccount = accounts.find(a => a.id === finalParentId);
-              if (parentAccount) {
-                const parentPrefix = getParentPrefix(parentAccount.id);
-                if (!finalEditCode.startsWith(parentPrefix)) {
-                  setFormError(`Sub-account code must start with its parent prefix: "${parentPrefix}"`);
-                  return;
-                }
-              }
-            }
-          }
-        }
-
-        if (finalEditCode !== editingId && accounts.some(a => a.id === finalEditCode)) {
-           setFormError("An account with this code already exists!");
-           return;
-        }
-
-        let updatedAccounts = [...accounts];
-
-        let adjustedOldId = editingId;
-        const index = updatedAccounts.findIndex(a => a.id === adjustedOldId);
-        if (index !== -1) {
-          const typeChanged = updatedAccounts[index].type !== newType;
-          updatedAccounts[index] = {
-            ...updatedAccounts[index],
-            id: finalEditCode,
-            name: newName,
-            type: newType,
-            parentId: finalParentId,
-            keyword: formKeyword,
-            drOrCr: formDrOrCr,
-            accountLevel: formAccountLevel,
-            accountCategory: formCategory,
-            operationType: formOperationType,
-            parentAccountFS: formParentFS,
-            parentAccountOp: formParentOp,
-            detailType: formDetailType,
-            description: formDescription,
-            balance: formBalance,
-            bankBalance: formBankBalance,
-            status: formStatus
-          };
-          
-          if (finalEditCode !== adjustedOldId || (typeChanged && isMainAccount)) {
-            updatedAccounts = updateDescendants(updatedAccounts, adjustedOldId, finalEditCode, isMainAccount && typeChanged ? newType : undefined);
-          }
-        }
-
-        handleSaveAccounts(updatedAccounts);
-      } else {
-        // Adding Mode
-        if (accounts.some(a => a.id === computedId)) {
-          setFormError(`An account with the code "${computedId}" already exists!`);
-          return;
-        }
-
-        let finalType = newType;
-        if (finalParentId) {
-          const parent = accounts.find(a => a.id === finalParentId);
-          if (parent) finalType = parent.type;
-        }
-
-        const newAccountObj: CoaAccount = {
-          id: computedId,
-          name: newName,
-          type: finalType,
-          parentId: finalParentId,
-          keyword: formKeyword,
-          drOrCr: formDrOrCr,
-          accountLevel: formAccountLevel,
-          accountCategory: formCategory,
-          operationType: formOperationType,
-          parentAccountFS: formParentFS,
-          parentAccountOp: formParentOp,
-          detailType: formDetailType,
-          description: formDescription,
-          balance: formBalance || 0,
-          bankBalance: formBankBalance || 0,
-          status: formStatus
-        };
-
-        const updatedAccounts = [...accounts, newAccountObj];
-        handleSaveAccounts(updatedAccounts);
-      }
-
-      setIsAdding(false);
-      setEditingId(null);
-      setIdPrefix('');
-      setIdSuffix('');
-      setSuffixPlaceholder('');
-      setNewName('');
-      setAddingParentId(undefined);
-
-      // Reset fields
-      setFormKeyword('');
-      setFormDrOrCr('Dr');
-      setFormAccountLevel('Sub Account');
-      setFormCategory('I/S');
-      setFormOperationType('None');
-      setFormParentFS('');
-      setFormParentOp('');
-      setFormDetailType('');
-      setFormDescription('');
-      setFormBalance(undefined);
-      setFormBankBalance(undefined);
-      setFormStatus('Active');
-      setIsSubAccount(false);
-      setSubAccountParentId('');
-    } catch (err: any) {
-      console.error("Error in handleAddAccount:", err);
-      setFormError(err.message || String(err));
+    const computedId = idPrefix + idSuffix.padEnd(suffixPlaceholder.length, '0');
+    if (!computedId || !newName || !newType) {
+      alert("Please fill out Account Code and Name.");
+      return;
     }
+    if (accounts.some(a => a.id === computedId && a.parentId === addingParentId && a.name.toLowerCase() === newName.toLowerCase())) {
+      alert("This exact sub-account already exists!");
+      return;
+    }
+    
+    let finalType = newType;
+    if (addingParentId) {
+      const parent = accounts.find(a => a.id === addingParentId);
+      if (parent) finalType = parent.type;
+    }
+
+    const updatedAccounts = [...accounts, { id: computedId, name: newName, type: finalType, parentId: addingParentId }];
+    handleSaveAccounts(updatedAccounts);
+    setIsAdding(false);
+    setIdPrefix('');
+    setIdSuffix('');
+    setSuffixPlaceholder('');
+    setNewName('');
+    setAddingParentId(undefined);
   };
 
   const handleDelete = (id: string) => {
     if (confirm("Are you sure you want to delete this account? This will also delete any sub-accounts.")) {
-      const deletedAccount = accounts.find(a => a.id === id);
-      const parentId = deletedAccount?.parentId;
-
       const idsToDelete = new Set([id]);
       let added = true;
       while (added) {
@@ -486,111 +290,124 @@ export function ChartOfAccountsModal() {
         });
       }
       
-      let updatedAccounts = accounts.filter(a => !idsToDelete.has(a.id));
-
-      const isNumeric = (!currentClient.coaFormat || currentClient.coaFormat === 'numeric');
-      if (isNumeric && parentId && deletedAccount) {
-        const siblings = updatedAccounts
-          .filter(a => a.parentId === parentId)
-          .sort((a, b) => a.id.localeCompare(b.id));
-
-        if (siblings.length > 0) {
-          const match = parentId.match(/^(.+?)(0+)$/);
-          let prefix = parentId;
-          let zeroCount = 0;
-          if (match) {
-            prefix = match[1];
-            zeroCount = match[2].length;
-          }
-
-          let step = 1;
-          if (zeroCount > 1) {
-            step = Math.pow(10, zeroCount - 1);
-          }
-
-          siblings.forEach((sib, idx) => {
-            let childNewId = '';
-            if (zeroCount > 0) {
-              const suffixNum = (idx + 1) * step;
-              const suffixStr = String(suffixNum).padStart(zeroCount, '0');
-              childNewId = prefix + suffixStr;
-            } else {
-              childNewId = parentId + String(idx + 1);
-            }
-
-            if (childNewId !== sib.id) {
-              updatedAccounts = updatedAccounts.map(acc => {
-                if (acc.id === sib.id) {
-                  return { ...acc, id: childNewId };
-                }
-                if (acc.parentId === sib.id) {
-                  return { ...acc, parentId: childNewId };
-                }
-                return acc;
-              });
-              updatedAccounts = updateDescendants(updatedAccounts, sib.id, childNewId);
-            }
-          });
-        }
-      }
-
+      const updatedAccounts = accounts.filter(a => !idsToDelete.has(a.id));
       handleSaveAccounts(updatedAccounts);
     }
   };
 
-  const updateDescendants = (accountsList: CoaAccount[], oldId: string, newId: string, parentNewType?: string): CoaAccount[] => {
-    // Collect all descendants of oldId to process (arbitrary depth)
-    const descendants = new Set<string>();
-    let added = true;
-    const parentIds = new Set([oldId]);
+  const updateDescendants = (accountsList: CoaAccount[], oldId: string, newId: string): CoaAccount[] => {
+    let currentList = [...accountsList];
+    const oldPrefix = oldId.replace(/0+$/, '');
+    const newPrefix = newId.replace(/0+$/, '');
 
-    while (added) {
-      added = false;
-      accountsList.forEach(a => {
-        if (a.parentId && parentIds.has(a.parentId) && !descendants.has(a.id)) {
-          descendants.add(a.id);
-          parentIds.add(a.id);
-          added = true;
+    const children = currentList.filter(a => a.parentId === oldId);
+    for (const child of children) {
+      let childNewId = child.id;
+      if (childNewId.startsWith(oldPrefix)) {
+        childNewId = newPrefix + childNewId.slice(oldPrefix.length);
+        const targetLength = child.id.length; // target length is same as child.id because length diffs were already globally applied
+        
+        if (childNewId.length > targetLength) {
+          childNewId = childNewId.slice(0, targetLength);
+        } else if (childNewId.length < targetLength) {
+          childNewId = childNewId.padEnd(targetLength, '0');
         }
+      }
+      
+      const index = currentList.findIndex(a => a.id === child.id);
+      currentList[index] = { ...currentList[index], id: childNewId, parentId: newId };
+      
+      currentList = updateDescendants(currentList, child.id, childNewId);
+    }
+    return currentList;
+  };
+
+  const handleSaveEdit = (oldId: string) => {
+    if (!editCode || !editName) {
+      alert("Please fill out Account Code and Name.");
+      return;
+    }
+    
+    const editedAccount = accounts.find(a => a.id === oldId);
+    const isMainAccount = editedAccount && !editedAccount.parentId;
+    const isNumeric = (!currentClient.coaFormat || currentClient.coaFormat === 'numeric');
+
+    let finalEditCode = editCode;
+    const existingRoot = accounts.find(a => !a.parentId);
+    const uniformLength = existingRoot ? existingRoot.id.length : 5;
+
+    if (isNumeric) {
+      finalEditCode = finalEditCode.replace(/\D/g, '');
+      if (/\D/.test(finalEditCode) || finalEditCode.length === 0) {
+        alert("Account Code must contain only numbers.");
+        return;
+      }
+      
+      if (!isMainAccount) {
+        // Sub-accounts must match the current uniform length of root accounts
+        if (finalEditCode.length > uniformLength) {
+          finalEditCode = finalEditCode.slice(0, uniformLength);
+        } else if (finalEditCode.length < uniformLength) {
+          finalEditCode = finalEditCode.padEnd(uniformLength, '0');
+        }
+      }
+    }
+
+    const lengthDiff = (isNumeric && isMainAccount) ? finalEditCode.length - oldId.length : 0;
+    
+    // Direct collision check using finalEditCode
+    if (finalEditCode !== oldId && lengthDiff === 0 && accounts.some(a => a.id === finalEditCode && a.name.toLowerCase() === editName.toLowerCase())) {
+       alert("An account with this code and name already exists!");
+       return;
+    }
+
+    let updatedAccounts = [...accounts];
+
+    // 1. If length changed in a numeric chart on editing a main account, apply that length diff universally to ALL accounts.
+    if (lengthDiff !== 0) {
+      updatedAccounts = updatedAccounts.map(account => {
+        let newId = account.id;
+        let newParentId = account.parentId;
+        
+        if (lengthDiff > 0) {
+          const pad = '0'.repeat(lengthDiff);
+          newId += pad;
+          if (newParentId) newParentId += pad;
+        } else {
+          const toRemove = Math.abs(lengthDiff);
+          newId = newId.slice(0, newId.length - toRemove);
+          if (newParentId) {
+            newParentId = newParentId.slice(0, newParentId.length - toRemove);
+          }
+        }
+        return { ...account, id: newId, parentId: newParentId };
       });
     }
 
-    const isNumeric = !currentClient.coaFormat || currentClient.coaFormat === 'numeric';
-    const oldPrefix = isNumeric ? oldId.replace(/0+$/, '') : oldId;
-    const newPrefix = isNumeric ? newId.replace(/0+$/, '') : newId;
-
-    return accountsList.map(a => {
-      if (a.id === oldId) return a;
-
-      let rId = a.id;
-      let rParentId = a.parentId;
-      let rType = a.type;
-
-      if (descendants.has(a.id)) {
-        if (a.parentId === oldId) {
-          rParentId = newId;
-        }
-        
-        if (a.id.startsWith(oldPrefix)) {
-          rId = newPrefix + a.id.slice(oldPrefix.length);
-        }
-        
-        if (a.parentId && a.parentId !== oldId && a.parentId.startsWith(oldPrefix)) {
-          rParentId = newPrefix + a.parentId.slice(oldPrefix.length);
-        }
-
-        if (parentNewType) {
-          rType = parentNewType;
-        }
+    // Determine what oldId is known as NOW (after the global padding applies)
+    let adjustedOldId = oldId;
+    if (isNumeric && isMainAccount) {
+      if (lengthDiff > 0) {
+        adjustedOldId += '0'.repeat(lengthDiff);
+      } else if (lengthDiff < 0) {
+        const toRemove = Math.abs(lengthDiff);
+        adjustedOldId = adjustedOldId.slice(0, adjustedOldId.length - toRemove);
       }
-
-      return {
-        ...a,
-        id: rId,
-        parentId: rParentId,
-        type: rType
-      };
-    });
+    }
+    
+    // 2. Perform the specific user edit
+    const index = updatedAccounts.findIndex(a => a.id === adjustedOldId);
+    if (index !== -1) {
+      updatedAccounts[index] = { ...updatedAccounts[index], id: finalEditCode, name: editName };
+      
+      if (finalEditCode !== adjustedOldId) {
+        // Since adjustedOldId and finalEditCode now have the same length,
+        // updateDescendants will ONLY do prefix replacement.
+        updatedAccounts = updateDescendants(updatedAccounts, adjustedOldId, finalEditCode);
+      }
+      handleSaveAccounts(updatedAccounts);
+    }
+    setEditingId(null);
   };
 
   const toggleExpand = (id: string) => {
@@ -600,7 +417,6 @@ export function ChartOfAccountsModal() {
   const missingTypes = ACCOUNT_TYPES.filter(t => !accounts.some(a => a.type === t && !a.parentId));
 
   const handleRestoreMainAccount = (type: string) => {
-    setFormError(null);
     const isAlpha = currentClient.coaFormat === 'alphanumeric';
     const defaults = isAlpha ? DEFAULT_ACCOUNTS_ALPHA : DEFAULT_ACCOUNTS;
     
@@ -624,7 +440,7 @@ export function ChartOfAccountsModal() {
     }
 
     if (accounts.some(a => a.id === restoredId)) {
-      setFormError(`An account with the ID ${restoredId} already exists. Cannot restore automatically.`);
+      alert(`An account with the ID ${restoredId} already exists. Cannot restore automatically.`);
       return;
     }
 
@@ -657,160 +473,149 @@ export function ChartOfAccountsModal() {
     handleSaveAccounts(updatedAccounts);
   };
 
-  const renderAccounts = (parentId?: string, depth = 0): React.ReactNode => {
-    let levelAccounts = accounts.filter(a => a.parentId === parentId).sort((a, b) => a.id.localeCompare(b.id));
-    if (!parentId && typeFilter !== 'All') {
-      levelAccounts = levelAccounts.filter(a => a.type === typeFilter);
-    }
-    if (!showInactive) {
-      levelAccounts = levelAccounts.filter(a => a.status !== 'Inactive');
-    }
+  const renderAccounts = (parentId?: string, depth = 0) => {
+    const levelAccounts = accounts.filter(a => a.parentId === parentId).sort((a, b) => a.id.localeCompare(b.id));
 
     return levelAccounts.map(account => {
       const hasChildren = accounts.some(a => a.parentId === account.id);
       const isExpanded = expanded[account.id] !== false;
 
-      const qbBal = account.balance !== undefined ? `$${account.balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—';
-      const bankBal = account.bankBalance !== undefined ? `$${account.bankBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—';
-
       return (
         <React.Fragment key={account.id}>
-          <tr className={cn(
-            "border-b border-slate-100 dark:border-slate-800 transition-all duration-150 text-slate-700 dark:text-slate-300 hover:bg-[#ebf3f9] dark:hover:bg-slate-850/50",
-            depth === 0 ? "bg-slate-50/40 dark:bg-slate-800/10 font-bold" : ""
+          <div className={cn(
+            "flex items-center justify-between p-2 hover:bg-slate-50 dark:hover:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800 group",
+            depth === 0 ? "bg-slate-50 font-semibold dark:bg-slate-800/20" : ""
           )}>
-            <td className="p-2.5" style={{ paddingLeft: `${depth * 1.5 + 0.5}rem` }}>
-              <div className="flex items-center gap-1.5">
-                {hasChildren ? (
-                  <button 
-                    onClick={() => toggleExpand(account.id)} 
-                    className="p-0.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-500 shrink-0"
-                    title={isExpanded ? "Collapse" : "Expand"}
-                  >
-                    {isExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-                  </button>
-                ) : (
-                  <div className="w-4.5" />
-                )}
-                <span className="text-xs font-mono font-bold text-slate-400 mr-1.5 shrink-0">{account.id}</span>
-                <span className="truncate max-w-[220px] text-slate-900 dark:text-slate-150" title={account.name}>{account.name}</span>
-              </div>
-            </td>
-            
-            <td className="p-2.5 text-xs">
-              <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[10px] font-semibold">
-                {account.type}
-              </span>
-            </td>
-
-            <td className="p-2.5 text-xs text-right font-mono text-slate-800 dark:text-slate-200">
-              {account.balance !== undefined ? qbBal : '—'}
-            </td>
-
-            <td className="p-2.5 text-xs text-center">
-              <button
-                onClick={() => {
-                  const updated = accounts.map(a => 
-                    a.id === account.id 
-                      ? { ...a, status: (a.status === 'Inactive' ? 'Active' : 'Inactive') as 'Active' | 'Inactive' }
-                      : a
-                  );
-                  handleSaveAccounts(updated);
-                }}
-                className={cn(
-                  "inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold transition-all hover:scale-105 active:scale-95",
-                  account.status === 'Inactive'
-                    ? "bg-red-50 text-red-600 border border-red-200 dark:bg-red-950/20 dark:text-red-400 dark:border-red-900/30"
-                    : "bg-emerald-50 text-emerald-600 border border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/30"
-                )}
-                title="Click to toggle status"
-              >
-                {account.status || 'Active'}
-              </button>
-            </td>
-
-            <td className="p-2.5 text-xs text-center">
-              <div className="flex items-center justify-center gap-1.5">
-                <button
-                  onClick={() => {
-                    setFormError(null);
-                    setAddingParentId(undefined);
-                    setEditingId(account.id);
-                    setNewName(account.name);
-                    setIdPrefix('');
-                    setIdSuffix(account.id);
-                    setSuffixPlaceholder('');
-                    setNewType(account.type);
-                    setFormKeyword(account.keyword || '');
-                    setFormDrOrCr(account.drOrCr || (['Assets', 'Costs', 'Expenses'].includes(account.type) ? 'Dr' : 'Cr'));
-                    setFormAccountLevel(account.accountLevel || (account.parentId ? 'Sub Account' : 'Main Account'));
-                    setFormCategory(account.accountCategory || (['Income', 'Expenses', 'Costs'].includes(account.type) ? 'I/S' : 'B/S'));
-                    setFormOperationType(account.operationType || (account.type === 'Income' ? 'Income' : account.type === 'Expenses' ? 'Payment' : 'None'));
-                    setFormParentFS(account.parentAccountFS || (account.parentId ? (accounts.find(a => a.id === account.parentId)?.name || '') : ''));
-                    setFormParentOp(account.parentAccountOp || '');
-                    
-                    setFormDetailType(account.detailType || '');
-                    setFormDescription(account.description || '');
-                    setFormBalance(account.balance);
-                    setFormBankBalance(account.bankBalance);
-                    setFormStatus(account.status || 'Active');
-                    setIsSubAccount(!!account.parentId);
-                    setSubAccountParentId(account.parentId || '');
-
-                    setIsAdding(true);
-                  }}
-                  className="p-1 text-slate-400 hover:text-blue-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-all"
-                  title="Edit Account"
-                >
-                  <Edit2 className="w-3.5 h-3.5" />
+            <div className="flex items-center gap-2" style={{ paddingLeft: `${depth * 1.5}rem` }}>
+              {hasChildren ? (
+                <button onClick={() => toggleExpand(account.id)} className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-md text-slate-500">
+                  {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                 </button>
-
-                <button 
-                  onClick={() => {
-                    setFormError(null);
-                    setEditingId(null);
-                    setNewName('');
-                    
-                    setAddingParentId(account.id);
-                    setNewType(account.type);
-                    
-                    let prefix = account.id;
-                    let placeholder = "";
-                    let suggestedSuffix = "";
-                    
-                    const children = accounts.filter(a => a.parentId === account.id);
-
-                    const match = account.id.match(/^(.+?)(0+)$/);
-                    if (match && currentClient.coaFormat !== 'alphanumeric') {
-                      prefix = match[1];
-                      placeholder = match[2];
-                      const zeroCount = placeholder.length;
+              ) : (
+                <div className="w-6" /> // spacer
+              )}
+              {editingId === account.id ? (
+                (() => {
+                  const isMain = !account.parentId;
+                  const existingNumericRoot = accounts.find(a => !a.parentId);
+                  const uniformLength = existingNumericRoot ? existingNumericRoot.id.length : 5;
+                  return (
+                    <div className="flex items-center gap-2">
+                      <input 
+                        type="text" 
+                        value={editCode} 
+                        onChange={e => {
+                          let val = e.target.value;
+                          if (currentClient.coaFormat === 'numeric') {
+                            val = val.replace(/\D/g, '');
+                            if (!isMain && val.length > uniformLength) {
+                              val = val.slice(0, uniformLength);
+                            }
+                          }
+                          setEditCode(val);
+                        }}
+                        maxLength={(!isMain && currentClient.coaFormat === 'numeric') ? uniformLength : undefined}
+                        onKeyDown={e => {
+                          if (currentClient.coaFormat === 'numeric' && !/[\d]/.test(e.key) && e.key !== 'Backspace' && e.key !== 'Delete' && e.key !== 'ArrowLeft' && e.key !== 'ArrowRight' && e.key !== 'Tab') {
+                            e.preventDefault();
+                          }
+                        }}
+                        className="form-input py-0.5 px-2 text-sm w-28 font-mono"
+                        placeholder="Code"
+                      />
+                      <input 
+                        type="text" 
+                        value={editName} 
+                        onChange={e => setEditName(e.target.value)} 
+                        className="form-input py-0.5 px-2 text-sm max-w-[200px]"
+                      />
+                    </div>
+                  );
+                })()
+              ) : (
+                <>
+                  <span className="text-slate-600 dark:text-slate-400 font-mono text-sm">{account.id}</span>
+                  <span className="text-slate-800 dark:text-slate-200">{account.name}</span>
+                  {depth === 0 && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400">
+                      {account.type}
+                    </span>
+                  )}
+                </>
+              )}
+            </div>
+            
+            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+              {editingId === account.id ? (
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => handleSaveEdit(account.id)}
+                    className="px-3 py-1 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-xs font-medium"
+                  >
+                    Save
+                  </button>
+                  <button 
+                    onClick={() => setEditingId(null)}
+                    className="px-3 py-1 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg text-xs font-medium"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <button
+                    onClick={() => {
+                      setEditingId(account.id);
+                      setEditCode(account.id);
+                      setEditName(account.name);
+                    }}
+                    className="p-1.5 text-blue-500 hover:bg-blue-100 dark:hover:bg-blue-900/40 rounded-lg transition-colors"
+                    title="Edit Account"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setAddingParentId(account.id);
+                      setNewType(account.type);
                       
-                      const childNums = children
-                         .map(c => c.id.substring(prefix.length))
-                         .filter(s => s.length === zeroCount)
-                         .map(s => parseInt(s, 10))
-                         .filter(n => !isNaN(n));
-                         
-                      let step = Math.pow(10, Math.max(0, zeroCount - 1));
-                      if (step < 1) step = 1;
-                      let nextNum = step;
-                      while (childNums.includes(nextNum)) {
-                        nextNum += step;
-                      }
-                      if (nextNum < Math.pow(10, zeroCount)) {
-                        suggestedSuffix = nextNum.toString().padStart(zeroCount, '0');
-                      }
-                    } else {
-                      if (currentClient.coaFormat === 'alphanumeric') {
-                        prefix = account.id + (account.id.endsWith('-') ? '' : '-');
+                      let prefix = account.id;
+                      let placeholder = "";
+                      let suggestedSuffix = "";
+                      
+                      const children = accounts.filter(a => a.parentId === account.id);
+
+                      const match = account.id.match(/^(.+?)(0+)$/);
+                      if (match && currentClient.coaFormat !== 'alphanumeric') {
+                        prefix = match[1];
+                        placeholder = match[2];
+                        const zeroCount = placeholder.length;
+                        
+                        const childNums = children
+                          .map(c => c.id.substring(prefix.length))
+                          .filter(s => s.length === zeroCount)
+                          .map(s => parseInt(s, 10))
+                          .filter(n => !isNaN(n));
+                          
+                        let step = Math.pow(10, Math.max(0, zeroCount - 1));
+                        if (step < 1) step = 1;
+                        let nextNum = step;
+                        // Start checking from the step, find first gap
+                        while (childNums.includes(nextNum)) {
+                          nextNum += step;
+                        }
+                        if (nextNum < Math.pow(10, zeroCount)) {
+                          suggestedSuffix = nextNum.toString().padStart(zeroCount, '0');
+                        }
+                      } else {
+                        prefix = account.id + (account.id.includes('-') ? '' : '-');
                         placeholder = "100";
                         
                         const childNums = children
-                           .map(c => c.id.substring(prefix.length))
-                           .map(s => parseInt(s, 10))
-                           .filter(n => !isNaN(n));
-                           
+                          .map(c => c.id.substring(prefix.length))
+                          .map(s => parseInt(s, 10))
+                          .filter(n => !isNaN(n));
+                          
                         let step = 100;
                         if (childNums.length > 0 && Math.min(...childNums) < 100) step = 10;
                         
@@ -819,61 +624,29 @@ export function ChartOfAccountsModal() {
                           nextNum += step;
                         }
                         suggestedSuffix = nextNum.toString();
-                      } else {
-                        prefix = account.id;
-                        placeholder = "01";
-                        
-                        const childNums = children
-                           .map(c => c.id.substring(prefix.length))
-                           .filter(s => /^\d+$/.test(s))
-                           .map(s => parseInt(s, 10))
-                           .filter(n => !isNaN(n));
-                           
-                        let nextNum = 1;
-                        if (childNums.length > 0) {
-                          nextNum = Math.max(...childNums) + 1;
-                        }
-                        suggestedSuffix = nextNum.toString().padStart(2, '0');
                       }
-                    }
-                    
-                    setIdPrefix(prefix);
-                    setIdSuffix(suggestedSuffix);
-                    setSuffixPlaceholder(placeholder);
-                    
-                    setFormKeyword('');
-                    setFormDrOrCr(account.drOrCr || (['Assets', 'Costs', 'Expenses'].includes(account.type) ? 'Dr' : 'Cr'));
-                    setFormAccountLevel('Sub Account');
-                    setFormCategory(['Income', 'Expenses', 'Costs'].includes(account.type) ? 'I/S' : 'B/S');
-                    setFormOperationType(account.type === 'Income' ? 'Income' : account.type === 'Expenses' ? 'Payment' : 'None');
-                    setFormParentFS(account.name);
-                    setFormParentOp('');
-
-                    setFormDetailType(account.detailType || (DETAIL_TYPES[account.type] ? DETAIL_TYPES[account.type][0] : ''));
-                    setFormDescription(account.description || '');
-                    setFormBalance(0);
-                    setFormBankBalance(0);
-                    setFormStatus('Active');
-                    setIsSubAccount(true);
-                    setSubAccountParentId(account.id);
-                    
-                    setIsAdding(true);
-                  }}
-                  className="p-1 text-slate-400 hover:text-emerald-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-all"
-                  title="Add Sub-account"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                </button>
-                <button 
-                  onClick={() => handleDelete(account.id)}
-                  className="p-1 text-slate-400 hover:text-red-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-all"
-                  title="Delete Account"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </td>
-          </tr>
+                      
+                      setIdPrefix(prefix);
+                      setIdSuffix(suggestedSuffix);
+                      setSuffixPlaceholder(placeholder);
+                      setIsAdding(true);
+                    }}
+                    className="text-xs px-2 py-1 bg-cyan-100 hover:bg-cyan-200 text-cyan-700 rounded-lg flex items-center gap-1 transition-colors"
+                    title="Add Sub-account"
+                  >
+                    <Plus className="w-3 h-3" /> Sub-account
+                  </button>
+                  <button 
+                    onClick={() => handleDelete(account.id)}
+                    className="p-1.5 text-red-500 hover:bg-red-100 rounded-lg transition-colors"
+                    title="Delete Account"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
           
           {hasChildren && isExpanded && renderAccounts(account.id, depth + 1)}
         </React.Fragment>
@@ -881,505 +654,152 @@ export function ChartOfAccountsModal() {
     });
   };
 
-  const renderSearchMatches = (): React.ReactNode => {
-    const sortedFiltered = accounts.filter(acc => {
-      const matchesSearch = searchQuery.trim() === "" || 
-        acc.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        acc.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (acc.detailType && acc.detailType.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (acc.description && acc.description.toLowerCase().includes(searchQuery.toLowerCase()));
-
-      const matchesStatus = showInactive || acc.status !== 'Inactive';
-      const matchesType = typeFilter === 'All' || acc.type === typeFilter;
-
-      return matchesSearch && matchesStatus && matchesType;
-    }).sort((a, b) => a.id.localeCompare(b.id));
-
-    if (sortedFiltered.length === 0) {
-      return (
-        <tr>
-          <td colSpan={5} className="p-8 text-center text-slate-400 text-xs italic bg-white dark:bg-slate-900">
-            No matching accounts found for search filter.
-          </td>
-        </tr>
-      );
-    }
-
-    return sortedFiltered.map(account => {
-      const qbBal = account.balance !== undefined ? `$${account.balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—';
-      const bankBal = account.bankBalance !== undefined ? `$${account.bankBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—';
-
-      return (
-        <tr key={account.id} className="border-b border-slate-100 dark:border-slate-800 hover:bg-[#ebf3f9] dark:hover:bg-slate-850/50 text-slate-700 dark:text-slate-350">
-          <td className="p-2.5 pl-6">
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs font-mono font-bold text-slate-400 mr-1.5 shrink-0">{account.id}</span>
-              <span className="font-semibold text-slate-950 dark:text-slate-100 truncate max-w-[200px]" title={account.name}>{account.name}</span>
-              {account.parentId && (
-                <span className="text-[10px] text-slate-400 italic shrink-0">
-                  (sub of {accounts.find(a => a.id === account.parentId)?.name || account.parentId})
-                </span>
-              )}
-            </div>
-          </td>
-          
-          <td className="p-2.5 text-xs">
-            <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[10px] font-semibold">
-              {account.type}
-            </span>
-          </td>
-
-          <td className="p-2.5 text-xs text-right font-mono text-slate-800 dark:text-slate-200">
-            {account.balance !== undefined ? qbBal : '—'}
-          </td>
-
-          <td className="p-2.5 text-xs text-center">
-            <button
-              onClick={() => {
-                const updated = accounts.map(a => 
-                  a.id === account.id 
-                    ? { ...a, status: (a.status === 'Inactive' ? 'Active' : 'Inactive') as 'Active' | 'Inactive' }
-                    : a
-                );
-                handleSaveAccounts(updated);
-              }}
-              className={cn(
-                "inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold transition-all hover:scale-105 active:scale-95",
-                account.status === 'Inactive'
-                  ? "bg-red-50 text-red-650 border border-red-200 dark:bg-red-950/20 dark:text-red-400 dark:border-red-900/30"
-                  : "bg-emerald-50 text-emerald-650 border border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/30"
-              )}
-              title="Click to toggle status"
-            >
-              {account.status || 'Active'}
-            </button>
-          </td>
-
-          <td className="p-2.5 text-xs text-center">
-            <div className="flex items-center justify-center gap-1.5">
-              <button
-                onClick={() => {
-                  setFormError(null);
-                  setAddingParentId(undefined);
-                  setEditingId(account.id);
-                  setNewName(account.name);
-                  setIdPrefix('');
-                  setIdSuffix(account.id);
-                  setSuffixPlaceholder('');
-                  setNewType(account.type);
-                  setFormKeyword(account.keyword || '');
-                  setFormDrOrCr(account.drOrCr || (['Assets', 'Costs', 'Expenses'].includes(account.type) ? 'Dr' : 'Cr'));
-                  setFormAccountLevel(account.accountLevel || (account.parentId ? 'Sub Account' : 'Main Account'));
-                  setFormCategory(account.accountCategory || (['Income', 'Expenses', 'Costs'].includes(account.type) ? 'I/S' : 'B/S'));
-                  setFormOperationType(account.operationType || (account.type === 'Income' ? 'Income' : account.type === 'Expenses' ? 'Payment' : 'None'));
-                  setFormParentFS(account.parentAccountFS || (account.parentId ? (accounts.find(a => a.id === account.parentId)?.name || '') : ''));
-                  setFormParentOp(account.parentAccountOp || '');
-                  
-                  setFormDetailType(account.detailType || '');
-                  setFormDescription(account.description || '');
-                  setFormBalance(account.balance);
-                  setFormBankBalance(account.bankBalance);
-                  setFormStatus(account.status || 'Active');
-                  setIsSubAccount(!!account.parentId);
-                  setSubAccountParentId(account.parentId || '');
-
-                  setIsAdding(true);
-                }}
-                className="p-1 text-slate-400 hover:text-blue-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-all"
-                title="Edit Account"
-              >
-                <Edit2 className="w-3.5 h-3.5" />
-              </button>
-
-              <button 
-                  onClick={() => handleDelete(account.id)}
-                  className="p-1 text-slate-400 hover:text-red-550 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-all"
-                  title="Delete Account"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </td>
-        </tr>
-      );
-    });
-  };
-
   return (
     <Modal id="coa" title="Chart of Accounts" icon={<BookOpen />} maxWidth="max-w-4xl">
       <div className="p-6">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6 pb-4 border-b border-slate-100 dark:border-slate-800">
+        <div className="flex justify-between items-start mb-6">
           <div>
-            <p className="text-slate-500 dark:text-slate-400">Manage your general ledger accounts, opening balances, and active status.</p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3 shrink-0">
-            {/* Search Input */}
-            <div className="relative">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by code or name..."
-                className="text-xs pl-8 pr-3 py-1.5 bg-slate-105 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-lg w-56 focus:ring-1 focus:ring-blue-500 focus:outline-none"
-              />
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
-            </div>
-
-            {/* Inactive Checkbox */}
-            <label className="flex items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-350 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={showInactive}
-                onChange={(e) => setShowInactive(e.target.checked)}
-                className="rounded border-slate-300 dark:border-slate-700 text-blue-600 focus:ring-blue-500 w-3.5 h-3.5"
-              />
-              Show Inactive
-            </label>
-
-            {/* Filter */}
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                <Filter className="w-3.5 h-3.5" /> Type:
-              </span>
-              <select
-                id="coa-type-filter"
-                value={typeFilter}
-                onChange={(e) => setTypeFilter(e.target.value)}
-                className="form-select text-xs font-medium border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg py-1.5 px-3 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            <p className="text-slate-500 dark:text-slate-400 mb-2">Manage your ledger accounts, sub-accounts, and formats.</p>
+            <div className="relative" ref={presetsRef}>
+              <button 
+                onClick={() => setShowPresets(!showPresets)}
+                className="text-xs font-bold text-slate-600 dark:text-slate-300 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 px-3 py-1.5 rounded-lg flex items-center gap-2 transition-colors"
               >
-                <option value="All">All Types</option>
-                {ACCOUNT_TYPES.map((type) => (
-                  <option key={type} value={type}>
-                    {type}
-                  </option>
-                ))}
-              </select>
+                <RefreshCcw className="w-3 h-3" /> Reset / Choose Format
+              </button>
+              {showPresets && (
+                <div className="absolute top-full mt-2 left-0 w-48 bg-white dark:bg-slate-800 shadow-xl border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden z-20">
+                  <button 
+                    onClick={() => applyPreset('numeric')}
+                    className="w-full text-left px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm font-medium text-slate-700 dark:text-slate-300"
+                  >
+                    Numeric Code Format
+                  </button>
+                  <button 
+                    onClick={() => applyPreset('alphanumeric')}
+                    className="w-full text-left px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm font-medium text-slate-700 dark:text-slate-300"
+                  >
+                    Alphanumeric Format
+                  </button>
+                </div>
+              )}
             </div>
-
-            {/* Add Account Trigger */}
-            <button
-              onClick={() => {
-                setFormError(null);
-                setAddingParentId(undefined);
-                setEditingId(null);
-                setIdPrefix('');
-                setIdSuffix('');
-                setSuffixPlaceholder('');
-                setNewName('');
-                
-                const selectedType = typeFilter !== 'All' ? typeFilter : 'Assets';
-                setNewType(selectedType);
-                setFormDetailType(DETAIL_TYPES[selectedType] ? DETAIL_TYPES[selectedType][0] : '');
-                
-                setFormKeyword('');
-                setFormDrOrCr('Dr');
-                setFormAccountLevel('Main Account');
-                setFormCategory('B/S');
-                setFormOperationType('None');
-                setFormParentFS('');
-                setFormParentOp('');
-                setFormDescription('');
-                setFormBalance(0);
-                setFormBankBalance(0);
-                setFormStatus('Active');
-                setIsSubAccount(false);
-                setSubAccountParentId('');
-                
-                setIsAdding(true);
-              }}
-              className="text-xs font-bold bg-[#005fa3] text-white px-3.5 py-1.5 rounded-lg flex items-center gap-1.5 hover:bg-blue-700 transition-colors shadow-xs"
-            >
-              <Plus className="w-4 h-4" /> Add Account
-            </button>
           </div>
         </div>
 
         {isAdding && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
-            <div className="bg-[#f0f4f8] dark:bg-slate-900 w-full max-w-2xl shadow-2xl border border-slate-300 dark:border-slate-800 rounded-lg overflow-hidden flex flex-col font-sans">
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl w-full max-w-md shadow-2xl border border-slate-200 dark:border-slate-700">
+              <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-6">
+                {addingParentId ? "Add Sub-account" : "Add Main Account"}
+              </h3>
               
-              {/* Window-Style Title Bar */}
-              <div className="bg-[#005fa3] dark:bg-slate-950 px-3.5 py-2.5 flex items-center justify-between text-white border-b border-blue-600/30">
-                <div className="flex items-center gap-2">
-                  <CreditCard className="w-4 h-4 text-blue-200" />
-                  <span className="text-xs sm:text-sm font-bold tracking-wide">
-                    {editingId ? "Edit Account" : (isSubAccount ? "Add Sub-account" : "Add Account")}
-                  </span>
-                </div>
-                <button 
-                  onClick={() => {
-                    setIsAdding(false);
-                    setEditingId(null);
-                    setFormError(null);
-                  }} 
-                  className="p-1 hover:bg-red-500/80 rounded transition-colors" 
-                  title="Close"
-                >
-                  <X className="w-3.5 h-3.5 text-blue-200 hover:text-white" />
-                </button>
-              </div>
-
-              {formError && (
-                <div className="bg-red-50 dark:bg-red-900/30 border-l-4 border-red-500 p-2.5 mx-4 mt-3 mb-1 shadow-sm">
+              <div className="flex flex-col gap-4 mb-6">
+                <div>
+                  <label className="block text-sm font-bold text-slate-600 dark:text-slate-400 mb-1">Account Code</label>
                   <div className="flex">
-                    <div className="flex-shrink-0">
-                      <svg className="h-4 w-4 text-red-500" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                      </svg>
-                    </div>
-                    <div className="ml-2">
-                      <p className="text-xs text-red-700 dark:text-red-200 font-semibold">
-                        {formError}
-                      </p>
-                    </div>
+                    {idPrefix && (
+                      <div className="px-3 py-2 bg-slate-100 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 border-r-0 rounded-l-lg text-slate-500 font-mono flex items-center shrink-0">
+                        {idPrefix}
+                      </div>
+                    )}
+                    <input 
+                      type="text" 
+                      value={idSuffix} 
+                      onChange={e => {
+                        let val = currentClient.coaFormat === 'numeric' ? e.target.value.replace(/\D/g, '') : e.target.value.replace(/[^0-9A-Za-z_-]/g, '');
+                        if (suffixPlaceholder) val = val.slice(0, suffixPlaceholder.length);
+                        setIdSuffix(val);
+                      }} 
+                      onKeyDown={e => {
+                        if (currentClient.coaFormat === 'numeric' && !/[\d]/.test(e.key) && e.key !== 'Backspace' && e.key !== 'Delete' && e.key !== 'ArrowLeft' && e.key !== 'ArrowRight' && e.key !== 'Tab') {
+                          e.preventDefault();
+                        }
+                      }}
+                      className={cn("w-full form-input font-mono", idPrefix ? "rounded-l-none" : "")}
+                      placeholder={suffixPlaceholder || "e.g. 1010 or A-101"}
+                    />
                   </div>
                 </div>
-              )}
-
-              {/* Form Content Area */}
-              <div className="p-4 bg-[#f8fafc] dark:bg-slate-900 flex-1 overflow-y-auto max-h-[500px]">
-                <div className="space-y-4">
-                  {/* QuickBooks Layout Inputs */}
-                  <div className="border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-4 rounded-lg space-y-4 shadow-xs">
-                    <div>
-                      {/* Account Type */}
-                      <div>
-                        <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                          Account Type
-                        </label>
-                        <select 
-                          value={newType} 
-                          onChange={e => handleTypeChange(e.target.value)} 
-                          className="w-full px-2.5 py-1.5 text-xs sm:text-sm border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white rounded focus:ring-1 focus:ring-blue-500 focus:outline-none focus:border-blue-500"
-                        >
-                          {ACCOUNT_TYPES.map(t => (
-                            <option key={t} value={t}>{t}</option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {/* Account Code */}
-                      <div>
-                        <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                          Account Code
-                        </label>
-                        <div className="flex items-center">
-                          {idPrefix && (
-                            <span className="px-2.5 py-1.5 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 border-r-0 rounded-l text-slate-500 font-mono text-xs font-bold leading-none shrink-0">
-                              {idPrefix}
-                            </span>
-                          )}
-                          <input 
-                            type="text" 
-                            maxLength={15}
-                            value={idSuffix} 
-                            onChange={e => {
-                              let val = e.target.value.replace(/[^0-9A-Za-z_-]/g, '');
-                              setIdSuffix(val);
-                            }}
-                            onKeyDown={e => {
-                              if (e.key === 'Enter') handleAddAccount();
-                            }}
-                            onBlur={() => {
-                              if (!currentClient.coaFormat || currentClient.coaFormat === 'numeric') {
-                                if (idSuffix.length < suffixPlaceholder.length && idSuffix.length > 0) {
-                                  setIdSuffix(idSuffix.padEnd(suffixPlaceholder.length, '0'));
-                                }
-                              }
-                            }}
-                            className={cn(
-                              "w-full px-2.5 py-1.5 text-xs sm:text-sm border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white font-mono rounded focus:ring-1 focus:ring-blue-500 focus:outline-none focus:border-blue-500",
-                              idPrefix ? "rounded-l-none" : ""
-                            )}
-                            placeholder={suffixPlaceholder || (currentClient.coaFormat === 'alphanumeric' ? "ID-100" : "1100")}
-                          />
-                        </div>
-                      </div>
-
-                      {/* Name */}
-                      <div>
-                        <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                          Name
-                        </label>
-                        <input 
-                          type="text" 
-                          value={newName} 
-                          onChange={e => setNewName(e.target.value)} 
-                          className="w-full px-2.5 py-1.5 text-xs sm:text-sm border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white rounded focus:ring-1 focus:ring-blue-500 focus:outline-none focus:border-blue-500"
-                          placeholder="e.g. Savings-7489"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Sub-Account Handling */}
-                    <div className="p-3 bg-slate-50 dark:bg-slate-900/60 rounded-lg space-y-2">
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          id="qbIsSubAccount"
-                          checked={isSubAccount}
-                          onChange={e => {
-                            setIsSubAccount(e.target.checked);
-                            if (e.target.checked && accounts.length > 0) {
-                              const potential = accounts.filter(a => a.id !== editingId);
-                              if (potential.length > 0) {
-                                setSubAccountParentId(potential[0].id);
-                              }
-                            } else {
-                              setSubAccountParentId('');
-                            }
-                          }}
-                          className="rounded border-slate-300 dark:border-slate-700 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer"
-                        />
-                        <label htmlFor="qbIsSubAccount" className="text-xs sm:text-sm font-bold text-slate-750 dark:text-slate-200 cursor-pointer select-none">
-                          Is sub-account of a parent account
-                        </label>
-                      </div>
-
-                      {isSubAccount && (
-                        <div className="grid grid-cols-1 gap-2 pt-1">
-                          <label className="block text-[11px] font-bold text-slate-500">
-                            Parent Account
-                          </label>
-                          <select
-                            value={subAccountParentId}
-                            onChange={(e) => setSubAccountParentId(e.target.value)}
-                            className="w-full px-2.5 py-1.5 text-xs sm:text-sm border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white rounded focus:ring-1 focus:ring-blue-500 focus:outline-none focus:border-blue-500"
-                          >
-                            <option value="">-- Choose parent account --</option>
-                            {accounts
-                              .filter(a => a.id !== editingId)
-                              .map(p => (
-                                <option key={p.id} value={p.id}>
-                                  [{p.id}] {p.name} ({p.type})
-                                </option>
-                              ))
-                            }
-                          </select>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {/* Balance */}
-                      <div>
-                        <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                          Opening Balance ($)
-                        </label>
-                        <input 
-                          type="number" 
-                          step="any"
-                          value={formBalance !== undefined ? formBalance : ''} 
-                          onChange={e => setFormBalance(e.target.value !== '' ? parseFloat(e.target.value) : undefined)} 
-                          className="w-full px-2.5 py-1.5 text-xs sm:text-sm border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white rounded focus:ring-1 focus:ring-blue-500 focus:outline-none focus:border-blue-500 font-mono"
-                          placeholder="0.00"
-                        />
-                      </div>
-
-                      {/* Status */}
-                      <div>
-                        <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                          Status
-                        </label>
-                        <select
-                          value={formStatus}
-                          onChange={e => setFormStatus(e.target.value as 'Active' | 'Inactive')}
-                          className="w-full px-2.5 py-1.5 text-xs sm:text-sm border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white rounded focus:ring-1 focus:ring-blue-500 focus:outline-none focus:border-blue-500"
-                        >
-                          <option value="Active">Active</option>
-                          <option value="Inactive">Inactive</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    {/* Description */}
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                        Description
-                      </label>
-                      <textarea 
-                        rows={2}
-                        value={formDescription} 
-                        onChange={e => setFormDescription(e.target.value)} 
-                        className="w-full px-2.5 py-1.5 text-xs sm:text-sm border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white rounded focus:ring-1 focus:ring-blue-500 focus:outline-none focus:border-blue-500"
-                        placeholder="Purpose of this account or additional notes..."
-                      />
+                <div>
+                  <label className="block text-sm font-bold text-slate-600 dark:text-slate-400 mb-1">Account Name</label>
+                  <input 
+                    type="text" 
+                    value={newName} 
+                    onChange={e => setNewName(e.target.value)} 
+                    className="w-full form-input"
+                    placeholder="e.g. Petty Cash"
+                  />
+                </div>
+                {!addingParentId && (
+                  <div>
+                    <label className="block text-sm font-bold text-slate-600 dark:text-slate-400 mb-1">Type</label>
+                    <select 
+                      value={newType} 
+                      onChange={e => setNewType(e.target.value)} 
+                      className="w-full form-input"
+                    >
+                      {ACCOUNT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                  </div>
+                )}
+                {addingParentId && (
+                  <div>
+                    <label className="block text-sm font-bold text-slate-600 dark:text-slate-400 mb-1">Parent Account Code</label>
+                    <div className="px-3 py-2 bg-slate-100 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-300 font-mono text-sm">
+                      {addingParentId}
                     </div>
                   </div>
-
-                  {/* Spacer to match QBO styling */}
-                  <div className="pt-2" />
-                </div>
+                )}
               </div>
-
-              {/* Action Footer */}
-              <div className="bg-slate-50 dark:bg-slate-850 px-4 py-3 border-t border-slate-200 dark:border-slate-700 flex gap-2.5 justify-end">
+              
+              <div className="flex gap-3 justify-end pt-4 border-t border-slate-100 dark:border-slate-700">
                 <button 
-                  onClick={() => {
-                    setIsAdding(false);
-                    setEditingId(null);
-                    setFormError(null);
-                  }}
-                  className="px-4 py-2 bg-white hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-250 font-bold border border-slate-300 dark:border-slate-600 text-xs rounded transition-colors"
+                  onClick={() => setIsAdding(false)}
+                  className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 font-bold rounded-xl transition-colors"
                 >
                   Cancel
                 </button>
                 <button 
                   onClick={handleAddAccount}
-                  className="px-4 py-2 bg-[#005fa3] hover:bg-blue-700 text-white font-bold text-xs rounded shadow-xs transition-colors"
+                  className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl transition-colors shadow-sm"
                 >
-                  Save Account
+                  Save
                 </button>
               </div>
-
             </div>
           </div>
         )}
 
-        {/* Ledger Table Column Headers */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-850 rounded-xl overflow-hidden shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse bg-white dark:bg-slate-900">
-              <thead className="bg-[#f4f5f8] dark:bg-slate-800 border-b border-slate-250 dark:border-slate-700 text-slate-500 dark:text-slate-400 font-bold text-xs uppercase tracking-wider">
-                <tr>
-                  <th className="p-3 text-xs w-[320px]">Account Name</th>
-                  <th className="p-3 text-xs w-[110px]">Type</th>
-                  <th className="p-3 text-xs text-right w-[140px]">Balance</th>
-                  <th className="p-3 text-xs text-center w-[100px]">Status</th>
-                  <th className="p-3 text-xs text-center w-[120px]">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-                {searchQuery.trim() !== "" ? renderSearchMatches() : (
-                  accounts.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} className="p-8 text-center text-slate-400 text-xs italic bg-white dark:bg-slate-905">
-                        No accounts defined. Use preset selection or add an account.
-                      </td>
-                    </tr>
-                  ) : (() => {
-                    const rootMatches = accounts.filter(a => !a.parentId && (typeFilter === 'All' || a.type === typeFilter));
-                    if (rootMatches.length === 0) {
-                      return (
-                        <tr>
-                          <td colSpan={5} className="p-10 text-center text-slate-500 bg-white dark:bg-slate-900 font-medium">
-                            No {typeFilter} accounts found. Change filter parameters.
-                          </td>
-                        </tr>
-                      );
-                    }
-                    return renderAccounts();
-                  })()
-                )}
-              </tbody>
-            </table>
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
+          <div className="flex text-xs font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 p-3 border-b border-slate-200 dark:border-slate-700">
+            <div className="flex-1" style={{ paddingLeft: '2.5rem' }}>Account Name</div>
+          </div>
+          <div className="divide-y divide-slate-100 dark:divide-slate-800/50">
+            {accounts.length === 0 ? (
+              <div className="p-8 text-center text-slate-500">
+                No accounts defined. Use the preset selection above or add an account.
+              </div>
+            ) : renderAccounts()}
           </div>
         </div>
 
-
+        {missingTypes.length > 0 && (
+          <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-800">
+            <p className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-3">Restore Missing Main Accounts</p>
+            <div className="flex flex-wrap gap-2">
+              {missingTypes.map(type => (
+                <button
+                  key={type}
+                  onClick={() => handleRestoreMainAccount(type)}
+                  className="text-xs font-bold px-3 py-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-400 dark:hover:bg-indigo-900/50 rounded-lg flex items-center gap-1.5 transition-colors"
+                >
+                  <Plus className="w-3 h-3" /> {type}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </Modal>
   );

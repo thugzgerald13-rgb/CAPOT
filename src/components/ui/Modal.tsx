@@ -23,7 +23,7 @@ export function Modal({ id, title, children, icon, maxWidth = 'max-w-4xl', badge
     <AnimatePresence>
       {isActive && (
         <motion.div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-1.5 sm:p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -31,7 +31,7 @@ export function Modal({ id, title, children, icon, maxWidth = 'max-w-4xl', badge
         >
           <motion.div
             className={cn(
-              "w-full bg-white dark:bg-slate-800 rounded-2xl sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden max-h-[96vh] sm:max-h-[90vh]",
+              "w-full bg-white dark:bg-slate-800 rounded-3xl shadow-2xl flex flex-col overflow-hidden max-h-[90vh]",
               maxWidth
             )}
             initial={{ opacity: 0, scale: 0.95, y: 10 }}
@@ -41,25 +41,25 @@ export function Modal({ id, title, children, icon, maxWidth = 'max-w-4xl', badge
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 sm:py-5 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 z-10 shrink-0">
-              <div className="flex items-center gap-2 sm:gap-3">
-                {icon && <span className="text-lg sm:text-xl">{icon}</span>}
-                <h3 className="text-sm sm:text-lg font-bold text-slate-900 dark:text-white flex items-center gap-1.5 sm:gap-3">
+            <div className="flex items-center justify-between px-6 py-5 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 z-10 shrink-0">
+              <div className="flex items-center gap-3">
+                {icon && <span className="text-xl">{icon}</span>}
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-3">
                   {title}
                   {badge}
                 </h3>
               </div>
               <button
                 onClick={handleClose}
-                className="p-1.5 sm:p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors"
+                className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors"
                 aria-label="Close modal"
               >
-                <X className="w-4 h-4 sm:w-5 sm:h-5" />
+                <X className="w-5 h-5" />
               </button>
             </div>
             
             {/* Body */}
-            <div className="p-3 sm:p-6 overflow-y-auto">
+            <div className="p-6 overflow-y-auto">
               {children}
             </div>
           </motion.div>

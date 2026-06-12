@@ -104,8 +104,7 @@ export function DatModal() {
               vatType,
               expenseType,
               accountTitle: 'Imported',
-              sequenceNumber: (currentClient.purchases?.length || 0) + newPurchases.length + 1,
-              isDatEntry: true
+              sequenceNumber: (currentClient.purchases?.length || 0) + newPurchases.length + 1
             });
           } else if (rowType === 'S') {
             const tin = cols[2];
@@ -201,7 +200,7 @@ export function DatModal() {
     let lines: string[] = [];
 
     if (type === 'P') {
-      const periodPurchases = (currentClient.purchases || []).filter(p => p.datMonthYear === formatted && p.isDatEntry === true);
+      const periodPurchases = (currentClient.purchases || []).filter(p => p.datMonthYear === formatted);
       
       let totExempt = 0, totZero = 0, totServices = 0, totCapital = 0, totOther = 0, totInputTax = 0;
       const detailLines: string[] = [];
@@ -292,7 +291,7 @@ export function DatModal() {
     const periodYear = parseInt(selectedYear);
 
     const periodSales = (currentClient.sales || []).filter(s => s.datMonthYear === formatted);
-    const periodPurchases = (currentClient.purchases || []).filter(p => p.datMonthYear === formatted && p.isDatEntry === true);
+    const periodPurchases = (currentClient.purchases || []).filter(p => p.datMonthYear === formatted);
 
     if (type === 'P' && periodPurchases.length === 0) {
       alert(`No purchase transactions found for ${formatted}`);

@@ -8,7 +8,7 @@ import * as XLSX from 'xlsx';
 type HistoryTab = 'expenses' | 'income' | 'slp' | 'sls';
 
 export function HistoryModal() {
-  const { currentClient, currentClientId, currentDat, saveClient, showToast, openModal, setCurrentDat, historyTab, setHistoryTab, logAuditTrail } = useAccounting();
+  const { currentClient, currentClientId, currentDat, saveClient, showToast, openModal, setCurrentDat, historyTab, setHistoryTab } = useAccounting();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedMonth, setSelectedMonth] = useState<number>(currentDat?.month || new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState<number>(currentDat?.year || new Date().getFullYear());
@@ -67,7 +67,7 @@ export function HistoryModal() {
     showToast('Income deleted');
   };
 
-  const purchases = currentDat ? (currentClient.purchases || []).filter(p => p.datMonthYear === currentDat.formatted && p.isDatEntry === true) : [];
+  const purchases = currentDat ? (currentClient.purchases || []).filter(p => p.datMonthYear === currentDat.formatted) : [];
   const sales = currentDat ? (currentClient.sales || []).filter(s => s.datMonthYear === currentDat.formatted) : [];
 
   const filteredPurchases = purchases.filter(p => 
@@ -84,7 +84,7 @@ export function HistoryModal() {
   // Derive unique DAT periods from transactions
   const allPeriods = Array.from(new Set([
     ...(currentClient.sales || []).map(s => s.datMonthYear),
-    ...(currentClient.purchases || []).filter(p => p.isDatEntry === true).map(p => p.datMonthYear)
+    ...(currentClient.purchases || []).map(p => p.datMonthYear)
   ])).filter(Boolean);
 
   const handleSwitchPeriod = (period: string) => {
@@ -188,9 +188,6 @@ export function HistoryModal() {
 
     XLSX.utils.book_append_sheet(workbook, worksheet, 'SLP');
     XLSX.writeFile(workbook, `SLP_${currentDat.formatted.replace(' ', '_')}.xlsx`);
-    if (logAuditTrail) {
-      logAuditTrail('Export', 'Summary List of Purchases', `Exported Consolidated Summary List of Purchases (SLP) to Excel sheet for reporting period: ${currentDat.formatted}`);
-    }
   };
 
   const handleExportSLS = () => {
@@ -261,9 +258,6 @@ export function HistoryModal() {
 
     XLSX.utils.book_append_sheet(workbook, worksheet, 'SLS');
     XLSX.writeFile(workbook, `SLS_${currentDat.formatted.replace(' ', '_')}.xlsx`);
-    if (logAuditTrail) {
-      logAuditTrail('Export', 'Summary List of Sales', `Exported Consolidated Summary List of Sales (SLS) to Excel sheet for reporting period: ${currentDat.formatted}`);
-    }
   };
 
   return (
