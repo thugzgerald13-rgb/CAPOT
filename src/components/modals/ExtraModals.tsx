@@ -172,7 +172,7 @@ export function ExtraModals() {
 
           <div className="mb-4">
             <label className="form-label">Taxpayer Name:</label>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <div className="flex flex-col items-center">
                 <input 
                   type="text" 
@@ -218,7 +218,7 @@ export function ExtraModals() {
 
           <div className="bg-slate-200 dark:bg-slate-800/80 p-4 rounded border border-slate-300 dark:border-slate-700 mb-4">
             <label className="form-label text-slate-800 dark:text-slate-300 mb-3 font-bold">Registered/Business Address:</label>
-            <div className="grid grid-cols-3 gap-2 mb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-4">
               <div className="flex flex-col items-center">
                 <input 
                   value={editingClient.substreet || ''} 
@@ -244,7 +244,7 @@ export function ExtraModals() {
                 <span className="text-[10px] text-slate-500 mt-1 uppercase font-bold text-center">Barangay</span>
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <div className="flex flex-col items-center">
                 <input 
                   value={editingClient.district || ''} 
@@ -272,8 +272,8 @@ export function ExtraModals() {
             </div>
           </div>
 
-          <div className="grid grid-cols-12 gap-4 items-end mb-6">
-            <div className="col-span-3">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end mb-6">
+            <div className="col-span-12 md:col-span-3">
               <label className="form-label">RDO Code:</label>
               <select 
                 value={editingClient.rdoCode || ''}
@@ -286,7 +286,7 @@ export function ExtraModals() {
                 ))}
               </select>
             </div>
-            <div className="col-span-5 flex items-center gap-6 py-3 px-2">
+            <div className="col-span-12 md:col-span-5 flex items-center justify-around md:justify-start gap-6 py-3 px-2">
               <label className="flex items-center gap-2 cursor-pointer group">
                 <input 
                   type="radio" 
@@ -308,7 +308,7 @@ export function ExtraModals() {
                 <span className="text-xs font-bold uppercase tracking-tight">Fiscal</span>
               </label>
             </div>
-            <div className="col-span-4">
+            <div className="col-span-12 md:col-span-4">
               <label className="form-label">Fiscal Month End:</label>
               <select 
                 disabled={editingClient.accountingType !== 'Fiscal'}
