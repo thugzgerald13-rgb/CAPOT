@@ -224,8 +224,10 @@ export function ChartOfAccountsModal() {
 
   const handleAddAccount = () => {
     setFormError(null);
-    const computedId = (idPrefix + idSuffix.padEnd(suffixPlaceholder.length, '0')).replace(/[^0-9A-Za-z_-]/g, '');
-    if (!computedId || !newName) {
+    const isNumericFormat = !currentClient.coaFormat || currentClient.coaFormat === 'numeric';
+    const computedId = (idPrefix + (isNumericFormat ? idSuffix.padEnd(suffixPlaceholder.length, '0') : idSuffix)).replace(/[^0-9A-Za-z_-]/g, '');
+    
+    if (!idSuffix.trim() || !newName) {
       setFormError("Please fill out Account Code and Name.");
       return;
     }
@@ -237,7 +239,7 @@ export function ChartOfAccountsModal() {
       
       let finalEditCode = computedId.replace(/[^0-9A-Za-z_-]/g, '');
       const hasLetters = /[A-Za-z_-]/.test(finalEditCode);
-      const isNumeric = !hasLetters && (!currentClient.coaFormat || currentClient.coaFormat === 'numeric');
+      const isNumeric = !hasLetters && isNumericFormat;
 
       if (finalEditCode.length === 0) {
         setFormError("Account Code cannot be empty.");
@@ -292,8 +294,8 @@ export function ChartOfAccountsModal() {
       handleSaveAccounts(updatedAccounts);
     } else {
       // Adding Mode
-      if (accounts.some(a => a.id === computedId && a.parentId === addingParentId && a.name.toLowerCase() === newName.toLowerCase())) {
-        setFormError("This exact sub-account already exists!");
+      if (accounts.some(a => a.id === computedId)) {
+        setFormError(`An account with the code "${computedId}" already exists!`);
         return;
       }
 
@@ -590,7 +592,7 @@ export function ChartOfAccountsModal() {
                           suggestedSuffix = nextNum.toString().padStart(zeroCount, '0');
                         }
                       } else {
-                        prefix = account.id + (account.id.includes('-') ? '' : '-');
+                        prefix = account.id + (account.id.endsWith('-') ? '' : '-');
                         placeholder = "100";
                         
                         const childNums = children
