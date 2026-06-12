@@ -703,16 +703,8 @@ export function ChartOfAccountsModal() {
               </span>
             </td>
 
-            <td className="p-2.5 text-xs text-slate-500 truncate max-w-[160px]" title={account.detailType}>
-              {account.detailType || '—'}
-            </td>
-
             <td className="p-2.5 text-xs text-right font-mono text-slate-800 dark:text-slate-200">
               {account.balance !== undefined ? qbBal : '—'}
-            </td>
-
-            <td className="p-2.5 text-xs text-right font-mono text-slate-500 dark:text-slate-400">
-              {account.bankBalance !== undefined ? bankBal : '—'}
             </td>
 
             <td className="p-2.5 text-xs text-center">
@@ -906,7 +898,7 @@ export function ChartOfAccountsModal() {
     if (sortedFiltered.length === 0) {
       return (
         <tr>
-          <td colSpan={7} className="p-8 text-center text-slate-400 text-xs italic bg-white dark:bg-slate-900">
+          <td colSpan={5} className="p-8 text-center text-slate-400 text-xs italic bg-white dark:bg-slate-900">
             No matching accounts found for search filter.
           </td>
         </tr>
@@ -937,16 +929,8 @@ export function ChartOfAccountsModal() {
             </span>
           </td>
 
-          <td className="p-2.5 text-xs text-slate-505 truncate max-w-[160px]" title={account.detailType}>
-            {account.detailType || '—'}
-          </td>
-
           <td className="p-2.5 text-xs text-right font-mono text-slate-800 dark:text-slate-200">
             {account.balance !== undefined ? qbBal : '—'}
-          </td>
-
-          <td className="p-2.5 text-xs text-right font-mono text-slate-500 dark:text-slate-400">
-            {account.bankBalance !== undefined ? bankBal : '—'}
           </td>
 
           <td className="p-2.5 text-xs text-center">
@@ -1022,11 +1006,11 @@ export function ChartOfAccountsModal() {
   };
 
   return (
-    <Modal id="coa" title="Chart of Accounts" icon={<BookOpen />} maxWidth="max-w-6xl">
+    <Modal id="coa" title="Chart of Accounts" icon={<BookOpen />} maxWidth="max-w-4xl">
       <div className="p-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6 pb-4 border-b border-slate-100 dark:border-slate-800">
           <div>
-            <p className="text-slate-500 dark:text-slate-400">Manage your QuickBooks Online-style general ledger, sub-accounts, and classifications.</p>
+            <p className="text-slate-500 dark:text-slate-400">Manage your general ledger accounts, opening balances, and active status.</p>
           </div>
 
           <div className="flex flex-wrap items-center gap-3 shrink-0">
@@ -1036,7 +1020,7 @@ export function ChartOfAccountsModal() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by code, name, detail..."
+                placeholder="Search by code or name..."
                 className="text-xs pl-8 pr-3 py-1.5 bg-slate-105 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-lg w-56 focus:ring-1 focus:ring-blue-500 focus:outline-none"
               />
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
@@ -1158,7 +1142,7 @@ export function ChartOfAccountsModal() {
                 <div className="space-y-4">
                   {/* QuickBooks Layout Inputs */}
                   <div className="border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-4 rounded-lg space-y-4 shadow-xs">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
                       {/* Account Type */}
                       <div>
                         <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
@@ -1172,23 +1156,6 @@ export function ChartOfAccountsModal() {
                           {ACCOUNT_TYPES.map(t => (
                             <option key={t} value={t}>{t}</option>
                           ))}
-                        </select>
-                      </div>
-
-                      {/* Detail Type */}
-                      <div>
-                        <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                          Detail Type
-                        </label>
-                        <select 
-                          value={formDetailType} 
-                          onChange={e => setFormDetailType(e.target.value)} 
-                          className="w-full px-2.5 py-1.5 text-xs sm:text-sm border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white rounded focus:ring-1 focus:ring-blue-500 focus:outline-none focus:border-blue-500"
-                        >
-                          {(DETAIL_TYPES[newType] || []).map(dt => (
-                            <option key={dt} value={dt}>{dt}</option>
-                          ))}
-                          <option value="Other">Other classification</option>
                         </select>
                       </div>
                     </div>
@@ -1296,7 +1263,7 @@ export function ChartOfAccountsModal() {
                       )}
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       {/* Balance */}
                       <div>
                         <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
@@ -1307,21 +1274,6 @@ export function ChartOfAccountsModal() {
                           step="any"
                           value={formBalance !== undefined ? formBalance : ''} 
                           onChange={e => setFormBalance(e.target.value !== '' ? parseFloat(e.target.value) : undefined)} 
-                          className="w-full px-2.5 py-1.5 text-xs sm:text-sm border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white rounded focus:ring-1 focus:ring-blue-500 focus:outline-none focus:border-blue-500 font-mono"
-                          placeholder="0.00"
-                        />
-                      </div>
-
-                      {/* Bank Balance */}
-                      <div>
-                        <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                          Bank Balance ($)
-                        </label>
-                        <input 
-                          type="number" 
-                          step="any"
-                          value={formBankBalance !== undefined ? formBankBalance : ''} 
-                          onChange={e => setFormBankBalance(e.target.value !== '' ? parseFloat(e.target.value) : undefined)} 
                           className="w-full px-2.5 py-1.5 text-xs sm:text-sm border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white rounded focus:ring-1 focus:ring-blue-500 focus:outline-none focus:border-blue-500 font-mono"
                           placeholder="0.00"
                         />
@@ -1393,12 +1345,10 @@ export function ChartOfAccountsModal() {
             <table className="w-full text-left border-collapse bg-white dark:bg-slate-900">
               <thead className="bg-[#f4f5f8] dark:bg-slate-800 border-b border-slate-250 dark:border-slate-700 text-slate-500 dark:text-slate-400 font-bold text-xs uppercase tracking-wider">
                 <tr>
-                  <th className="p-3 text-xs w-[280px]">Account Name</th>
-                  <th className="p-3 text-xs w-[90px]">Type</th>
-                  <th className="p-3 text-xs w-[140px]">Detail Type / Classification</th>
-                  <th className="p-3 text-xs text-right w-[110px]">QB Balance</th>
-                  <th className="p-3 text-xs text-right w-[110px]">Bank Balance</th>
-                  <th className="p-3 text-xs text-center w-[80px]">Status</th>
+                  <th className="p-3 text-xs w-[320px]">Account Name</th>
+                  <th className="p-3 text-xs w-[110px]">Type</th>
+                  <th className="p-3 text-xs text-right w-[140px]">Balance</th>
+                  <th className="p-3 text-xs text-center w-[100px]">Status</th>
                   <th className="p-3 text-xs text-center w-[120px]">Actions</th>
                 </tr>
               </thead>
@@ -1406,7 +1356,7 @@ export function ChartOfAccountsModal() {
                 {searchQuery.trim() !== "" ? renderSearchMatches() : (
                   accounts.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="p-8 text-center text-slate-400 text-xs italic bg-white dark:bg-slate-905">
+                      <td colSpan={5} className="p-8 text-center text-slate-400 text-xs italic bg-white dark:bg-slate-905">
                         No accounts defined. Use preset selection or add an account.
                       </td>
                     </tr>
@@ -1415,7 +1365,7 @@ export function ChartOfAccountsModal() {
                     if (rootMatches.length === 0) {
                       return (
                         <tr>
-                          <td colSpan={7} className="p-10 text-center text-slate-500 bg-white dark:bg-slate-900 font-medium">
+                          <td colSpan={5} className="p-10 text-center text-slate-500 bg-white dark:bg-slate-900 font-medium">
                             No {typeFilter} accounts found. Change filter parameters.
                           </td>
                         </tr>
