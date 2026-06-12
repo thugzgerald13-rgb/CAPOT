@@ -592,22 +592,41 @@ export function ChartOfAccountsModal() {
                           suggestedSuffix = nextNum.toString().padStart(zeroCount, '0');
                         }
                       } else {
-                        prefix = account.id + (account.id.endsWith('-') ? '' : '-');
-                        placeholder = "100";
-                        
-                        const childNums = children
-                          .map(c => c.id.substring(prefix.length))
-                          .map(s => parseInt(s, 10))
-                          .filter(n => !isNaN(n));
+                        // For non-zero-ending parent or alphanumeric format
+                        if (currentClient.coaFormat === 'alphanumeric') {
+                          prefix = account.id + (account.id.endsWith('-') ? '' : '-');
+                          placeholder = "100";
                           
-                        let step = 100;
-                        if (childNums.length > 0 && Math.min(...childNums) < 100) step = 10;
-                        
-                        let nextNum = step;
-                        while (childNums.includes(nextNum)) {
-                          nextNum += step;
+                          const childNums = children
+                            .map(c => c.id.substring(prefix.length))
+                            .map(s => parseInt(s, 10))
+                            .filter(n => !isNaN(n));
+                            
+                          let step = 100;
+                          if (childNums.length > 0 && Math.min(...childNums) < 100) step = 10;
+                          
+                          let nextNum = step;
+                          while (childNums.includes(nextNum)) {
+                            nextNum += step;
+                          }
+                          suggestedSuffix = nextNum.toString();
+                        } else {
+                          // Pure numeric format - NO hyphen!
+                          prefix = account.id;
+                          placeholder = "01";
+                          
+                          const childNums = children
+                            .map(c => c.id.substring(prefix.length))
+                            .filter(s => /^\d+$/.test(s))
+                            .map(s => parseInt(s, 10))
+                            .filter(n => !isNaN(n));
+                            
+                          let nextNum = 1;
+                          if (childNums.length > 0) {
+                            nextNum = Math.max(...childNums) + 1;
+                          }
+                          suggestedSuffix = nextNum.toString().padStart(2, '0');
                         }
-                        suggestedSuffix = nextNum.toString();
                       }
                       
                       setIdPrefix(prefix);
@@ -1012,7 +1031,7 @@ export function ChartOfAccountsModal() {
                       <div className="space-y-1">
                         <span className="text-slate-500 block">Ledger Code Range:</span>
                         <span className="font-mono font-bold text-slate-700 dark:text-slate-200">
-                          {currentClient.coaFormat === 'alphanumeric' ? 'Alphanumeric Codes [A-Z0-9]' : 'Numeric 4-6 digits [BIR Compliant]'}
+                          {currentClient.coaFormat === 'alphanumeric' ? 'Alphanumeric Codes [A-Z0-9]' : 'Numeric 4-7 digits [BIR Compliant]'}
                         </span>
                       </div>
                       <div className="space-y-1">
