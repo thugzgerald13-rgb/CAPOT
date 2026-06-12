@@ -6,7 +6,7 @@ import { ProfitAndLossData, ProfitAndLossLine } from '../../types';
 import { cn } from '../../lib/utils';
 
 export function ProfitAndLossModal() {
-  const { currentClient, currentClientId, saveClient } = useAccounting();
+  const { currentClient, currentClientId, saveClient, activeDevice } = useAccounting();
   
   if (!currentClient || !currentClientId) return null;
 
@@ -150,8 +150,13 @@ export function ProfitAndLossModal() {
                       {plData.revenue.length > 1 && (
                          <button 
                            onClick={() => handleDeleteLine('revenue', line.id)}
-                           className="absolute -right-8 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100"
-                         ><Trash2 className="w-4 h-4" /></button>
+                           className={cn(
+                             "absolute top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500 transition-all",
+                             activeDevice === 'mobile' 
+                               ? "opacity-100 right-1 bg-white/90 dark:bg-slate-900/90 p-1 rounded-full border border-slate-200 dark:border-slate-800 shadow" 
+                               : "opacity-0 -right-8 group-hover:opacity-100"
+                           )}
+                         ><Trash2 className="w-3.5 h-3.5" /></button>
                       )}
                     </td>
                   </tr>
@@ -188,8 +193,13 @@ export function ProfitAndLossModal() {
                       {plData.costOfRevenue.length > 1 && (
                          <button 
                            onClick={() => handleDeleteLine('costOfRevenue', line.id)}
-                           className="absolute -right-8 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100"
-                         ><Trash2 className="w-4 h-4" /></button>
+                           className={cn(
+                             "absolute top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500 transition-all",
+                             activeDevice === 'mobile' 
+                               ? "opacity-100 right-1 bg-white/90 dark:bg-slate-900/90 p-1 rounded-full border border-slate-200 dark:border-slate-800 shadow" 
+                               : "opacity-0 -right-8 group-hover:opacity-100"
+                           )}
+                         ><Trash2 className="w-3.5 h-3.5" /></button>
                       )}
                     </td>
                   </tr>
@@ -240,8 +250,13 @@ export function ProfitAndLossModal() {
                       {plData.operatingExpenses.length > 1 && (
                          <button 
                            onClick={() => handleDeleteLine('operatingExpenses', line.id)}
-                           className="absolute -right-8 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100"
-                         ><Trash2 className="w-4 h-4" /></button>
+                           className={cn(
+                             "absolute top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500 transition-all",
+                             activeDevice === 'mobile' 
+                               ? "opacity-100 right-1 bg-white/90 dark:bg-slate-900/90 p-1 rounded-full border border-slate-200 dark:border-slate-800 shadow" 
+                               : "opacity-0 -right-8 group-hover:opacity-100"
+                           )}
+                         ><Trash2 className="w-3.5 h-3.5" /></button>
                       )}
                     </td>
                   </tr>

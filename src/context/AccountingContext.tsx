@@ -40,6 +40,11 @@ interface AccountingContextType {
   saveClient: (id: string, clientData: Client) => Promise<void>;
   addClient: (name: string) => Promise<void>;
   showToast: (msg: string) => void;
+
+  // Device adaptations support
+  deviceType: 'auto' | 'mobile' | 'tablet' | 'desktop';
+  activeDevice: 'mobile' | 'tablet' | 'desktop';
+  setDeviceType: (type: 'auto' | 'mobile' | 'tablet' | 'desktop') => void;
 }
 
 const AccountingContext = createContext<AccountingContextType | undefined>(undefined);
@@ -57,6 +62,40 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [currentDat, setCurrentDat] = useState<DatSelection | null>(null);
   const [historyTab, setHistoryTab] = useState('expenses');
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+  
+  // Device Adaptations state
+  const [deviceType, setDeviceTypeState] = useState<'auto' | 'mobile' | 'tablet' | 'desktop'>(() => {
+    return (localStorage.getItem('capo_device_type') as any) || 'auto';
+  });
+  const [activeDevice, setActiveDevice] = useState<'mobile' | 'tablet' | 'desktop'>('desktop');
+
+  const setDeviceType = (type: 'auto' | 'mobile' | 'tablet' | 'desktop') => {
+    setDeviceTypeState(type);
+    localStorage.setItem('capo_device_type', type);
+    showToast(`Device layout set to ${type}`);
+  };
+
+  useEffect(() => {
+    if (deviceType !== 'auto') {
+      setActiveDevice(deviceType);
+      return;
+    }
+
+    const handleResize = () => {
+      const width = window.innerWidth;
+      if (width < 768) {
+        setActiveDevice('mobile');
+      } else if (width < 1024) {
+        setActiveDevice('tablet');
+      } else {
+        setActiveDevice('desktop');
+      }
+    };
+
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [deviceType]);
   const [isReady, setIsReady] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
@@ -472,7 +511,10 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         setCurrentDat,
         saveClient,
         addClient,
-        showToast
+        showToast,
+        deviceType,
+        activeDevice,
+        setDeviceType
       }}
     >
       {children}

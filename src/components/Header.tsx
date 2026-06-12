@@ -1,4 +1,4 @@
-import { Menu, Moon, Sun, LogOut, Shield } from 'lucide-react';
+import { Menu, Moon, Sun, LogOut, Shield, Monitor, Smartphone, Tablet, Cpu } from 'lucide-react';
 import { useAccounting } from '../context/AccountingContext';
 import { useAuth } from '../context/AuthContext';
 
@@ -7,7 +7,7 @@ interface HeaderProps {
 }
 
 export function Header({ onMenuClick }: HeaderProps) {
-  const { currentClient, isDarkMode, setDarkMode, isSyncing } = useAccounting();
+  const { currentClient, isDarkMode, setDarkMode, isSyncing, deviceType, setDeviceType, activeDevice } = useAccounting();
   const { user, isAdmin, signOut } = useAuth();
 
   return (
@@ -35,7 +35,48 @@ export function Header({ onMenuClick }: HeaderProps) {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center flex-wrap gap-3">
+          {/* Device Controls bar */}
+          <div className="flex bg-blue-950/40 p-1 rounded-full border border-white/10 items-center">
+            <button
+              onClick={() => setDeviceType('auto')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${deviceType === 'auto' ? 'bg-yellow-400 text-blue-950 shadow-md' : 'text-blue-200 hover:text-white'}`}
+              title="Auto Detect Device"
+            >
+              <Cpu className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Auto</span>
+            </button>
+            <button
+              onClick={() => setDeviceType('mobile')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${deviceType === 'mobile' ? 'bg-yellow-400 text-blue-950 shadow-md' : 'text-blue-200 hover:text-white'}`}
+              title="Force Mobile Layout"
+            >
+              <Smartphone className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Mobile</span>
+            </button>
+            <button
+              onClick={() => setDeviceType('tablet')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${deviceType === 'tablet' ? 'bg-yellow-400 text-blue-950 shadow-md' : 'text-blue-200 hover:text-white'}`}
+              title="Force Tablet Layout"
+            >
+              <Tablet className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Tablet</span>
+            </button>
+            <button
+              onClick={() => setDeviceType('desktop')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${deviceType === 'desktop' ? 'bg-yellow-400 text-blue-950 shadow-md' : 'text-blue-200 hover:text-white'}`}
+              title="Force Desktop Layout"
+            >
+              <Monitor className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Desktop</span>
+            </button>
+          </div>
+
+          <div className="hidden lg:flex items-center text-xs bg-white/5 border border-white/10 px-3 py-1.5 rounded-full">
+            <span className="text-blue-200 mr-1.5">View:</span>
+            <span className="font-extrabold text-yellow-400 uppercase tracking-wider">{activeDevice}</span>
+          </div>
+
           <button
             onClick={() => setDarkMode(!isDarkMode)}
             className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-sm font-medium transition-colors border border-white/10"

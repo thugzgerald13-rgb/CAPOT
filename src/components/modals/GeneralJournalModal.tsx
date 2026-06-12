@@ -14,7 +14,7 @@ export const DEFAULT_GJ_COLUMNS: JournalColumn[] = [
 ];
 
 export function GeneralJournalModal() {
-  const { currentClient, currentClientId, saveClient } = useAccounting();
+  const { currentClient, currentClientId, saveClient, activeDevice } = useAccounting();
   
   const [isEditingHeaders, setIsEditingHeaders] = useState(false);
   const [newColName, setNewColName] = useState('');
@@ -222,92 +222,157 @@ export function GeneralJournalModal() {
           </div>
         )}
 
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-x-auto shadow-sm">
-          <table className="w-full text-xs text-left whitespace-nowrap min-w-[700px]">
-            <thead>
-              <tr className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 uppercase tracking-wider font-bold border-b border-slate-200 dark:border-slate-700">
-                <th className="px-3 py-3 w-10 text-center">#</th>
-                {columns.map(col => (
-                  <th key={col.id} className={cn("px-3 py-3", col.type === 'number' ? 'text-right' : 'text-left')}>
-                    {col.name} {col.category !== 'None' ? `(${col.category})` : ''}
-                  </th>
-                ))}
-                <th className="px-3 py-3 w-10 text-center">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
-              {entries.map((entry, idx) => (
-                <tr key={entry.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/20 group">
-                  <td className="px-3 py-2 text-center text-slate-400 font-mono">{idx + 1}</td>
-                  {columns.map(col => (
-                    <td key={col.id} className="px-2 py-1">
+        {activeDevice === 'mobile' ? (
+          <div className="flex flex-col gap-4">
+            {entries.map((entry, idx) => (
+              <div key={entry.id} className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 flex flex-col gap-3 relative shadow-sm">
+                <div className="flex justify-between items-center pb-2 border-b border-slate-200 dark:border-slate-700/60">
+                  <span className="font-mono text-xs text-slate-500 font-extrabold bg-slate-200 dark:bg-slate-700 px-2 py-0.5 rounded">Entry #{idx + 1}</span>
+                  <button 
+                    onClick={() => deleteEntry(entry.id)}
+                    className="p-1.5 bg-red-50 dark:bg-red-950/20 text-red-500 hover:text-red-700 text-xs font-bold rounded-lg transition-colors flex items-center gap-1"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" /> Delete
+                  </button>
+                </div>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {columns.filter(c => c.isSystem).map(col => (
+                    <div key={col.id} className="col-span-1">
+                      <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">{col.name}</label>
                       <input 
-                        type={col.type === 'number' ? 'text' : 'text'}
+                        type="text"
                         value={entry.values[col.id] || ''}
-                        onChange={e => {
-                          let val = e.target.value;
-                          if (col.type === 'number') {
-                             if (/^[0-9.,-]*$/.test(val)) {
-                               updateEntry(entry.id, col.id, val);
-                             }
-                          } else {
-                            updateEntry(entry.id, col.id, val);
-                          }
-                        }}
-                        onBlur={e => {
-                          if (col.type === 'number') {
+                        onChange={e => updateEntry(entry.id, col.id, e.target.value)}
+                        className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-2.5 py-1.5 text-xs outline-none focus:border-cyan-500 text-slate-900 dark:text-white"
+                        placeholder={`Enter ${col.name.toLowerCase()}`}
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                <div className="bg-white dark:bg-slate-900/60 p-3 rounded-xl border border-slate-200 dark:border-slate-700/50 flex flex-col gap-2 mt-1">
+                  <span className="text-[10px] font-bold text-cyan-600 dark:text-cyan-400 uppercase tracking-widest block mb-1">Financial Figures (Dr/Cr)</span>
+                  <div className="grid grid-cols-1 gap-2">
+                    {columns.filter(c => !c.isSystem).map(col => (
+                      <div key={col.id} className="flex items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800/80 pb-1.5 last:border-0 last:pb-0">
+                        <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">{col.name} <span className="text-[10px] text-slate-400 uppercase font-mono">({col.category})</span></span>
+                        <input 
+                          type="text"
+                          value={entry.values[col.id] || ''}
+                          onChange={e => {
+                            let val = e.target.value;
+                            if (/^[0-9.,-]*$/.test(val)) {
+                              updateEntry(entry.id, col.id, val);
+                            }
+                          }}
+                          onBlur={e => {
                             const raw = e.target.value.replace(/,/g, '');
                             if (raw && !isNaN(parseFloat(raw))) {
                               updateEntry(entry.id, col.id, parseFloat(raw).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
                             }
-                          }
-                        }}
-                        className={cn(
-                          "w-full bg-transparent border border-transparent hover:border-slate-300 dark:hover:border-slate-600 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 rounded px-2 py-1.5 transition-all outline-none",
-                          col.type === 'number' ? "text-right font-mono" : ""
-                        )}
-                        placeholder={col.type === 'number' ? '0.00' : ''}
-                      />
-                    </td>
-                  ))}
-                  <td className="px-3 py-2 text-center">
-                    <button 
-                      onClick={() => deleteEntry(entry.id)}
-                      className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors opacity-0 group-hover:opacity-100"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-              {entries.length === 0 && (
-                <tr>
-                  <td colSpan={columns.length + 2} className="px-6 py-8 text-center text-slate-500">
-                    No entries yet. Click "Add Row" to start.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-            {entries.length > 0 && (
-              <tfoot className="bg-slate-50 dark:bg-slate-800/80 font-bold border-t-2 border-slate-200 dark:border-slate-700">
-                <tr>
-                  <td className="px-3 py-3 text-right" colSpan={columns.filter(c => c.type !== 'number').length + 1}>Total</td>
-                  {columns.map(col => {
-                    if (col.type === 'number') {
-                      return (
-                        <td key={col.id} className="px-3 py-3 text-right text-slate-800 dark:text-slate-200 font-mono text-[11px]">
-                          {totals[col.id]?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </td>
-                      );
-                    }
-                    return null;
-                  })}
-                  <td></td>
-                </tr>
-              </tfoot>
+                          }}
+                          className="w-32 text-right bg-transparent border-b border-dashed border-slate-200 hover:border-slate-400 dark:border-slate-700/60 dark:hover:border-slate-500 focus:border-cyan-500 font-mono text-xs px-1/2 py-0.5 outline-none font-bold text-slate-800 dark:text-slate-200"
+                          placeholder="0.00"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ))}
+            {entries.length === 0 && (
+              <div className="text-center py-8 text-slate-400 dark:text-slate-500">No entries yet. Click "Add Row" to start.</div>
             )}
-          </table>
-        </div>
+          </div>
+        ) : (
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-x-auto shadow-sm">
+            <table className="w-full text-xs text-left whitespace-nowrap min-w-[700px]">
+              <thead>
+                <tr className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 uppercase tracking-wider font-bold border-b border-slate-200 dark:border-slate-700">
+                  <th className="px-3 py-3 w-10 text-center">#</th>
+                  {columns.map(col => (
+                    <th key={col.id} className={cn("px-3 py-3", col.type === 'number' ? 'text-right' : 'text-left')}>
+                      {col.name} {col.category !== 'None' ? `(${col.category})` : ''}
+                    </th>
+                  ))}
+                  <th className="px-3 py-3 w-10 text-center">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
+                {entries.map((entry, idx) => (
+                  <tr key={entry.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/20 group">
+                    <td className="px-3 py-2 text-center text-slate-400 font-mono">{idx + 1}</td>
+                    {columns.map(col => (
+                      <td key={col.id} className="px-2 py-1">
+                        <input 
+                          type={col.type === 'number' ? 'text' : 'text'}
+                          value={entry.values[col.id] || ''}
+                          onChange={e => {
+                            let val = e.target.value;
+                            if (col.type === 'number') {
+                               if (/^[0-9.,-]*$/.test(val)) {
+                                 updateEntry(entry.id, col.id, val);
+                               }
+                            } else {
+                              updateEntry(entry.id, col.id, val);
+                            }
+                          }}
+                          onBlur={e => {
+                            if (col.type === 'number') {
+                              const raw = e.target.value.replace(/,/g, '');
+                              if (raw && !isNaN(parseFloat(raw))) {
+                                updateEntry(entry.id, col.id, parseFloat(raw).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+                              }
+                            }
+                          }}
+                          className={cn(
+                            "w-full bg-transparent border border-transparent hover:border-slate-300 dark:hover:border-slate-600 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 rounded px-2 py-1.5 transition-all outline-none",
+                            col.type === 'number' ? "text-right font-mono" : ""
+                          )}
+                          placeholder={col.type === 'number' ? '0.00' : ''}
+                        />
+                      </td>
+                    ))}
+                    <td className="px-3 py-2 text-center">
+                      <button 
+                        onClick={() => deleteEntry(entry.id)}
+                        className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-all opacity-0 group-hover:opacity-100"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {entries.length === 0 && (
+                  <tr>
+                    <td colSpan={columns.length + 2} className="px-6 py-8 text-center text-slate-500">
+                      No entries yet. Click "Add Row" to start.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+              {entries.length > 0 && (
+                <tfoot className="bg-slate-50 dark:bg-slate-800/80 font-bold border-t-2 border-slate-200 dark:border-slate-700">
+                  <tr>
+                    <td className="px-3 py-3 text-right" colSpan={columns.filter(c => c.type !== 'number').length + 1}>Total</td>
+                    {columns.map(col => {
+                      if (col.type === 'number') {
+                        return (
+                          <td key={col.id} className="px-3 py-3 text-right text-slate-800 dark:text-slate-200 font-mono text-[11px]">
+                            {totals[col.id]?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </td>
+                        );
+                      }
+                      return null;
+                    })}
+                    <td></td>
+                  </tr>
+                </tfoot>
+              )}
+            </table>
+          </div>
+        )}
 
         {entries.length > 0 && (
           <div className="mt-4 flex justify-between items-center bg-slate-100 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700">

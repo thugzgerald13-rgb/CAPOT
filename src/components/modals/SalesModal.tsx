@@ -5,7 +5,7 @@ import { formatTIN } from '../../lib/utils';
 import { Receipt, Search, Trash2, Plus, FolderClock } from 'lucide-react';
 
 export function SalesModal() {
-  const { currentClient, currentClientId, currentDat, saveClient, showToast } = useAccounting();
+  const { currentClient, currentClientId, currentDat, saveClient, showToast, activeDevice } = useAccounting();
   
   // Form State
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -208,46 +208,77 @@ export function SalesModal() {
           </div>
         </div>
 
-        <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Invoice #</th>
-                <th>Buyer TIN</th>
-                <th>Buyer Name</th>
-                <th className="text-right">Amount</th>
-                <th className="w-16"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredSales.map((sale) => (
-                <tr key={sale.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-colors">
-                  <td>{sale.date}</td>
-                  <td>{sale.ref || '—'}</td>
-                  <td className="font-mono text-xs">{sale.buyerTin || '—'}</td>
-                  <td className="font-medium">{sale.buyerName}</td>
-                  <td className="text-right font-bold">₱{sale.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                  <td className="text-center">
-                    <button 
-                      onClick={() => handleDelete(sale.id)}
-                      className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-              {filteredSales.length === 0 && (
+        {activeDevice === 'mobile' ? (
+          <div className="flex flex-col gap-3">
+            {filteredSales.map((sale) => (
+              <div key={sale.id} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-4 rounded-2xl flex flex-col gap-2 relative shadow-sm">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase py-0.5 px-2 bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 rounded-full inline-block mb-1">{sale.date}</span>
+                    <h5 className="font-bold text-slate-900 dark:text-slate-100">{sale.buyerName}</h5>
+                    <p className="text-xs text-slate-500 font-mono">TIN: {sale.buyerTin || '—'}</p>
+                    {sale.ref && <p className="text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 rounded-lg px-2 py-0.5 mt-1 inline-block">INV #: {sale.ref}</p>}
+                    {sale.desc && <p className="text-xs text-slate-400 mt-1 italic">"{sale.desc}"</p>}
+                  </div>
+                  <button 
+                    onClick={() => handleDelete(sale.id)}
+                    className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="border-t border-slate-200 dark:border-slate-700/60 pt-2.5 mt-1.5 flex justify-between items-center">
+                  <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Amount:</span>
+                  <span className="font-extrabold text-lg text-emerald-600 dark:text-emerald-400">₱{sale.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                </div>
+              </div>
+            ))}
+            {filteredSales.length === 0 && (
+              <div className="text-center py-8 text-slate-400 dark:text-slate-500">No income entries found.</div>
+            )}
+          </div>
+        ) : (
+          <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
+            <table className="data-table">
+              <thead>
                 <tr>
-                  <td colSpan={6} className="text-center py-8 text-slate-500 dark:text-slate-400">
-                    No sales records found.
-                  </td>
+                  <th>Date</th>
+                  <th>Invoice #</th>
+                  <th>Buyer TIN</th>
+                  <th>Buyer Name</th>
+                  <th className="text-right">Amount</th>
+                  <th className="w-16"></th>
                 </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {filteredSales.map((sale) => (
+                  <tr key={sale.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-colors">
+                    <td>{sale.date}</td>
+                    <td>{sale.ref || '—'}</td>
+                    <td className="font-mono text-xs">{sale.buyerTin || '—'}</td>
+                    <td className="font-medium">{sale.buyerName}</td>
+                    <td className="text-right font-bold">₱{sale.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                    <td className="text-center">
+                      <button 
+                        onClick={() => handleDelete(sale.id)}
+                        className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {filteredSales.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="text-center py-8 text-slate-500 dark:text-slate-400">
+                      No sales records found.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
         
         <div className="mt-6 bg-slate-100 dark:bg-slate-800 p-4 rounded-xl flex justify-between items-center">
           <span className="font-semibold text-slate-600 dark:text-slate-300">Total Income</span>
