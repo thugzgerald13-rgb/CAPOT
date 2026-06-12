@@ -772,16 +772,7 @@ export function ChartOfAccountsModal() {
                 >
                   <Edit2 className="w-3.5 h-3.5" />
                 </button>
-                <button
-                  onClick={() => {
-                    setRemarksModalAccount(account);
-                    setRemarksList(account.remarks || []);
-                  }}
-                  className="p-1 text-slate-400 hover:text-indigo-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-all"
-                  title="Remarks Configuration"
-                >
-                  <FileText className="w-3.5 h-3.5" />
-                </button>
+
                 <button 
                   onClick={() => {
                     setFormError(null);
@@ -1015,16 +1006,7 @@ export function ChartOfAccountsModal() {
               >
                 <Edit2 className="w-3.5 h-3.5" />
               </button>
-              <button
-                onClick={() => {
-                  setRemarksModalAccount(account);
-                  setRemarksList(account.remarks || []);
-                }}
-                className="p-1 text-slate-400 hover:text-indigo-505 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-all"
-                title="Remarks Configuration"
-              >
-                <FileText className="w-3.5 h-3.5" />
-              </button>
+
               <button 
                   onClick={() => handleDelete(account.id)}
                   className="p-1 text-slate-400 hover:text-red-550 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-all"
@@ -1044,31 +1026,7 @@ export function ChartOfAccountsModal() {
       <div className="p-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6 pb-4 border-b border-slate-100 dark:border-slate-800">
           <div>
-            <p className="text-slate-500 dark:text-slate-400 mb-2">Manage your QuickBooks-style general ledger, sub-accounts, and transaction mappings.</p>
-            <div className="relative inline-block" ref={presetsRef}>
-              <button 
-                onClick={() => setShowPresets(!showPresets)}
-                className="text-xs font-bold text-slate-600 dark:text-slate-300 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 px-3 py-1.5 rounded-lg flex items-center gap-2 transition-colors"
-              >
-                <RefreshCcw className="w-3 h-3" /> Reset / Choose Format
-              </button>
-              {showPresets && (
-                <div className="absolute top-full mt-2 left-0 w-48 bg-white dark:bg-slate-800 shadow-xl border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden z-20">
-                  <button 
-                    onClick={() => applyPreset('numeric')}
-                    className="w-full text-left px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm font-medium text-slate-700 dark:text-slate-300"
-                  >
-                    Numeric Code Format
-                  </button>
-                  <button 
-                    onClick={() => applyPreset('alphanumeric')}
-                    className="w-full text-left px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm font-medium text-slate-700 dark:text-slate-300"
-                  >
-                    Alphanumeric Format
-                  </button>
-                </div>
-              )}
-            </div>
+            <p className="text-slate-500 dark:text-slate-400">Manage your QuickBooks Online-style general ledger, sub-accounts, and classifications.</p>
           </div>
 
           <div className="flex flex-wrap items-center gap-3 shrink-0">
@@ -1400,99 +1358,8 @@ export function ChartOfAccountsModal() {
                     </div>
                   </div>
 
-                  {/* Interoperability / Advanced Accounting Mapping */}
-                  <details className="border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-3 rounded-lg shadow-xs group">
-                    <summary className="text-xs font-bold text-slate-600 dark:text-slate-350 cursor-pointer flex justify-between items-center select-none">
-                      <span>Advanced Auto-Posting & Interoperability Mappings</span>
-                      <span className="text-[10px] text-blue-500 font-normal group-open:hidden">Show Mappings</span>
-                      <span className="text-[10px] text-blue-500 font-normal hidden group-open:inline">Hide Mappings</span>
-                    </summary>
-                    
-                    <div className="mt-3.5 space-y-3.5 pt-3 border-t border-slate-200 dark:border-slate-800 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
-                      <div>
-                        <label className="block text-xs font-bold text-slate-600 mb-1">Dr/Cr Placement</label>
-                        <select 
-                          value={formDrOrCr} 
-                          onChange={e => setFormDrOrCr(e.target.value as 'Dr'|'Cr')} 
-                          className="w-full px-2 py-1 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white rounded focus:outline-none"
-                        >
-                          <option value="Dr">Dr</option>
-                          <option value="Cr">Cr</option>
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-bold text-slate-600 mb-1">Account Level</label>
-                        <select 
-                          value={formAccountLevel} 
-                          onChange={e => setFormAccountLevel(e.target.value as 'Main Account' | 'Sub Account')} 
-                          className="w-full px-2 py-1 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white rounded focus:outline-none"
-                        >
-                          <option value="Main Account">Main Account</option>
-                          <option value="Sub Account">Sub Account</option>
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-bold text-slate-600 mb-1">Account Category</label>
-                        <select 
-                          value={formCategory} 
-                          onChange={e => setFormCategory(e.target.value as 'B/S' | 'I/S')} 
-                          className="w-full px-2 py-1 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white rounded focus:outline-none"
-                        >
-                          <option value="B/S">B/S (Balance Sheet)</option>
-                          <option value="I/S">I/S (Income Statement)</option>
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-bold text-slate-600 mb-1">Auto-Posting Operation Type</label>
-                        <select 
-                          value={formOperationType} 
-                          onChange={e => setFormOperationType(e.target.value as 'Income' | 'Payment' | 'Deposit' | 'None')} 
-                          className="w-full px-2 py-1 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white rounded focus:outline-none"
-                        >
-                          <option value="None">None</option>
-                          <option value="Income">Income</option>
-                          <option value="Payment">Payment</option>
-                          <option value="Deposit">Deposit</option>
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-bold text-slate-600 mb-1">FS Mapping Field</label>
-                        <input 
-                          type="text" 
-                          value={formParentFS} 
-                          onChange={e => setFormParentFS(e.target.value)} 
-                          className="w-full px-2 py-1 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white rounded focus:outline-none"
-                          placeholder="e.g. Event Hosting Costs"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-bold text-slate-600 mb-1">Operating Mapping Field</label>
-                        <input 
-                          type="text" 
-                          value={formParentOp} 
-                          onChange={e => setFormParentOp(e.target.value)} 
-                          className="w-full px-2 py-1 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white rounded focus:outline-none"
-                          placeholder="e.g. Sales Mappings"
-                        />
-                      </div>
-
-                      <div className="sm:col-span-2">
-                        <label className="block text-xs font-bold text-slate-600 mb-1">Auto-Matching Keyword</label>
-                        <input 
-                          type="text" 
-                          value={formKeyword} 
-                          onChange={e => setFormKeyword(e.target.value)} 
-                          className="w-full px-2 py-1 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white rounded focus:outline-none"
-                          placeholder="Separate keywords with commas"
-                        />
-                      </div>
-                    </div>
-                  </details>
+                  {/* Spacer to match QBO styling */}
+                  <div className="pt-2" />
                 </div>
               </div>
 
@@ -1514,131 +1381,6 @@ export function ChartOfAccountsModal() {
                 >
                   Save Account
                 </button>
-              </div>
-
-            </div>
-          </div>
-        )}
-
-        {remarksModalAccount && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
-            <div className="bg-[#f0f4f8] dark:bg-slate-900 w-full max-w-sm shadow-2xl border border-slate-300 dark:border-slate-800 rounded-lg overflow-hidden flex flex-col font-sans">
-              <div className="bg-[#005fa3] dark:bg-indigo-950 px-3.5 py-2 flex items-center justify-between text-white border-b border-blue-600/30">
-                <div className="flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-blue-200" />
-                  <span className="text-xs sm:text-sm font-bold tracking-wide">Remarks List - {remarksModalAccount.id}</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <button 
-                    onClick={() => {
-                      setRemarksModalAccount(null);
-                      setRemarksList([]);
-                    }} 
-                    className="p-1 hover:bg-red-500/80 rounded transition-colors" 
-                    title="Close"
-                  >
-                    <X className="w-3.5 h-3.5 text-blue-200 hover:text-white" />
-                  </button>
-                </div>
-              </div>
-              <div className="bg-white dark:bg-slate-800 px-4 py-2.5 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
-                <div className="flex items-center gap-2 text-slate-800 dark:text-slate-100">
-                  <span className="text-sm font-bold">Remarks List</span>
-                </div>
-              </div>
-              
-              <div className="p-2 bg-[#f8fafc] dark:bg-slate-900 flex-1 overflow-y-auto max-h-[480px]">
-                <table className="w-full text-xs text-left border-collapse border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
-                  <thead className="bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
-                    <tr>
-                      <th className="p-2 border-r border-slate-200 dark:border-slate-700 w-16 text-center font-bold text-slate-500">Remarks Code</th>
-                      <th className="p-2 font-bold text-slate-500">Remarks Name</th>
-                      <th className="p-2 w-10"></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {remarksList.map((rm, idx) => (
-                      <tr key={idx} className="border-b border-slate-100 dark:border-slate-700 hover:bg-rose-50/50 dark:hover:bg-rose-950/20">
-                        <td className="p-1.5 border-r border-slate-200 dark:border-slate-700 text-center text-blue-600 dark:text-blue-400 font-medium">
-                          <input
-                            type="text"
-                            value={rm.code}
-                            onChange={e => {
-                              const newArr = [...remarksList];
-                              newArr[idx].code = e.target.value;
-                              setRemarksList(newArr);
-                            }}
-                            className="w-full text-center bg-transparent border border-transparent hover:border-slate-300 focus:border-blue-500 rounded px-1 py-0.5 outline-none"
-                            placeholder="01"
-                          />
-                        </td>
-                        <td className="p-1.5 text-slate-700 dark:text-slate-300">
-                          <input
-                            type="text"
-                            value={rm.name}
-                            onChange={e => {
-                              const newArr = [...remarksList];
-                              newArr[idx].name = e.target.value;
-                              setRemarksList(newArr);
-                            }}
-                            className="w-full bg-transparent border border-transparent hover:border-slate-300 focus:border-blue-500 rounded px-1 py-0.5 outline-none"
-                            placeholder="Company Dinner Expense"
-                          />
-                        </td>
-                        <td className="p-1.5 text-center">
-                          <button
-                            onClick={() => {
-                              setRemarksList(remarksList.filter((_, i) => i !== idx));
-                            }}
-                            className="text-red-500 hover:text-red-700"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              
-              <div className="bg-slate-50 dark:bg-slate-850 px-4 py-3 border-t border-slate-200 dark:border-slate-700 flex gap-2 justify-between">
-                <div>
-                   <button 
-                    onClick={() => {
-                      const nextCode = (remarksList.length + 1).toString().padStart(2, '0');
-                      setRemarksList([...remarksList, { code: nextCode, name: '' }]);
-                    }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[#005fa3] hover:bg-blue-700 text-white font-bold text-xs rounded shadow-xs transition-colors shrink-0"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    New
-                  </button>
-                </div>
-                <div className="flex gap-2">
-                  <button 
-                    onClick={() => {
-                      setRemarksList([]);
-                    }}
-                    className="px-3 py-1.5 bg-white hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-250 border border-slate-300 dark:border-slate-600 font-bold text-xs rounded transition-colors"
-                  >
-                    Clear All
-                  </button>
-                  <button 
-                    onClick={() => {
-                      const updatedAccounts = accounts.map(a => 
-                        a.id === remarksModalAccount.id 
-                          ? { ...a, remarks: remarksList.filter(r => r.code.trim() && r.name.trim()) } 
-                          : a
-                      );
-                      handleSaveAccounts(updatedAccounts);
-                      setRemarksModalAccount(null);
-                      setRemarksList([]);
-                    }}
-                    className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded shadow-xs transition-colors"
-                  >
-                    Save Remarks
-                  </button>
-                </div>
               </div>
 
             </div>
@@ -1687,22 +1429,7 @@ export function ChartOfAccountsModal() {
           </div>
         </div>
 
-        {missingTypes.length > 0 && (
-          <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-800">
-            <p className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-3">Restore Missing Main Accounts</p>
-            <div className="flex flex-wrap gap-2">
-              {missingTypes.map(type => (
-                <button
-                  key={type}
-                  onClick={() => handleRestoreMainAccount(type)}
-                  className="text-xs font-bold px-3 py-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-400 dark:hover:bg-indigo-900/50 rounded-lg flex items-center gap-1.5 transition-colors"
-                >
-                  <Plus className="w-3 h-3" /> {type}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+
       </div>
     </Modal>
   );
