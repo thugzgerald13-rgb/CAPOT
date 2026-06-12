@@ -280,6 +280,7 @@ export function ChartOfAccountsModal() {
         let adjustedOldId = editingId;
         const index = updatedAccounts.findIndex(a => a.id === adjustedOldId);
         if (index !== -1) {
+          const typeChanged = updatedAccounts[index].type !== newType;
           updatedAccounts[index] = {
             ...updatedAccounts[index],
             id: finalEditCode,
@@ -294,8 +295,8 @@ export function ChartOfAccountsModal() {
             parentAccountOp: formParentOp
           };
           
-          if (finalEditCode !== adjustedOldId) {
-            updatedAccounts = updateDescendants(updatedAccounts, adjustedOldId, finalEditCode);
+          if (finalEditCode !== adjustedOldId || (typeChanged && isMainAccount)) {
+            updatedAccounts = updateDescendants(updatedAccounts, adjustedOldId, finalEditCode, isMainAccount && typeChanged ? newType : undefined);
           }
         }
 
@@ -422,7 +423,7 @@ export function ChartOfAccountsModal() {
     }
   };
 
-  const updateDescendants = (accountsList: CoaAccount[], oldId: string, newId: string): CoaAccount[] => {
+  const updateDescendants = (accountsList: CoaAccount[], oldId: string, newId: string, parentNewType?: string): CoaAccount[] => {
     // Collect all descendants of oldId to process (arbitrary depth)
     const descendants = new Set<string>();
     let added = true;
@@ -448,6 +449,7 @@ export function ChartOfAccountsModal() {
 
       let rId = a.id;
       let rParentId = a.parentId;
+      let rType = a.type;
 
       if (descendants.has(a.id)) {
         if (a.parentId === oldId) {
@@ -461,12 +463,17 @@ export function ChartOfAccountsModal() {
         if (a.parentId && a.parentId !== oldId && a.parentId.startsWith(oldPrefix)) {
           rParentId = newPrefix + a.parentId.slice(oldPrefix.length);
         }
+
+        if (parentNewType) {
+          rType = parentNewType;
+        }
       }
 
       return {
         ...a,
         id: rId,
-        parentId: rParentId
+        parentId: rParentId,
+        type: rType
       };
     });
   };
@@ -753,23 +760,48 @@ export function ChartOfAccountsModal() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
-            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1.5 whitespace-nowrap">
-              <Filter className="w-3.5 h-3.5" /> Filter Type:
-            </span>
-            <select
-              id="coa-type-filter"
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              className="form-select text-xs font-medium border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg py-1.5 px-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400"
+          <div className="flex flex-wrap items-center gap-3 shrink-0">
+            <button
+              onClick={() => {
+                setFormError(null);
+                setAddingParentId(undefined);
+                setEditingId(null);
+                setIdPrefix('');
+                setIdSuffix('');
+                setSuffixPlaceholder('');
+                setNewName('');
+                setNewType(typeFilter !== 'All' ? typeFilter : 'Assets');
+                setFormKeyword('');
+                setFormDrOrCr('Dr');
+                setFormAccountLevel('Main Account');
+                setFormCategory('B/S');
+                setFormOperationType('None');
+                setFormParentFS('');
+                setFormParentOp('');
+                setIsAdding(true);
+              }}
+              className="text-xs font-bold bg-[#005fa3] text-white px-3 py-1.5 rounded-lg flex items-center gap-1.5 hover:bg-blue-700 transition-colors"
             >
-              <option value="All">All Types</option>
-              {ACCOUNT_TYPES.map((type) => (
-                <option key={type} value={type}>
-                  {type} Only
-                </option>
-              ))}
-            </select>
+              <Plus className="w-4 h-4" /> Add Account
+            </button>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1.5 whitespace-nowrap">
+                <Filter className="w-3.5 h-3.5" /> Filter:
+              </span>
+              <select
+                id="coa-type-filter"
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value)}
+                className="form-select text-xs font-medium border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg py-1.5 px-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400"
+              >
+                <option value="All">All Types</option>
+                {ACCOUNT_TYPES.map((type) => (
+                  <option key={type} value={type}>
+                    {type}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
 
@@ -835,14 +867,10 @@ export function ChartOfAccountsModal() {
                         )}
                         <input 
                           type="text" 
-                          maxLength={Math.max(1, 7 - (idPrefix ? idPrefix.length : 0))}
+                          maxLength={15}
                           value={idSuffix} 
                           onChange={e => {
                             let val = e.target.value.replace(/[^0-9A-Za-z_-]/g, '');
-                            const totalLengthAllowed = 7;
-                            const currentPrefixLength = idPrefix ? idPrefix.length : 0;
-                            const maxLen = totalLengthAllowed - currentPrefixLength;
-                            val = val.slice(0, Math.max(1, maxLen));
                             setIdSuffix(val);
                           }}
                           onKeyDown={e => {
@@ -859,7 +887,7 @@ export function ChartOfAccountsModal() {
                             "w-full px-2.5 py-1 text-xs sm:text-sm border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white font-mono rounded focus:ring-1 focus:ring-blue-500 focus:outline-none focus:border-blue-500",
                             idPrefix ? "rounded-l-none" : ""
                           )}
-                          placeholder={suffixPlaceholder || "8400"}
+                          placeholder={suffixPlaceholder || (currentClient.coaFormat === 'alphanumeric' ? "A-100" : "8400")}
                         />
                       </div>
                     </div>
@@ -876,6 +904,23 @@ export function ChartOfAccountsModal() {
                         className="flex-1 px-2.5 py-1 text-xs sm:text-sm border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white rounded focus:ring-1 focus:ring-blue-500 focus:outline-none focus:border-blue-500"
                         placeholder="Events Expenses"
                       />
+                    </div>
+
+                    {/* Account Type row */}
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                      <label className="text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-300 sm:w-28 shrink-0">
+                        Account Type
+                      </label>
+                      <select 
+                        value={newType} 
+                        onChange={e => setNewType(e.target.value)} 
+                        disabled={!!addingParentId || (!!editingId && accounts.find(a => a.id === editingId)?.parentId != null)}
+                        className="flex-1 px-2.5 py-1 text-xs sm:text-sm border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white rounded focus:ring-1 focus:ring-blue-500 focus:outline-none focus:border-blue-500 disabled:opacity-50 disabled:bg-slate-100 dark:disabled:bg-slate-800/50"
+                      >
+                        {['Assets', 'Liabilities', 'Equity', 'Income', 'Costs', 'Expenses'].map(t => (
+                          <option key={t} value={t}>{t}</option>
+                        ))}
+                      </select>
                     </div>
                   </div>
                 </div>
