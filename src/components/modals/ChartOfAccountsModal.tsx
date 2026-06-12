@@ -813,7 +813,7 @@ export function ChartOfAccountsModal() {
               <div className="bg-[#005fa3] dark:bg-indigo-950 px-3.5 py-2 flex items-center justify-between text-white border-b border-blue-600/30">
                 <div className="flex items-center gap-2">
                   <CreditCard className="w-4 h-4 text-blue-200" />
-                  <span className="text-xs sm:text-sm font-bold tracking-wide">{editingId ? "Edit Account" : "Add Account"}</span>
+                  <span className="text-xs sm:text-sm font-bold tracking-wide">{editingId ? "Edit Account" : (addingParentId ? "Add Sub-account" : "Add Account")}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <button 
@@ -921,6 +921,110 @@ export function ChartOfAccountsModal() {
                           <option key={t} value={t}>{t}</option>
                         ))}
                       </select>
+                    </div>
+
+                    {/* Dr/Cr row */}
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                      <label className="text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-300 sm:w-28 shrink-0">
+                        Dr/Cr
+                      </label>
+                      <select 
+                        value={formDrOrCr} 
+                        onChange={e => setFormDrOrCr(e.target.value as 'Dr'|'Cr')} 
+                        className="flex-1 px-2.5 py-1 text-xs sm:text-sm border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white rounded focus:ring-1 focus:ring-blue-500 focus:outline-none focus:border-blue-500"
+                      >
+                        <option value="Dr">Dr</option>
+                        <option value="Cr">Cr</option>
+                      </select>
+                    </div>
+
+                    {/* Account Level row */}
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                      <label className="text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-300 sm:w-28 shrink-0">
+                        Account Level
+                      </label>
+                      <select 
+                        value={formAccountLevel} 
+                        onChange={e => setFormAccountLevel(e.target.value as 'Main Account' | 'Sub Account')} 
+                        disabled={!!addingParentId || (!!editingId && accounts.find(a => a.id === editingId)?.parentId != null)}
+                        className="flex-1 px-2.5 py-1 text-xs sm:text-sm border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white rounded focus:ring-1 focus:ring-blue-500 focus:outline-none focus:border-blue-500 disabled:opacity-50 disabled:bg-slate-100 dark:disabled:bg-slate-800/50"
+                      >
+                        <option value="Main Account">Main Account</option>
+                        <option value="Sub Account">Sub Account</option>
+                      </select>
+                    </div>
+
+                    {/* Account Keyword row */}
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                      <label className="text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-300 sm:w-28 shrink-0">
+                        Account Keyword
+                      </label>
+                      <input 
+                        type="text" 
+                        value={formKeyword} 
+                        onChange={e => setFormKeyword(e.target.value)} 
+                        className="flex-1 px-2.5 py-1 text-xs sm:text-sm border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white rounded focus:ring-1 focus:ring-blue-500 focus:outline-none focus:border-blue-500"
+                        placeholder="Keyword"
+                      />
+                    </div>
+
+                    {/* Account Category row */}
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                      <label className="text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-300 sm:w-28 shrink-0">
+                        Category
+                      </label>
+                      <select 
+                        value={formCategory} 
+                        onChange={e => setFormCategory(e.target.value as 'B/S' | 'I/S')} 
+                        className="flex-1 px-2.5 py-1 text-xs sm:text-sm border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white rounded focus:ring-1 focus:ring-blue-500 focus:outline-none focus:border-blue-500"
+                      >
+                        <option value="B/S">B/S (Balance Sheet)</option>
+                        <option value="I/S">I/S (Income Statement)</option>
+                      </select>
+                    </div>
+
+                    {/* Operation Type row */}
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                      <label className="text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-300 sm:w-28 shrink-0">
+                        Operation Type
+                      </label>
+                      <select 
+                        value={formOperationType} 
+                        onChange={e => setFormOperationType(e.target.value as 'Income' | 'Payment' | 'None')} 
+                        className="flex-1 px-2.5 py-1 text-xs sm:text-sm border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white rounded focus:ring-1 focus:ring-blue-500 focus:outline-none focus:border-blue-500"
+                      >
+                        <option value="None">None</option>
+                        <option value="Income">Income</option>
+                        <option value="Payment">Payment</option>
+                      </select>
+                    </div>
+
+                    {/* Parent Account FS row */}
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                      <label className="text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-300 sm:w-28 shrink-0">
+                        Parent Acct (FS)
+                      </label>
+                      <input 
+                        type="text" 
+                        value={formParentFS} 
+                        onChange={e => setFormParentFS(e.target.value)} 
+                        className="flex-1 px-2.5 py-1 text-xs sm:text-sm border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white rounded focus:ring-1 focus:ring-blue-500 focus:outline-none focus:border-blue-500"
+                        placeholder="Parent FS..."
+                      />
+                    </div>
+
+                    {/* Parent Account Operating row */}
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                      <label className="text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-300 sm:w-28 shrink-0">
+                        Parent Acct (Op)
+                      </label>
+                      <input 
+                        type="text" 
+                        value={formParentOp} 
+                        onChange={e => setFormParentOp(e.target.value)} 
+                        className="flex-1 px-2.5 py-1 text-xs sm:text-sm border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white rounded focus:ring-1 focus:ring-blue-500 focus:outline-none focus:border-blue-500"
+                        placeholder="Parent Operating..."
+                      />
                     </div>
                   </div>
                 </div>
