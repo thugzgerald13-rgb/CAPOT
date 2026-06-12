@@ -580,7 +580,7 @@ export function ChartOfAccountsModal() {
               </>
             </div>
             
-            <div className="flex items-center gap-1.5 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity shrink-0 ml-auto mr-1">
+            <div className="flex items-center gap-1.5 opacity-100 transition-opacity shrink-0 ml-auto mr-1">
               <>
                 <button
                   onClick={() => {
@@ -914,8 +914,7 @@ export function ChartOfAccountsModal() {
                       <select 
                         value={newType} 
                         onChange={e => setNewType(e.target.value)} 
-                        disabled={!!addingParentId || (!!editingId && accounts.find(a => a.id === editingId)?.parentId != null)}
-                        className="flex-1 px-2.5 py-1 text-xs sm:text-sm border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white rounded focus:ring-1 focus:ring-blue-500 focus:outline-none focus:border-blue-500 disabled:opacity-50 disabled:bg-slate-100 dark:disabled:bg-slate-800/50"
+                        className="flex-1 px-2.5 py-1 text-xs sm:text-sm border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white rounded focus:ring-1 focus:ring-blue-500 focus:outline-none focus:border-blue-500"
                       >
                         {['Assets', 'Liabilities', 'Equity', 'Income', 'Costs', 'Expenses'].map(t => (
                           <option key={t} value={t}>{t}</option>
@@ -946,8 +945,7 @@ export function ChartOfAccountsModal() {
                       <select 
                         value={formAccountLevel} 
                         onChange={e => setFormAccountLevel(e.target.value as 'Main Account' | 'Sub Account')} 
-                        disabled={!!addingParentId || (!!editingId && accounts.find(a => a.id === editingId)?.parentId != null)}
-                        className="flex-1 px-2.5 py-1 text-xs sm:text-sm border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white rounded focus:ring-1 focus:ring-blue-500 focus:outline-none focus:border-blue-500 disabled:opacity-50 disabled:bg-slate-100 dark:disabled:bg-slate-800/50"
+                        className="flex-1 px-2.5 py-1 text-xs sm:text-sm border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white rounded focus:ring-1 focus:ring-blue-500 focus:outline-none focus:border-blue-500"
                       >
                         <option value="Main Account">Main Account</option>
                         <option value="Sub Account">Sub Account</option>
