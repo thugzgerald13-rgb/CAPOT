@@ -54,8 +54,12 @@ export function resequenceAccounts(
 
   if (isAlpha) {
     const result: CoaAccount[] = [];
+    const visited = new Set<string>();
 
     const processChildrenAlphaRecursive = (oldParentId: string, newParentId: string) => {
+      if (visited.has(oldParentId)) return;
+      visited.add(oldParentId);
+
       const children = accountsList
         .filter(a => a.parentId === oldParentId)
         .sort((a, b) => {
@@ -100,6 +104,7 @@ export function resequenceAccounts(
   } else {
     // Numeric
     const result: CoaAccount[] = [];
+    const visited = new Set<string>();
 
     const rootAccounts = accountsList
       .filter(a => !a.parentId)
@@ -111,6 +116,9 @@ export function resequenceAccounts(
       });
 
     const processChildrenNumericRecursive = (oldParentId: string, newParentId: string) => {
+      if (visited.has(oldParentId)) return;
+      visited.add(oldParentId);
+
       const children = accountsList
         .filter(a => a.parentId === oldParentId)
         .sort((a, b) => a.id.localeCompare(b.id));
@@ -222,60 +230,94 @@ export function ChartOfAccountsModal() {
   };
 
   const handleAddAccount = () => {
-    setFormError(null);
-    const isNumericFormat = !currentClient.coaFormat || currentClient.coaFormat === 'numeric';
-    const computedId = (idPrefix + (isNumericFormat ? idSuffix.padEnd(suffixPlaceholder.length, '0') : idSuffix)).replace(/[^0-9A-Za-z_-]/g, '');
-    
-    if (!idSuffix.trim() || !newName) {
-      setFormError("Please fill out Account Code and Name.");
-      return;
-    }
-
-    if (editingId) {
-      // Editing Mode
-      const editedAccount = accounts.find(a => a.id === editingId);
-      const isMainAccount = editedAccount && !editedAccount.parentId;
+    try {
+      setFormError(null);
+      const isNumericFormat = !currentClient.coaFormat || currentClient.coaFormat === 'numeric';
+      const computedId = (idPrefix + (isNumericFormat ? idSuffix.padEnd(suffixPlaceholder.length, '0') : idSuffix)).replace(/[^0-9A-Za-z_-]/g, '');
       
-      let finalEditCode = computedId.replace(/[^0-9A-Za-z_-]/g, '');
-      const hasLetters = /[A-Za-z_-]/.test(finalEditCode);
-      const isNumeric = !hasLetters && isNumericFormat;
-
-      if (finalEditCode.length === 0) {
-        setFormError("Account Code cannot be empty.");
+      if (!idSuffix.trim() || !newName) {
+        setFormError("Please fill out Account Code and Name.");
         return;
       }
 
-      if (isNumeric) {
-        if (!isMainAccount) {
-          // Sub-account must start with its parent prefix to maintain integrity
-          if (editedAccount?.parentId) {
-            const parentAccount = accounts.find(a => a.id === editedAccount.parentId);
-            if (parentAccount) {
-              const parentPrefix = getParentPrefix(parentAccount.id);
-              if (!finalEditCode.startsWith(parentPrefix)) {
-                setFormError(`Sub-account code must start with its parent prefix: "${parentPrefix}"`);
-                return;
+      if (editingId) {
+        // Editing Mode
+        const editedAccount = accounts.find(a => a.id === editingId);
+        const isMainAccount = editedAccount && !editedAccount.parentId;
+        
+        let finalEditCode = computedId.replace(/[^0-9A-Za-z_-]/g, '');
+        const hasLetters = /[A-Za-z_-]/.test(finalEditCode);
+        const isNumeric = !hasLetters && isNumericFormat;
+
+        if (finalEditCode.length === 0) {
+          setFormError("Account Code cannot be empty.");
+          return;
+        }
+
+        if (isNumeric) {
+          if (!isMainAccount) {
+            // Sub-account must start with its parent prefix to maintain integrity
+            if (editedAccount?.parentId) {
+              const parentAccount = accounts.find(a => a.id === editedAccount.parentId);
+              if (parentAccount) {
+                const parentPrefix = getParentPrefix(parentAccount.id);
+                if (!finalEditCode.startsWith(parentPrefix)) {
+                  setFormError(`Sub-account code must start with its parent prefix: "${parentPrefix}"`);
+                  return;
+                }
               }
             }
           }
         }
-      }
 
-      if (finalEditCode !== editingId && accounts.some(a => a.id === finalEditCode)) {
-         setFormError("An account with this code already exists!");
-         return;
-      }
+        if (finalEditCode !== editingId && accounts.some(a => a.id === finalEditCode)) {
+           setFormError("An account with this code already exists!");
+           return;
+        }
 
-      let updatedAccounts = [...accounts];
+        let updatedAccounts = [...accounts];
 
-      let adjustedOldId = editingId;
-      const index = updatedAccounts.findIndex(a => a.id === adjustedOldId);
-      if (index !== -1) {
-        updatedAccounts[index] = {
-          ...updatedAccounts[index],
-          id: finalEditCode,
+        let adjustedOldId = editingId;
+        const index = updatedAccounts.findIndex(a => a.id === adjustedOldId);
+        if (index !== -1) {
+          updatedAccounts[index] = {
+            ...updatedAccounts[index],
+            id: finalEditCode,
+            name: newName,
+            type: newType,
+            keyword: formKeyword,
+            drOrCr: formDrOrCr,
+            accountLevel: formAccountLevel,
+            accountCategory: formCategory,
+            operationType: formOperationType,
+            parentAccountFS: formParentFS,
+            parentAccountOp: formParentOp
+          };
+          
+          if (finalEditCode !== adjustedOldId) {
+            updatedAccounts = updateDescendants(updatedAccounts, adjustedOldId, finalEditCode);
+          }
+        }
+
+        handleSaveAccounts(updatedAccounts);
+      } else {
+        // Adding Mode
+        if (accounts.some(a => a.id === computedId)) {
+          setFormError(`An account with the code "${computedId}" already exists!`);
+          return;
+        }
+
+        let finalType = newType;
+        if (addingParentId) {
+          const parent = accounts.find(a => a.id === addingParentId);
+          if (parent) finalType = parent.type;
+        }
+
+        const newAccountObj: CoaAccount = {
+          id: computedId,
           name: newName,
-          type: newType,
+          type: finalType,
+          parentId: addingParentId,
           keyword: formKeyword,
           drOrCr: formDrOrCr,
           accountLevel: formAccountLevel,
@@ -284,60 +326,31 @@ export function ChartOfAccountsModal() {
           parentAccountFS: formParentFS,
           parentAccountOp: formParentOp
         };
-        
-        if (finalEditCode !== adjustedOldId) {
-          updatedAccounts = updateDescendants(updatedAccounts, adjustedOldId, finalEditCode);
-        }
+
+        const updatedAccounts = [...accounts, newAccountObj];
+        handleSaveAccounts(updatedAccounts);
       }
 
-      handleSaveAccounts(updatedAccounts);
-    } else {
-      // Adding Mode
-      if (accounts.some(a => a.id === computedId)) {
-        setFormError(`An account with the code "${computedId}" already exists!`);
-        return;
-      }
+      setIsAdding(false);
+      setEditingId(null);
+      setIdPrefix('');
+      setIdSuffix('');
+      setSuffixPlaceholder('');
+      setNewName('');
+      setAddingParentId(undefined);
 
-      let finalType = newType;
-      if (addingParentId) {
-        const parent = accounts.find(a => a.id === addingParentId);
-        if (parent) finalType = parent.type;
-      }
-
-      const newAccountObj: CoaAccount = {
-        id: computedId,
-        name: newName,
-        type: finalType,
-        parentId: addingParentId,
-        keyword: formKeyword,
-        drOrCr: formDrOrCr,
-        accountLevel: formAccountLevel,
-        accountCategory: formCategory,
-        operationType: formOperationType,
-        parentAccountFS: formParentFS,
-        parentAccountOp: formParentOp
-      };
-
-      const updatedAccounts = [...accounts, newAccountObj];
-      handleSaveAccounts(updatedAccounts);
+      // Reset fields
+      setFormKeyword('');
+      setFormDrOrCr('Dr');
+      setFormAccountLevel('Sub Account');
+      setFormCategory('I/S');
+      setFormOperationType('None');
+      setFormParentFS('');
+      setFormParentOp('');
+    } catch (err: any) {
+      console.error("Error in handleAddAccount:", err);
+      setFormError(err.message || String(err));
     }
-
-    setIsAdding(false);
-    setEditingId(null);
-    setIdPrefix('');
-    setIdSuffix('');
-    setSuffixPlaceholder('');
-    setNewName('');
-    setAddingParentId(undefined);
-
-    // Reset fields
-    setFormKeyword('');
-    setFormDrOrCr('Dr');
-    setFormAccountLevel('Sub Account');
-    setFormCategory('I/S');
-    setFormOperationType('None');
-    setFormParentFS('');
-    setFormParentOp('');
   };
 
   const handleDelete = (id: string) => {
@@ -410,27 +423,52 @@ export function ChartOfAccountsModal() {
   };
 
   const updateDescendants = (accountsList: CoaAccount[], oldId: string, newId: string): CoaAccount[] => {
-    let currentList = [...accountsList];
-    
-    // For numeric formats, the logical prefix excludes trailing zeros (e.g., 8000 -> 8).
-    // For alphanumeric formats, the prefix is the entire ID string (e.g., A-101 -> A-101).
+    // Collect all descendants of oldId to process (arbitrary depth)
+    const descendants = new Set<string>();
+    let added = true;
+    const parentIds = new Set([oldId]);
+
+    while (added) {
+      added = false;
+      accountsList.forEach(a => {
+        if (a.parentId && parentIds.has(a.parentId) && !descendants.has(a.id)) {
+          descendants.add(a.id);
+          parentIds.add(a.id);
+          added = true;
+        }
+      });
+    }
+
     const isNumeric = !currentClient.coaFormat || currentClient.coaFormat === 'numeric';
     const oldPrefix = isNumeric ? oldId.replace(/0+$/, '') : oldId;
     const newPrefix = isNumeric ? newId.replace(/0+$/, '') : newId;
 
-    const children = currentList.filter(a => a.parentId === oldId);
-    for (const child of children) {
-      let childNewId = child.id;
-      if (childNewId.startsWith(oldPrefix)) {
-        childNewId = newPrefix + childNewId.slice(oldPrefix.length);
+    return accountsList.map(a => {
+      if (a.id === oldId) return a;
+
+      let rId = a.id;
+      let rParentId = a.parentId;
+
+      if (descendants.has(a.id)) {
+        if (a.parentId === oldId) {
+          rParentId = newId;
+        }
+        
+        if (a.id.startsWith(oldPrefix)) {
+          rId = newPrefix + a.id.slice(oldPrefix.length);
+        }
+        
+        if (a.parentId && a.parentId !== oldId && a.parentId.startsWith(oldPrefix)) {
+          rParentId = newPrefix + a.parentId.slice(oldPrefix.length);
+        }
       }
-      
-      const index = currentList.findIndex(a => a.id === child.id);
-      currentList[index] = { ...currentList[index], id: childNewId, parentId: newId };
-      
-      currentList = updateDescendants(currentList, child.id, childNewId);
-    }
-    return currentList;
+
+      return {
+        ...a,
+        id: rId,
+        parentId: rParentId
+      };
+    });
   };
 
   const toggleExpand = (id: string) => {
@@ -536,6 +574,8 @@ export function ChartOfAccountsModal() {
               <>
                 <button
                   onClick={() => {
+                    setFormError(null);
+                    setAddingParentId(undefined);
                     setEditingId(account.id);
                     setNewName(account.name);
                     setIdPrefix('');
@@ -558,6 +598,10 @@ export function ChartOfAccountsModal() {
                 </button>
                   <button 
                     onClick={() => {
+                      setFormError(null);
+                      setEditingId(null);
+                      setNewName('');
+                      
                       setAddingParentId(account.id);
                       setNewType(account.type);
                       
@@ -574,11 +618,11 @@ export function ChartOfAccountsModal() {
                         const zeroCount = placeholder.length;
                         
                         const childNums = children
-                          .map(c => c.id.substring(prefix.length))
-                          .filter(s => s.length === zeroCount)
-                          .map(s => parseInt(s, 10))
-                          .filter(n => !isNaN(n));
-                          
+                           .map(c => c.id.substring(prefix.length))
+                           .filter(s => s.length === zeroCount)
+                           .map(s => parseInt(s, 10))
+                           .filter(n => !isNaN(n));
+                           
                         let step = Math.pow(10, Math.max(0, zeroCount - 1));
                         if (step < 1) step = 1;
                         let nextNum = step;
@@ -596,10 +640,10 @@ export function ChartOfAccountsModal() {
                           placeholder = "100";
                           
                           const childNums = children
-                            .map(c => c.id.substring(prefix.length))
-                            .map(s => parseInt(s, 10))
-                            .filter(n => !isNaN(n));
-                            
+                             .map(c => c.id.substring(prefix.length))
+                             .map(s => parseInt(s, 10))
+                             .filter(n => !isNaN(n));
+                             
                           let step = 100;
                           if (childNums.length > 0 && Math.min(...childNums) < 100) step = 10;
                           
@@ -614,11 +658,11 @@ export function ChartOfAccountsModal() {
                           placeholder = "01";
                           
                           const childNums = children
-                            .map(c => c.id.substring(prefix.length))
-                            .filter(s => /^\d+$/.test(s))
-                            .map(s => parseInt(s, 10))
-                            .filter(n => !isNaN(n));
-                            
+                             .map(c => c.id.substring(prefix.length))
+                             .filter(s => /^\d+$/.test(s))
+                             .map(s => parseInt(s, 10))
+                             .filter(n => !isNaN(n));
+                             
                           let nextNum = 1;
                           if (childNums.length > 0) {
                             nextNum = Math.max(...childNums) + 1;
@@ -630,6 +674,15 @@ export function ChartOfAccountsModal() {
                       setIdPrefix(prefix);
                       setIdSuffix(suggestedSuffix);
                       setSuffixPlaceholder(placeholder);
+                      
+                      setFormKeyword('');
+                      setFormDrOrCr(account.drOrCr || (['Assets', 'Costs', 'Expenses'].includes(account.type) ? 'Dr' : 'Cr'));
+                      setFormAccountLevel('Sub Account');
+                      setFormCategory(['Income', 'Expenses', 'Costs'].includes(account.type) ? 'I/S' : 'B/S');
+                      setFormOperationType(account.type === 'Income' ? 'Income' : account.type === 'Expenses' ? 'Payment' : 'None');
+                      setFormParentFS(account.name);
+                      setFormParentOp('');
+                      
                       setIsAdding(true);
                     }}
                     className="text-[10px] sm:text-xs px-1.5 py-1 sm:px-2 bg-cyan-100 hover:bg-cyan-200 text-cyan-700 rounded-lg flex items-center gap-1 transition-colors"
