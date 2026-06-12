@@ -168,7 +168,6 @@ export function ChartOfAccountsModal() {
 
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  const [activeFormTab, setActiveFormTab] = useState<'General' | 'Code Info.' | 'Display Method'>('General');
   const [formKeyword, setFormKeyword] = useState('');
   const [formDrOrCr, setFormDrOrCr] = useState<'Dr' | 'Cr'>('Dr');
   const [formAccountLevel, setFormAccountLevel] = useState('Sub Account');
@@ -550,7 +549,6 @@ export function ChartOfAccountsModal() {
                     setFormOperationType(account.operationType || (account.type === 'Income' ? 'Income' : account.type === 'Expenses' ? 'Payment' : 'None'));
                     setFormParentFS(account.parentAccountFS || (account.parentId ? (accounts.find(a => a.id === account.parentId)?.name || '') : ''));
                     setFormParentOp(account.parentAccountOp || '');
-                    setActiveFormTab('General');
                     setIsAdding(true);
                   }}
                   className="p-1.5 text-blue-500 hover:bg-blue-100 dark:hover:bg-blue-900/40 rounded-lg transition-colors"
@@ -744,35 +742,6 @@ export function ChartOfAccountsModal() {
                 </div>
               </div>
 
-              {/* Angle Physical Folder Tabs */}
-              <div className="bg-slate-100 dark:bg-slate-800/60 px-4 pt-3 flex items-end gap-1.5 overflow-x-auto border-b border-slate-300 dark:border-slate-700">
-                {['General', 'Code Info.', 'Display Method'].map((tabName) => {
-                  const isActive = activeFormTab === tabName;
-                  return (
-                    <button
-                      key={tabName}
-                      type="button"
-                      onClick={() => setActiveFormTab(tabName as any)}
-                      className={cn(
-                        "relative px-5 py-2 text-xs font-black tracking-wider uppercase transition-all shrink-0 focus:outline-none",
-                        isActive ? "text-white z-10" : "text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
-                      )}
-                    >
-                      <div
-                        className={cn(
-                          "absolute inset-0 rounded-t-md -z-10 border-t border-r border-l",
-                          isActive 
-                            ? "bg-[#005fa3] dark:bg-blue-700 border-blue-600 shadow-xs" 
-                            : "bg-[#e2e8f0]/80 dark:bg-slate-800/80 border-slate-300 dark:border-slate-600"
-                        )}
-                        style={{ transform: 'skewX(-15deg)', originX: 0.5 }}
-                      />
-                      <span className="relative z-10 block font-bold">{tabName}</span>
-                    </button>
-                  );
-                })}
-              </div>
-
               {formError && (
                 <div className="bg-red-50 dark:bg-red-900/30 border-l-4 border-red-500 p-2.5 mx-4 mt-3 mb-1 shadow-sm">
                   <div className="flex">
@@ -793,288 +762,234 @@ export function ChartOfAccountsModal() {
               {/* Form Content Area */}
               <div className="p-4 bg-[#f8fafc] dark:bg-slate-900 flex-1 overflow-y-auto max-h-[480px]">
                 
-                {activeFormTab === 'General' && (
-                  <div className="space-y-4">
-                    {/* Pink highlighted border around Account Code & Name (matching image highlight) */}
-                    <div className="border border-rose-300 dark:border-rose-950 bg-rose-50/10 dark:bg-rose-950/5 p-4 rounded-lg space-y-3.5 shadow-xs">
-                      
-                      {/* Account Code row */}
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                        <label className="text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-300 sm:w-28 shrink-0">
-                          Account Code
-                        </label>
-                        <div className="flex items-center flex-1">
-                          {idPrefix && (
-                            <span className="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 border-r-0 rounded-l text-slate-500 font-mono text-xs font-bold leading-relaxed shrink-0">
-                              {idPrefix}
-                            </span>
-                          )}
-                          <input 
-                            type="text" 
-                            maxLength={Math.max(1, 7 - (idPrefix ? idPrefix.length : 0))}
-                            value={idSuffix} 
-                            onChange={e => {
-                              let val = e.target.value.replace(/[^0-9A-Za-z_-]/g, '');
-                              const totalLengthAllowed = 7;
-                              const currentPrefixLength = idPrefix ? idPrefix.length : 0;
-                              const maxLen = totalLengthAllowed - currentPrefixLength;
-                              val = val.slice(0, Math.max(1, maxLen));
-                              setIdSuffix(val);
-                            }}
-                            onKeyDown={e => {
-                              if (e.key === 'Enter') handleAddAccount();
-                            }}
-                            onBlur={() => {
-                              if (!currentClient.coaFormat || currentClient.coaFormat === 'numeric') {
-                                if (idSuffix.length < suffixPlaceholder.length && idSuffix.length > 0) {
-                                  setIdSuffix(idSuffix.padEnd(suffixPlaceholder.length, '0'));
-                                }
-                              }
-                            }}
-                            className={cn(
-                              "w-full px-2.5 py-1 text-xs sm:text-sm border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white font-mono rounded focus:ring-1 focus:ring-blue-500 focus:outline-none focus:border-blue-500",
-                              idPrefix ? "rounded-l-none" : ""
-                            )}
-                            placeholder={suffixPlaceholder || "8400"}
-                          />
-                        </div>
-                      </div>
-
-                      {/* Account Name row */}
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                        <label className="text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-300 sm:w-28 shrink-0">
-                          Account Name
-                        </label>
+                <div className="space-y-4">
+                  {/* Pink highlighted border around Account Code & Name (matching image highlight) */}
+                  <div className="border border-rose-300 dark:border-rose-950 bg-rose-50/10 dark:bg-rose-950/5 p-4 rounded-lg space-y-3.5 shadow-xs">
+                    
+                    {/* Account Code row */}
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                      <label className="text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-300 sm:w-28 shrink-0">
+                        Account Code
+                      </label>
+                      <div className="flex items-center flex-1">
+                        {idPrefix && (
+                          <span className="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 border-r-0 rounded-l text-slate-500 font-mono text-xs font-bold leading-relaxed shrink-0">
+                            {idPrefix}
+                          </span>
+                        )}
                         <input 
                           type="text" 
-                          value={newName} 
-                          onChange={e => setNewName(e.target.value)} 
-                          className="flex-1 px-2.5 py-1 text-xs sm:text-sm border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white rounded focus:ring-1 focus:ring-blue-500 focus:outline-none focus:border-blue-500"
-                          placeholder="Events Expenses"
+                          maxLength={Math.max(1, 7 - (idPrefix ? idPrefix.length : 0))}
+                          value={idSuffix} 
+                          onChange={e => {
+                            let val = e.target.value.replace(/[^0-9A-Za-z_-]/g, '');
+                            const totalLengthAllowed = 7;
+                            const currentPrefixLength = idPrefix ? idPrefix.length : 0;
+                            const maxLen = totalLengthAllowed - currentPrefixLength;
+                            val = val.slice(0, Math.max(1, maxLen));
+                            setIdSuffix(val);
+                          }}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') handleAddAccount();
+                          }}
+                          onBlur={() => {
+                            if (!currentClient.coaFormat || currentClient.coaFormat === 'numeric') {
+                              if (idSuffix.length < suffixPlaceholder.length && idSuffix.length > 0) {
+                                setIdSuffix(idSuffix.padEnd(suffixPlaceholder.length, '0'));
+                              }
+                            }
+                          }}
+                          className={cn(
+                            "w-full px-2.5 py-1 text-xs sm:text-sm border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white font-mono rounded focus:ring-1 focus:ring-blue-500 focus:outline-none focus:border-blue-500",
+                            idPrefix ? "rounded-l-none" : ""
+                          )}
+                          placeholder={suffixPlaceholder || "8400"}
                         />
                       </div>
                     </div>
 
-                    {/* Outside highlight cards */}
-                    <div className="space-y-3.5 p-1">
-                      {/* Keyword row */}
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                        <label className="text-xs sm:text-sm font-bold text-slate-600 dark:text-slate-400 sm:w-28 shrink-0">
-                          Keyword
+                    {/* Account Name row */}
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                      <label className="text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-300 sm:w-28 shrink-0">
+                        Account Name
+                      </label>
+                      <input 
+                        type="text" 
+                        value={newName} 
+                        onChange={e => setNewName(e.target.value)} 
+                        className="flex-1 px-2.5 py-1 text-xs sm:text-sm border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white rounded focus:ring-1 focus:ring-blue-500 focus:outline-none focus:border-blue-500"
+                        placeholder="Events Expenses"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Outside highlight cards */}
+                  <div className="space-y-3.5 p-1">
+                    {/* Keyword row */}
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                      <label className="text-xs sm:text-sm font-bold text-slate-600 dark:text-slate-400 sm:w-28 shrink-0">
+                        Keyword
+                      </label>
+                      <input 
+                        type="text" 
+                        value={formKeyword} 
+                        onChange={e => setFormKeyword(e.target.value)} 
+                        className="flex-1 px-2.5 py-1 text-xs sm:text-sm border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white rounded focus:ring-1 focus:ring-blue-500 focus:outline-none focus:border-blue-500"
+                        placeholder="Keyword"
+                      />
+                    </div>
+
+                    {/* Dr./Cr. row */}
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                      <label className="text-xs sm:text-sm font-bold text-slate-600 dark:text-slate-400 sm:w-28 shrink-0">
+                        Dr./Cr.
+                      </label>
+                      <div className="flex items-center flex-wrap gap-4 flex-1">
+                        <label className="flex items-center gap-1.5 cursor-pointer text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300 select-none">
+                          <input 
+                            type="radio" 
+                            name="drOrCr" 
+                            checked={formDrOrCr === 'Dr'} 
+                            onChange={() => setFormDrOrCr('Dr')} 
+                            className="w-4 h-4 text-blue-600 border-slate-300 bg-white dark:bg-slate-800 focus:ring-blue-500"
+                          />
+                          <span>Dr.</span>
                         </label>
-                        <input 
-                          type="text" 
-                          value={formKeyword} 
-                          onChange={e => setFormKeyword(e.target.value)} 
-                          className="flex-1 px-2.5 py-1 text-xs sm:text-sm border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white rounded focus:ring-1 focus:ring-blue-500 focus:outline-none focus:border-blue-500"
-                          placeholder="Keyword"
-                        />
-                      </div>
-
-                      {/* Dr./Cr. row */}
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                        <label className="text-xs sm:text-sm font-bold text-slate-600 dark:text-slate-400 sm:w-28 shrink-0">
-                          Dr./Cr.
+                        <label className="flex items-center gap-1.5 cursor-pointer text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300 select-none">
+                          <input 
+                            type="radio" 
+                            name="drOrCr" 
+                            checked={formDrOrCr === 'Cr'} 
+                            onChange={() => setFormDrOrCr('Cr')} 
+                            className="w-4 h-4 text-blue-600 border-slate-300 bg-white dark:bg-slate-800 focus:ring-blue-500"
+                          />
+                          <span>Cr.</span>
                         </label>
-                        <div className="flex items-center flex-wrap gap-4 flex-1">
-                          <label className="flex items-center gap-1.5 cursor-pointer text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300 select-none">
-                            <input 
-                              type="radio" 
-                              name="drOrCr" 
-                              checked={formDrOrCr === 'Dr'} 
-                              onChange={() => setFormDrOrCr('Dr')} 
-                              className="w-4 h-4 text-blue-600 border-slate-300 bg-white dark:bg-slate-800 focus:ring-blue-500"
-                            />
-                            <span>Dr.</span>
-                          </label>
-                          <label className="flex items-center gap-1.5 cursor-pointer text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300 select-none">
-                            <input 
-                              type="radio" 
-                              name="drOrCr" 
-                              checked={formDrOrCr === 'Cr'} 
-                              onChange={() => setFormDrOrCr('Cr')} 
-                              className="w-4 h-4 text-blue-600 border-slate-300 bg-white dark:bg-slate-800 focus:ring-blue-500"
-                            />
-                            <span>Cr.</span>
-                          </label>
 
-                          <div className="w-px h-5 bg-slate-350 dark:bg-slate-700 sm:mx-2 hidden sm:block" />
+                        <div className="w-px h-5 bg-slate-350 dark:bg-slate-700 sm:mx-2 hidden sm:block" />
 
-                          {/* Account Level Select Dropdown */}
-                          <select
-                            value={formAccountLevel}
-                            onChange={e => setFormAccountLevel(e.target.value)}
-                            className="text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 py-1 px-2.5 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                          >
-                            <option value="Sub Account">Sub Account</option>
-                            <option value="Main Account">Main Account</option>
-                            <option value="Detail Account">Detail Account</option>
-                          </select>
-                        </div>
-                      </div>
-
-                      {/* Account Category dropdown */}
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                        <label className="text-xs sm:text-sm font-bold text-slate-600 dark:text-slate-400 sm:w-28 shrink-0">
-                          Account Category
-                        </label>
+                        {/* Account Level Select Dropdown */}
                         <select
-                          value={formCategory}
-                          onChange={e => setFormCategory(e.target.value)}
-                          className="w-full sm:w-44 px-2.5 py-1 text-xs sm:text-sm border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white rounded focus:ring-1 focus:ring-blue-500 focus:outline-none focus:border-blue-500"
+                          value={formAccountLevel}
+                          onChange={e => setFormAccountLevel(e.target.value)}
+                          className="text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 py-1 px-2.5 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                         >
-                          <option value="I/S">I/S</option>
-                          <option value="B/S">B/S</option>
+                          <option value="Sub Account">Sub Account</option>
+                          <option value="Main Account">Main Account</option>
+                          <option value="Detail Account">Detail Account</option>
                         </select>
                       </div>
+                    </div>
 
-                      {/* Operation Type row */}
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                        <label className="text-xs sm:text-sm font-bold text-slate-600 dark:text-slate-400 sm:w-28 shrink-0">
-                          Operation Type
-                        </label>
-                        <div className="flex items-center flex-wrap gap-4">
-                          {['Income', 'Payment', 'Deposit', 'None'].map((op) => (
-                            <label key={op} className="flex items-center gap-1.5 cursor-pointer text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300 select-none">
-                              <input 
-                                type="radio" 
-                                name="operationType" 
-                                checked={formOperationType === op} 
-                                onChange={() => setFormOperationType(op as any)} 
-                                className="w-4 h-4 text-blue-600 border-slate-300 bg-white dark:bg-slate-800 focus:ring-blue-500"
-                              />
-                              <span>{op}</span>
-                            </label>
-                          ))}
-                        </div>
+                    {/* Account Category dropdown */}
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                      <label className="text-xs sm:text-sm font-bold text-slate-600 dark:text-slate-400 sm:w-28 shrink-0">
+                        Account Category
+                      </label>
+                      <select
+                        value={formCategory}
+                        onChange={e => setFormCategory(e.target.value)}
+                        className="w-full sm:w-44 px-2.5 py-1 text-xs sm:text-sm border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white rounded focus:ring-1 focus:ring-blue-500 focus:outline-none focus:border-blue-500"
+                      >
+                        <option value="I/S">I/S</option>
+                        <option value="B/S">B/S</option>
+                      </select>
+                    </div>
+
+                    {/* Operation Type row */}
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                      <label className="text-xs sm:text-sm font-bold text-slate-600 dark:text-slate-400 sm:w-28 shrink-0">
+                        Operation Type
+                      </label>
+                      <div className="flex items-center flex-wrap gap-4">
+                        {['Income', 'Payment', 'Deposit', 'None'].map((op) => (
+                          <label key={op} className="flex items-center gap-1.5 cursor-pointer text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300 select-none">
+                            <input 
+                              type="radio" 
+                              name="operationType" 
+                              checked={formOperationType === op} 
+                              onChange={() => setFormOperationType(op as any)} 
+                              className="w-4 h-4 text-blue-600 border-slate-300 bg-white dark:bg-slate-800 focus:ring-blue-500"
+                            />
+                            <span>{op}</span>
+                          </label>
+                        ))}
                       </div>
+                    </div>
 
-                      {/* Parent Account Grid Group */}
-                      <div className="border-t border-slate-205 dark:border-slate-800 pt-3.5 mt-2">
-                        <div className="flex gap-4">
-                          {/* Left grouping text */}
-                          <div className="text-xs font-black text-slate-500 uppercase tracking-wider w-28 shrink-0 flex items-center pt-2">
-                            Account Type
-                          </div>
-                          {/* Right stack */}
-                          <div className="flex-1 space-y-2.5">
-                            {/* Parent FS */}
-                            <div className="flex items-center gap-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded px-2 py-0.5 shadow-2xs group focus-within:ring-1 focus-within:ring-blue-500">
-                              <button 
-                                type="button"
-                                onClick={() => {
-                                  const searchParent = prompt("Enter parent account query to search:");
-                                  if (searchParent) setFormParentFS(searchParent);
-                                }}
-                                className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded text-slate-400 group-hover:text-blue-500 transition-colors"
-                              >
-                                <Search className="w-3.5 h-3.5" />
-                              </button>
-                              <input 
-                                type="text"
-                                value={formParentFS}
-                                onChange={e => setFormParentFS(e.target.value)}
-                                className="w-full bg-transparent border-0 py-0.5 text-xs sm:text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-0 placeholder-slate-400"
-                                placeholder="Parent Account in F/S"
-                              />
-                              {formParentFS && (
-                                <button 
-                                  type="button" 
-                                  onClick={() => setFormParentFS('')}
-                                  className="text-slate-400 hover:text-rose-500"
-                                >
-                                  <X className="w-3.5 h-3.5" />
-                                </button>
-                              )}
-                            </div>
-
-                            {/* Parent Op */}
-                            <div className="flex items-center gap-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded px-2 py-0.5 shadow-2xs group focus-within:ring-1 focus-within:ring-blue-500">
+                    {/* Parent Account Grid Group */}
+                    <div className="border-t border-slate-205 dark:border-slate-800 pt-3.5 mt-2">
+                      <div className="flex gap-4">
+                        {/* Left grouping text */}
+                        <div className="text-xs font-black text-slate-500 uppercase tracking-wider w-28 shrink-0 flex items-center pt-2">
+                          Account Type
+                        </div>
+                        {/* Right stack */}
+                        <div className="flex-1 space-y-2.5">
+                          {/* Parent FS */}
+                          <div className="flex items-center gap-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded px-2 py-0.5 shadow-2xs group focus-within:ring-1 focus-within:ring-blue-500">
+                            <button 
+                              type="button"
+                              onClick={() => {
+                                const searchParent = prompt("Enter parent account query to search:");
+                                if (searchParent) setFormParentFS(searchParent);
+                              }}
+                              className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded text-slate-400 group-hover:text-blue-500 transition-colors"
+                            >
+                              <Search className="w-3.5 h-3.5" />
+                            </button>
+                            <input 
+                              type="text"
+                              value={formParentFS}
+                              onChange={e => setFormParentFS(e.target.value)}
+                              className="w-full bg-transparent border-0 py-0.5 text-xs sm:text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-0 placeholder-slate-400"
+                              placeholder="Parent Account in F/S"
+                            />
+                            {formParentFS && (
                               <button 
                                 type="button" 
-                                onClick={() => {
-                                  alert("Scanning active analytical modules...");
-                                }}
-                                className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded text-slate-400 group-hover:text-blue-500 transition-colors"
+                                onClick={() => setFormParentFS('')}
+                                className="text-slate-400 hover:text-rose-500"
                               >
-                                <Search className="w-3.5 h-3.5" />
+                                <X className="w-3.5 h-3.5" />
                               </button>
-                              <input 
-                                type="text"
-                                value={formParentOp}
-                                onChange={e => setFormParentOp(e.target.value)}
-                                className="w-full bg-transparent border-0 py-0.5 text-xs sm:text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-0 placeholder-slate-400"
-                                placeholder="Parent Account in Operation"
-                              />
-                              {formParentOp && (
-                                <button 
-                                  type="button" 
-                                  onClick={() => setFormParentOp('')}
-                                  className="text-slate-400 hover:text-rose-500"
-                                >
-                                  <X className="w-3.5 h-3.5" />
-                                </button>
-                              )}
-                            </div>
+                            )}
+                          </div>
+
+                          {/* Parent Op */}
+                          <div className="flex items-center gap-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded px-2 py-0.5 shadow-2xs group focus-within:ring-1 focus-within:ring-blue-500">
+                            <button 
+                              type="button" 
+                              onClick={() => {
+                                alert("Scanning active analytical modules...");
+                              }}
+                              className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded text-slate-400 group-hover:text-blue-500 transition-colors"
+                            >
+                              <Search className="w-3.5 h-3.5" />
+                            </button>
+                            <input 
+                              type="text"
+                              value={formParentOp}
+                              onChange={e => setFormParentOp(e.target.value)}
+                              className="w-full bg-transparent border-0 py-0.5 text-xs sm:text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-0 placeholder-slate-400"
+                              placeholder="Parent Account in Operation"
+                            />
+                            {formParentOp && (
+                              <button 
+                                type="button" 
+                                onClick={() => setFormParentOp('')}
+                                className="text-slate-400 hover:text-rose-500"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            )}
                           </div>
                         </div>
                       </div>
-
                     </div>
-                  </div>
-                )}
 
-                {activeFormTab === 'Code Info.' && (
-                  <div className="p-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg space-y-4">
-                    <h4 className="text-xs font-black tracking-wider text-slate-400 uppercase">Integrity Ledger Diagnostic</h4>
-                    <div className="grid grid-cols-2 gap-4 text-xs">
-                      <div className="space-y-1">
-                        <span className="text-slate-500 block">Ledger Code Range:</span>
-                        <span className="font-mono font-bold text-slate-700 dark:text-slate-200">
-                          {currentClient.coaFormat === 'alphanumeric' ? 'Alphanumeric Codes [A-Z0-9]' : 'Numeric 4-7 digits [BIR Compliant]'}
-                        </span>
-                      </div>
-                      <div className="space-y-1">
-                        <span className="text-slate-500 block">Active Parent Context:</span>
-                        <span className="font-mono font-bold text-slate-700 dark:text-slate-200">
-                          {addingParentId ? `Parent ID: ${addingParentId}` : 'Root-Level Classification node'}
-                        </span>
-                      </div>
-                      <div className="space-y-1">
-                        <span className="text-slate-500 block">Form map category alignment:</span>
-                        <span className="text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
-                          <Check className="w-3.5 h-3.5" /> Normal balance OK
-                        </span>
-                      </div>
-                      <div className="space-y-1">
-                        <span className="text-slate-500 block">Hierarchy depth tier:</span>
-                        <span className="font-bold text-slate-700 dark:text-slate-200">
-                          {addingParentId ? 'Sub-Account Tier 2' : 'Root Class Account'}
-                        </span>
-                      </div>
-                    </div>
                   </div>
-                )}
-
-                {activeFormTab === 'Display Method' && (
-                  <div className="p-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg space-y-4 text-xs">
-                    <h4 className="text-xs font-black tracking-wider text-slate-400 uppercase">Interactive Display Directives</h4>
-                    <div className="space-y-3">
-                      <label className="flex items-center gap-2 select-none cursor-pointer">
-                        <input type="checkbox" defaultChecked className="w-4 h-4 text-blue-600 border-gray-300 rounded" />
-                        <span className="text-slate-700 dark:text-slate-300 font-medium">Auto-Indicate Hierarchy padding in statements</span>
-                      </label>
-                      <label className="flex items-center gap-2 select-none cursor-pointer">
-                        <input type="checkbox" className="w-4 h-4 text-blue-600 border-gray-300 rounded" />
-                        <span className="text-slate-700 dark:text-slate-300 font-medium">Omit when cumulative balance represents 0.00</span>
-                      </label>
-                      <label className="flex items-center gap-2 select-none cursor-pointer">
-                        <input type="checkbox" defaultChecked className="w-4 h-4 text-blue-600 border-gray-300 rounded" />
-                        <span className="text-slate-700 dark:text-slate-300 font-medium">Force text uppercase in BIR attachments</span>
-                      </label>
-                    </div>
-                  </div>
-                )}
+                </div>
 
               </div>
 
