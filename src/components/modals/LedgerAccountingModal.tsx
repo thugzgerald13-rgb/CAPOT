@@ -317,7 +317,7 @@ export function LedgerAccountingModal() {
   const [addLineDebit, setAddLineDebit] = useState('');
   const [addLineCredit, setAddLineCredit] = useState('');
 
-  const coaList = currentClient?.coa || DEFAULT_ACCOUNTS;
+  const coaList = currentClient?.accounts || DEFAULT_ACCOUNTS;
 
   const handleAddLineToJv = () => {
     const d = parseFloat(addLineDebit) || 0;
