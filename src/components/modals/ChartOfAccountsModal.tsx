@@ -548,8 +548,11 @@ export function ChartOfAccountsModal() {
       return (
         <React.Fragment key={account.id}>
           <div className={cn(
-            "flex items-center justify-between p-2 hover:bg-slate-50 dark:hover:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800 group",
-            depth === 0 ? "bg-slate-50 font-semibold dark:bg-slate-800/20" : ""
+            "flex items-center justify-between p-2.5 border-b border-slate-100 dark:border-slate-800 transition-all duration-150 group",
+            depth === 0
+              ? "bg-slate-50/90 dark:bg-slate-800/40 text-slate-900 dark:text-slate-100 font-bold border-l-2 border-l-blue-500"
+              : "even:bg-slate-50/30 odd:bg-white dark:even:bg-slate-900/40 dark:odd:bg-slate-900/10 text-slate-700 dark:text-slate-300",
+            "hover:bg-blue-50/50 dark:hover:bg-slate-800/60"
           )}>
             <div className="flex items-center gap-2 flex-1" style={{ paddingLeft: `${depth * 1.5}rem` }}>
               {hasChildren ? (
