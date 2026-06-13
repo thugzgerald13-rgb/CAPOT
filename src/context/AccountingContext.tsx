@@ -11,7 +11,8 @@ import {
   serverTimestamp, 
   writeBatch,
   getDocs,
-  getDoc
+  getDoc,
+  deleteDoc
 } from 'firebase/firestore';
 import { useAuth } from './AuthContext';
 import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
@@ -39,6 +40,7 @@ interface AccountingContextType {
   
   saveClient: (id: string, clientData: Client) => Promise<void>;
   addClient: (name: string) => Promise<void>;
+  deleteClient: (id: string) => Promise<void>;
   showToast: (msg: string) => void;
 
   // Device adaptations support
@@ -391,6 +393,54 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }
   };
 
+  const deleteClient = async (id: string) => {
+    const keys = [LOCAL_STORAGE_KEY, OLD_STORAGE_KEY];
+    keys.forEach(key => {
+      const saved = localStorage.getItem(key);
+      if (saved) {
+        try {
+          const localData = JSON.parse(saved) as Record<string, Client>;
+          if (localData[id]) {
+            delete localData[id];
+            localStorage.setItem(key, JSON.stringify(localData));
+          }
+        } catch (e) {}
+      }
+    });
+
+    if (user) {
+      try {
+        const clientRef = doc(db, 'clients', id);
+        await deleteDoc(clientRef);
+        
+        setClients(prev => {
+          const updated = { ...prev };
+          delete updated[id];
+          return updated;
+        });
+
+        if (currentClientId === id) {
+          const remainingIds = Object.keys(clients).filter(cid => cid !== id);
+          setCurrentClientId(remainingIds.length > 0 ? remainingIds[0] : null);
+        }
+        showToast('Client profile deleted');
+      } catch (error) {
+        handleFirestoreError(error, OperationType.DELETE, `clients/${id}`);
+      }
+    } else {
+      setClients(prev => {
+        const updated = { ...prev };
+        delete updated[id];
+        return updated;
+      });
+      if (currentClientId === id) {
+        const remainingIds = Object.keys(clients).filter(cid => cid !== id);
+        setCurrentClientId(remainingIds.length > 0 ? remainingIds[0] : null);
+      }
+      showToast('Client profile deleted');
+    }
+  };
+
   const showToast = (msg: string) => {
     setToastMsg(msg);
     setTimeout(() => setToastMsg(null), 3000);
@@ -495,6 +545,7 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         setCurrentDat,
         saveClient,
         addClient,
+        deleteClient,
         showToast,
         activeDevice
       }}

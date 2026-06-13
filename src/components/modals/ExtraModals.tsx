@@ -2,15 +2,16 @@ import { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
 import { useAccounting } from '../../context/AccountingContext';
 import { useAuth } from '../../context/AuthContext';
-import { Users, TrendingUp, Key, Lightbulb, BookOpen, BookText, LineChart, Scale, Plus, Building2, Save, X, RotateCcw, Library, FileText, Receipt, ShoppingCart, Banknote, Wallet, CreditCard } from 'lucide-react';
+import { Users, TrendingUp, Key, Lightbulb, BookOpen, BookText, LineChart, Scale, Plus, Building2, Save, X, RotateCcw, Library, FileText, Receipt, ShoppingCart, Banknote, Wallet, CreditCard, Trash2 } from 'lucide-react';
 import { Client } from '../../types';
 import { RDO_CODES } from '../../lib/utils';
 
 export function ExtraModals() {
-  const { clients, currentClientId, setCurrentClientId, addClient, openModal, currentClient, saveClient, activeModal } = useAccounting();
+  const { clients, currentClientId, setCurrentClientId, addClient, openModal, currentClient, saveClient, activeModal, deleteClient } = useAccounting();
   const { userRole } = useAuth();
   const [newClientName, setNewClientName] = useState('');
   const [editingClient, setEditingClient] = useState<Client | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   useEffect(() => {
     const isBusinessObj = activeModal === 'business';
@@ -342,21 +343,52 @@ export function ExtraModals() {
               </button>
             </div>
             
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
               {Object.values(clients).map((client: Client) => (
                 <div
                   key={client.id}
                   className={`p-4 rounded-xl border text-left flex flex-col gap-2 transition-all ${currentClientId === client.id ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 shadow-md ring-2 ring-blue-500/20' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-blue-400'}`}
                 >
-                  <div className="flex justify-between items-start">
-                    <span className="font-bold text-slate-800 dark:text-slate-100">{client.name}</span>
-                    <button 
-                      onClick={() => handleEditClient(client)}
-                      className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg text-blue-600 dark:text-blue-400"
-                      title="Edit Profile"
-                    >
-                      <Building2 className="w-4 h-4" />
-                    </button>
+                  <div className="flex justify-between items-start gap-2">
+                    <span className="font-bold text-slate-800 dark:text-slate-100 truncate flex-1">{client.name}</span>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button 
+                        onClick={() => handleEditClient(client)}
+                        className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg text-blue-600 dark:text-blue-400"
+                        title="Edit Profile"
+                      >
+                        <Building2 className="w-4 h-4" />
+                      </button>
+                      
+                      {deleteConfirmId === client.id ? (
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button 
+                            onClick={async () => {
+                              await deleteClient(client.id);
+                              setDeleteConfirmId(null);
+                            }}
+                            className="bg-red-600 hover:bg-red-700 text-white text-[10px] px-1.5 py-1 rounded font-bold uppercase transition"
+                            title="Confirm delete"
+                          >
+                            Delete
+                          </button>
+                          <button 
+                            onClick={() => setDeleteConfirmId(null)}
+                            className="bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-[10px] px-1.5 py-1 rounded font-bold uppercase"
+                          >
+                            No
+                          </button>
+                        </div>
+                      ) : (
+                        <button 
+                          onClick={() => setDeleteConfirmId(client.id)}
+                          className="p-1.5 hover:bg-red-50 dark:hover:bg-red-950/25 rounded-lg text-red-500 hover:text-red-700 transition"
+                          title="Delete Profile"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
                   </div>
                   <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
                     {client.sales.length} Sales | {client.purchases.length} Purchases
