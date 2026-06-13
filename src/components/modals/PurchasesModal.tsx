@@ -33,9 +33,19 @@ export function PurchasesModal() {
     let accs = currentClient?.accounts || [];
     if (accs.length === 0) accs = DEFAULT_ACCOUNTS;
     if (currentDat) {
-      return accs.filter(a => expenseType === 'Capital Goods' ? (a.type === 'Asset' || a.type === 'Assets') : (a.type === 'Expense' || a.type === 'Expenses'));
+      return accs.filter(a => expenseType === 'Capital Goods' ? (a.type.toLowerCase() === 'asset' || a.type.toLowerCase() === 'assets') : (a.type.toLowerCase() === 'expense' || a.type.toLowerCase() === 'expenses'));
     } else {
-      return accs.filter(a => a.type === selectedAccountType && a.parentId);
+      const t = selectedAccountType.toLowerCase();
+      return accs.filter(a => {
+        const at = a.type.toLowerCase();
+        if (t === 'assets') return at === 'asset' || at === 'assets';
+        if (t === 'liabilities') return at === 'liability' || at === 'liabilities';
+        if (t === 'equity') return at === 'equity';
+        if (t === 'income') return at === 'income' || at === 'revenue';
+        if (t === 'costs') return at === 'costs' || at === 'cost' || at === 'expense' || at === 'expenses';
+        if (t === 'expenses') return at === 'expense' || at === 'expenses' || at === 'costs';
+        return at === t;
+      });
     }
   })();
 
