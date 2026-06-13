@@ -15,11 +15,13 @@ import {
 } from 'firebase/firestore';
 import { useAuth } from './AuthContext';
 import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
+import { isBusinessProfileComplete } from '../lib/utils';
 
 interface AccountingContextType {
   clients: Record<string, Client>;
   currentClientId: string | null;
   currentClient: Client | null;
+  isProfileComplete: boolean;
   isDarkMode: boolean;
   activeModal: string | null;
   pendingModal: string | null;
@@ -51,7 +53,7 @@ const LOCAL_STORAGE_KEY = 'capo_accounting_v14_react';
 const OLD_STORAGE_KEY = 'capo_accounting_v13_react';
 
 export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user } = useAuth();
+  const { user, userRole } = useAuth();
   const [clients, setClients] = useState<Record<string, Client>>({});
   const [currentClientId, setCurrentClientId] = useState<string | null>(null);
   const [isDarkMode, setDarkMode] = useState(false);
@@ -397,8 +399,36 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   };
 
   const openModal = (modal: string | null) => {
+    const activeId = currentClientId || (Object.keys(clients).length > 0 ? Object.keys(clients)[0] : null);
+    const activeClient = activeId ? clients[activeId] : null;
+    const isComplete = isBusinessProfileComplete(activeClient);
+    
+    if (!isComplete && modal !== 'business' && isReady && userRole) {
+      setActiveModal('business');
+      return;
+    }
     setActiveModal(modal);
   };
+
+  useEffect(() => {
+    if (isReady && userRole) {
+      const clientKeys = Object.keys(clients);
+      if (clientKeys.length === 0) {
+        const defaultName = userRole === 'owner' ? 'My Business' : 'My Client';
+        addClient(defaultName).then(() => {
+          setActiveModal('business');
+        });
+      } else {
+        const activeId = currentClientId || clientKeys[0];
+        const activeClient = clients[activeId];
+        if (activeClient && !isBusinessProfileComplete(activeClient)) {
+          if (activeModal !== 'business') {
+            setActiveModal('business');
+          }
+        }
+      }
+    }
+  }, [isReady, userRole, clients, currentClientId, activeModal]);
 
   if (syncError) {
     return (
@@ -471,6 +501,7 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   }
 
   const currentClient = currentClientId ? clients[currentClientId] : null;
+  const isProfileComplete = isBusinessProfileComplete(currentClient);
 
   return (
     <AccountingContext.Provider
@@ -478,6 +509,7 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         clients,
         currentClientId,
         currentClient,
+        isProfileComplete,
         isDarkMode,
         activeModal,
         pendingModal,

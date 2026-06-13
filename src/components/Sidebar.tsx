@@ -16,7 +16,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
-  const { openModal, currentDat, setCurrentDat, setHistoryTab, setPendingModal, syncData, isSyncing } = useAccounting();
+  const { openModal, currentDat, setCurrentDat, setHistoryTab, setPendingModal, syncData, isSyncing, isProfileComplete } = useAccounting();
   const { user, isAdmin, userRole, signOut } = useAuth();
   const [isExpensesOpen, setIsExpensesOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
@@ -47,6 +47,7 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
   }, []);
 
   const toggleDropdown = (dropdown: string) => {
+    if (!isProfileComplete && dropdown !== 'settings') return;
     setIsExpensesOpen(dropdown === 'expenses' ? !isExpensesOpen : false);
     setIsBooksOpen(dropdown === 'books' ? !isBooksOpen : false);
     setIsHistoryOpen(dropdown === 'history' ? !isHistoryOpen : false);
@@ -59,6 +60,11 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
   };
 
   const handleNavClick = (modalId: string, historyType?: string) => {
+    if (!isProfileComplete && modalId !== 'business' && modalId !== 'clients') {
+      openModal('business');
+      return;
+    }
+
     if (historyType) {
       setHistoryTab(historyType);
     }
@@ -132,8 +138,14 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
             return (
               <button
                 key={item.id}
+                disabled={!isProfileComplete}
                 onClick={() => handleNavClick(item.id)}
-                className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-300 rounded-xl hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-slate-800 dark:hover:text-blue-400 transition-all w-full text-left group"
+                className={cn(
+                  "flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-all w-full text-left group",
+                  !isProfileComplete
+                    ? "opacity-40 cursor-not-allowed text-slate-400 dark:text-slate-600"
+                    : "text-slate-700 dark:text-slate-300 hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-slate-800 dark:hover:text-blue-400"
+                )}
               >
                 <Icon className="w-5 h-5 opacity-70 group-hover:opacity-100 transition-opacity" />
                 {item.label}
@@ -144,10 +156,15 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
           {/* Expenses Collapsible Dropdown */}
           <div className="flex flex-col">
             <button
+              disabled={!isProfileComplete}
               onClick={() => toggleDropdown('expenses')}
               className={cn(
-                "flex items-center justify-between px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-300 rounded-xl transition-all w-full text-left group",
-                isExpensesOpen ? "bg-rose-50 text-rose-700 dark:bg-rose-900/20 dark:text-rose-400" : "hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-slate-800"
+                "flex items-center justify-between px-4 py-3 text-sm font-medium rounded-xl transition-all w-full text-left group",
+                !isProfileComplete
+                  ? "opacity-40 cursor-not-allowed text-slate-400 dark:text-slate-600"
+                  : isExpensesOpen 
+                    ? "bg-rose-50 text-rose-700 dark:bg-rose-900/20 dark:text-rose-400" 
+                    : "hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-slate-800"
               )}
             >
               <div className="flex items-center gap-3">
@@ -196,10 +213,15 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
           {/* Books Collapsible Dropdown */}
           <div className="flex flex-col">
             <button
+              disabled={!isProfileComplete}
               onClick={() => toggleDropdown('books')}
               className={cn(
-                "flex items-center justify-between px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-300 rounded-xl transition-all w-full text-left group",
-                isBooksOpen ? "bg-cyan-50 text-cyan-700 dark:bg-cyan-900/20 dark:text-cyan-400" : "hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-slate-800"
+                "flex items-center justify-between px-4 py-3 text-sm font-medium rounded-xl transition-all w-full text-left group",
+                !isProfileComplete
+                  ? "opacity-40 cursor-not-allowed text-slate-400 dark:text-slate-600"
+                  : isBooksOpen 
+                    ? "bg-cyan-50 text-cyan-700 dark:bg-cyan-900/20 dark:text-cyan-400" 
+                    : "hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-slate-800"
               )}
             >
               <div className="flex items-center gap-3">
@@ -239,10 +261,15 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
           {/* History Collapsible Dropdown */}
           <div className="flex flex-col">
             <button
+              disabled={!isProfileComplete}
               onClick={() => toggleDropdown('history')}
               className={cn(
-                "flex items-center justify-between px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-300 rounded-xl transition-all w-full text-left group",
-                isHistoryOpen ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-900/20 dark:text-indigo-400" : "hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-slate-800"
+                "flex items-center justify-between px-4 py-3 text-sm font-medium rounded-xl transition-all w-full text-left group",
+                !isProfileComplete
+                  ? "opacity-40 cursor-not-allowed text-slate-400 dark:text-slate-600"
+                  : isHistoryOpen 
+                    ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-900/20 dark:text-indigo-400" 
+                    : "hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-slate-800"
               )}
             >
               <div className="flex items-center gap-3">
@@ -333,10 +360,15 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
           {/* Reports Collapsible Dropdown */}
           <div className="flex flex-col">
             <button
+              disabled={!isProfileComplete}
               onClick={() => toggleDropdown('reports')}
               className={cn(
-                "flex items-center justify-between px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-300 rounded-xl transition-all w-full text-left group",
-                isReportsOpen ? "bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400" : "hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-slate-800"
+                "flex items-center justify-between px-4 py-3 text-sm font-medium rounded-xl transition-all w-full text-left group",
+                !isProfileComplete
+                  ? "opacity-40 cursor-not-allowed text-slate-400 dark:text-slate-600"
+                  : isReportsOpen 
+                    ? "bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400" 
+                    : "hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-slate-800"
               )}
             >
               <div className="flex items-center gap-3">
@@ -425,15 +457,27 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
                     </>
                   )}
                   <button
+                    disabled={!isProfileComplete}
                     onClick={() => handleNavClick('tinlibrary')}
-                    className="flex items-center gap-3 px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 rounded-lg hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-slate-200 transition-all w-full text-left"
+                    className={cn(
+                      "flex items-center gap-3 px-4 py-2 text-xs font-bold rounded-lg transition-all w-full text-left",
+                      !isProfileComplete
+                        ? "opacity-40 cursor-not-allowed text-slate-400 dark:text-slate-600"
+                        : "text-slate-500 dark:text-slate-400 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+                    )}
                   >
                     <Building2 className="w-4 h-4" />
                     TIN Library
                   </button>
                   <button
+                    disabled={!isProfileComplete}
                     onClick={() => handleNavClick('taxnotes')}
-                    className="flex items-center gap-3 px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 rounded-lg hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-slate-200 transition-all w-full text-left"
+                    className={cn(
+                      "flex items-center gap-3 px-4 py-2 text-xs font-bold rounded-lg transition-all w-full text-left",
+                      !isProfileComplete
+                        ? "opacity-40 cursor-not-allowed text-slate-400 dark:text-slate-600"
+                        : "text-slate-500 dark:text-slate-400 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+                    )}
                   >
                     <Lightbulb className="w-4 h-4" />
                     Tax Notes & RDO
@@ -443,8 +487,13 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
                        syncData();
                        setIsOpen(false);
                     }}
-                    disabled={isSyncing}
-                    className="flex items-center gap-3 px-4 py-2 text-xs font-bold text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all w-full text-left disabled:opacity-50"
+                    disabled={isSyncing || !isProfileComplete}
+                    className={cn(
+                      "flex items-center gap-3 px-4 py-2 text-xs font-bold rounded-lg transition-all w-full text-left",
+                      !isProfileComplete
+                        ? "opacity-40 cursor-not-allowed text-slate-400 dark:text-slate-600"
+                        : "text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                    )}
                   >
                     <RefreshCw className={cn("w-4 h-4", isSyncing && "animate-spin")} />
                     {isSyncing ? 'Syncing...' : 'Sync Data Now'}

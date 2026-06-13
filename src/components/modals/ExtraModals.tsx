@@ -7,7 +7,7 @@ import { Client } from '../../types';
 import { RDO_CODES } from '../../lib/utils';
 
 export function ExtraModals() {
-  const { clients, currentClientId, setCurrentClientId, addClient, openModal, currentClient, saveClient, activeModal } = useAccounting();
+  const { clients, currentClientId, setCurrentClientId, addClient, openModal, currentClient, saveClient, activeModal, isProfileComplete } = useAccounting();
   const { userRole } = useAuth();
   const [newClientName, setNewClientName] = useState('');
   const [editingClient, setEditingClient] = useState<Client | null>(null);
@@ -383,15 +383,25 @@ export function ExtraModals() {
             {/* Form Header */}
             <div className="bg-slate-300 dark:bg-slate-800 p-2 border-b border-slate-400 dark:border-slate-700 flex justify-between items-center mb-4">
               <span className="text-sm font-bold text-slate-700 dark:text-slate-300">Company Information - {editingClient.name}</span>
-              <button 
-                onClick={() => openModal(null)}
-                className="hover:bg-slate-400 dark:hover:bg-slate-700 rounded p-1"
-              >
-                <X className="w-4 h-4" />
-              </button>
+              {!isProfileComplete ? (
+                <span className="text-xs bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold px-2 py-0.5 rounded border border-amber-500/20">Required</span>
+              ) : (
+                <button 
+                  onClick={() => openModal(null)}
+                  className="hover:bg-slate-400 dark:hover:bg-slate-700 rounded p-1"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
             </div>
 
             <div className="flex-1 overflow-y-auto px-4">
+              {!isProfileComplete && (
+                <div className="bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 p-3 rounded-xl mb-4 text-xs font-semibold flex items-center gap-2">
+                  <Building2 className="w-4 h-4 shrink-0 animate-pulse text-amber-500" />
+                  <span>Please complete all details of your business profile to unlock the full application. Subsequent tabs and actions are restricted until these details are provided.</span>
+                </div>
+              )}
               <h2 className="text-2xl font-bold text-red-800 mb-6 border-b border-red-200 pb-2">Business Information</h2>
 
               <div className="grid grid-cols-12 gap-4 mb-4">
@@ -634,12 +644,14 @@ export function ExtraModals() {
               >
                 <RotateCcw className="w-4 h-4" /> Revert
               </button>
-              <button 
-                onClick={() => openModal(null)}
-                className="bg-slate-200 dark:bg-slate-700 font-bold px-6 py-2 rounded border border-slate-400 dark:border-slate-600 shadow-sm hover:bg-slate-300 dark:hover:bg-slate-600 flex items-center gap-2"
-              >
-                Close
-              </button>
+              {isProfileComplete && (
+                <button 
+                  onClick={() => openModal(null)}
+                  className="bg-slate-200 dark:bg-slate-700 font-bold px-6 py-2 rounded border border-slate-400 dark:border-slate-600 shadow-sm hover:bg-slate-300 dark:hover:bg-slate-600 flex items-center gap-2"
+                >
+                  Close
+                </button>
+              )}
             </div>
           </div>
         ) : (
