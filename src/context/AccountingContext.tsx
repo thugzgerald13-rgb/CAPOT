@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { Client, DatSelection } from '../types';
+import { Client, BusinessProfile, DatSelection } from '../types';
 import { db, auth } from '../lib/firebase';
 import { 
   collection, 
@@ -21,6 +21,7 @@ interface AccountingContextType {
   clients: Record<string, Client>;
   currentClientId: string | null;
   currentClient: Client | null;
+  businessProfile: BusinessProfile | null;
   isDarkMode: boolean;
   activeModal: string | null;
   pendingModal: string | null;
@@ -41,6 +42,7 @@ interface AccountingContextType {
   saveClient: (id: string, clientData: Client) => Promise<void>;
   addClient: (name: string) => Promise<void>;
   deleteClient: (id: string) => Promise<void>;
+  saveBusinessProfile: (profile: BusinessProfile) => Promise<void>;
   showToast: (msg: string) => void;
 
   // Device adaptations support
@@ -56,6 +58,7 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const { user } = useAuth();
   const [clients, setClients] = useState<Record<string, Client>>({});
   const [currentClientId, setCurrentClientId] = useState<string | null>(null);
+  const [businessProfile, setBusinessProfile] = useState<BusinessProfile | null>(null);
   const [isDarkMode, setDarkMode] = useState(false);
   const [activeModal, setActiveModal] = useState<string | null>(null);
   const [pendingModal, setPendingModal] = useState<string | null>(null);
@@ -206,6 +209,12 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           console.error("Local storage parse error", e);
         }
       }
+      const savedBiz = localStorage.getItem('capo_business_profile_react');
+      if (savedBiz) {
+        try {
+          setBusinessProfile(JSON.parse(savedBiz));
+        } catch (e) {}
+      }
       setIsReady(true);
       return;
     }
@@ -285,9 +294,19 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       setIsReady(true); // Allow skipping to local mode
     });
 
+    const bizRef = doc(db, 'business_profiles', user.uid);
+    const unsubscribeBiz = onSnapshot(bizRef, (docSnap) => {
+      if (docSnap.exists()) {
+        setBusinessProfile(docSnap.data() as BusinessProfile);
+      }
+    }, (error) => {
+      console.error("Business profile sync error:", error);
+    });
+
     return () => {
       clearTimeout(timeout);
       unsubscribe();
+      unsubscribeBiz();
     };
   }, [user]);
 
@@ -441,6 +460,26 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }
   };
 
+  const saveBusinessProfile = async (profileData: BusinessProfile) => {
+    if (user) {
+      try {
+        const bizRef = doc(db, 'business_profiles', user.uid);
+        await setDoc(bizRef, {
+          ...profileData,
+          id: user.uid,
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+        showToast('Business Profile updated');
+      } catch (error) {
+        handleFirestoreError(error, OperationType.UPDATE, `business_profiles/${user.uid}`);
+      }
+    } else {
+      setBusinessProfile(profileData);
+      localStorage.setItem('capo_business_profile_react', JSON.stringify(profileData));
+      showToast('Business Profile updated');
+    }
+  };
+
   const showToast = (msg: string) => {
     setToastMsg(msg);
     setTimeout(() => setToastMsg(null), 3000);
@@ -528,6 +567,7 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         clients,
         currentClientId,
         currentClient,
+        businessProfile,
         isDarkMode,
         activeModal,
         pendingModal,
@@ -546,6 +586,7 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         saveClient,
         addClient,
         deleteClient,
+        saveBusinessProfile,
         showToast,
         activeDevice
       }}

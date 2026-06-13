@@ -3,37 +3,47 @@ import { Modal } from '../ui/Modal';
 import { useAccounting } from '../../context/AccountingContext';
 import { useAuth } from '../../context/AuthContext';
 import { Users, TrendingUp, Key, Lightbulb, BookOpen, BookText, LineChart, Scale, Plus, Building2, Save, X, RotateCcw, Library, FileText, Receipt, ShoppingCart, Banknote, Wallet, CreditCard, Trash2 } from 'lucide-react';
-import { Client } from '../../types';
+import { Client, BusinessProfile } from '../../types';
 import { RDO_CODES } from '../../lib/utils';
 
 export function ExtraModals() {
-  const { clients, currentClientId, setCurrentClientId, addClient, openModal, currentClient, saveClient, activeModal, deleteClient } = useAccounting();
+  const { 
+    clients, 
+    currentClientId, 
+    setCurrentClientId, 
+    addClient, 
+    openModal, 
+    currentClient, 
+    saveClient, 
+    activeModal, 
+    deleteClient,
+    businessProfile,
+    saveBusinessProfile
+  } = useAccounting();
   const { userRole } = useAuth();
   const [newClientName, setNewClientName] = useState('');
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
+  // Dedicated management state for own business profile
+  const [editingBusiness, setEditingBusiness] = useState<BusinessProfile | null>(null);
+  const [newBusinessName, setNewBusinessName] = useState('');
+
+  // Sychronize when business profile modal opens/updates
   useEffect(() => {
-    const isBusinessObj = activeModal === 'business';
-    const isOwnerClientsObj = activeModal === 'clients' && userRole === 'owner';
-    
-    if ((isBusinessObj || isOwnerClientsObj) && !editingClient) {
-      if (currentClient) {
-        setEditingClient({ ...currentClient });
+    if (activeModal === 'business') {
+      if (businessProfile) {
+        setEditingBusiness({ ...businessProfile });
       } else {
-        const clientList = Object.values(clients);
-        if (clientList.length > 0) {
-          const firstClient = clientList[0] as Client;
-          setEditingClient({ ...firstClient });
-          setCurrentClientId(firstClient.id);
-        }
+        setEditingBusiness(null);
       }
     }
-  }, [activeModal, userRole, currentClient, clients, editingClient, setCurrentClientId]);
+  }, [activeModal, businessProfile]);
 
   useEffect(() => {
     if (activeModal === null) {
       setEditingClient(null);
+      setEditingBusiness(null);
     }
   }, [activeModal]);
 
@@ -45,6 +55,40 @@ export function ExtraModals() {
     if (editingClient) {
       saveClient(editingClient.id, editingClient);
       setEditingClient(null);
+    }
+  };
+
+  const handleSaveBusinessProfile = () => {
+    if (editingBusiness) {
+      saveBusinessProfile(editingBusiness);
+    }
+  };
+
+  const handleCreateBusinessProfile = () => {
+    if (newBusinessName.trim()) {
+      const newBiz: BusinessProfile = {
+        id: 'biz_' + Date.now(),
+        name: newBusinessName.trim(),
+        tin: '',
+        taxpayerClassification: '',
+        registeredName: newBusinessName.trim(),
+        lastName: '',
+        firstName: '',
+        middleName: '',
+        tradeName: '',
+        substreet: '',
+        street: '',
+        barangay: '',
+        district: '',
+        city: '',
+        zipCode: '',
+        rdoCode: '',
+        accountingType: 'Calendar',
+        fiscalMonthEnd: 12
+      };
+      saveBusinessProfile(newBiz);
+      setEditingBusiness(newBiz);
+      setNewBusinessName('');
     }
   };
 
@@ -410,11 +454,11 @@ export function ExtraModals() {
       </Modal>
 
       <Modal id="business" title="Business Profiles" icon={<Building2 className="text-blue-500" />}>
-        {editingClient ? (
+        {editingBusiness ? (
           <div className="bg-slate-100 dark:bg-slate-900 -m-6 p-6 h-full min-h-[600px] flex flex-col font-sans">
             {/* Form Header */}
             <div className="bg-slate-300 dark:bg-slate-800 p-2 border-b border-slate-400 dark:border-slate-700 flex justify-between items-center mb-4">
-              <span className="text-sm font-bold text-slate-700 dark:text-slate-300">Company Information - {editingClient.name}</span>
+              <span className="text-sm font-bold text-slate-700 dark:text-slate-300">Company Information - {editingBusiness.name}</span>
               <button 
                 onClick={() => openModal(null)}
                 className="hover:bg-slate-400 dark:hover:bg-slate-700 rounded p-1"
@@ -433,12 +477,12 @@ export function ExtraModals() {
                     <input 
                       type="text" 
                       maxLength={3}
-                      value={(editingClient.tin || '').split('-')[0] || ''} 
+                      value={(editingBusiness.tin || '').split('-')[0] || ''} 
                       onChange={e => {
                         const val = e.target.value.replace(/\D/g, '');
-                        const parts = (editingClient.tin || '').split('-');
+                        const parts = (editingBusiness.tin || '').split('-');
                         parts[0] = val;
-                        setEditingClient({...editingClient, tin: parts.join('-')});
+                        setEditingBusiness({...editingBusiness, tin: parts.join('-')});
                       }}
                       className="w-16 px-2 py-1.5 border border-slate-400 dark:border-slate-600 rounded bg-white dark:bg-slate-800 text-center font-mono"
                     />
@@ -446,12 +490,12 @@ export function ExtraModals() {
                     <input 
                       type="text" 
                       maxLength={3}
-                      value={(editingClient.tin || '').split('-')[1] || ''} 
+                      value={(editingBusiness.tin || '').split('-')[1] || ''} 
                       onChange={e => {
                         const val = e.target.value.replace(/\D/g, '');
-                        const parts = (editingClient.tin || '').split('-');
+                        const parts = (editingBusiness.tin || '').split('-');
                         parts[1] = val;
-                        setEditingClient({...editingClient, tin: parts.join('-')});
+                        setEditingBusiness({...editingBusiness, tin: parts.join('-')});
                       }}
                       className="w-16 px-2 py-1.5 border border-slate-400 dark:border-slate-600 rounded bg-white dark:bg-slate-800 text-center font-mono"
                     />
@@ -459,12 +503,12 @@ export function ExtraModals() {
                     <input 
                       type="text" 
                       maxLength={3}
-                      value={(editingClient.tin || '').split('-')[2] || ''} 
+                      value={(editingBusiness.tin || '').split('-')[2] || ''} 
                       onChange={e => {
                         const val = e.target.value.replace(/\D/g, '');
-                        const parts = (editingClient.tin || '').split('-');
+                        const parts = (editingBusiness.tin || '').split('-');
                         parts[2] = val;
-                        setEditingClient({...editingClient, tin: parts.join('-')});
+                        setEditingBusiness({...editingBusiness, tin: parts.join('-')});
                       }}
                       className="w-16 px-2 py-1.5 border border-slate-400 dark:border-slate-600 rounded bg-white dark:bg-slate-800 text-center font-mono"
                     />
@@ -473,8 +517,8 @@ export function ExtraModals() {
                 <div className="col-span-7">
                   <label className="form-label">Taxpayer Classification:</label>
                   <select 
-                    value={editingClient.taxpayerClassification || ''}
-                    onChange={e => setEditingClient({...editingClient, taxpayerClassification: e.target.value})}
+                    value={editingBusiness.taxpayerClassification || ''}
+                    onChange={e => setEditingBusiness({...editingBusiness, taxpayerClassification: e.target.value})}
                     className="form-input"
                   >
                     <option value="">Select Classification</option>
@@ -488,11 +532,11 @@ export function ExtraModals() {
                 <label className="form-label">Registered Name:</label>
                 <input 
                   type="text" 
-                  disabled={editingClient.taxpayerClassification === 'Individual'}
-                  value={editingClient.registeredName || ''} 
+                  disabled={editingBusiness.taxpayerClassification === 'Individual'}
+                  value={editingBusiness.registeredName || ''} 
                   onChange={e => {
                     const val = e.target.value;
-                    setEditingClient({...editingClient, registeredName: val, name: val || editingClient.name});
+                    setEditingBusiness({...editingBusiness, registeredName: val, name: val || editingBusiness.name});
                   }}
                   className="form-input border-slate-400 dark:border-slate-600 disabled:opacity-50"
                 />
@@ -504,9 +548,9 @@ export function ExtraModals() {
                   <div className="flex flex-col items-center">
                     <input 
                       type="text" 
-                      disabled={editingClient.taxpayerClassification === 'Non-Individual'}
-                      value={editingClient.lastName || ''} 
-                      onChange={e => setEditingClient({...editingClient, lastName: e.target.value})}
+                      disabled={editingBusiness.taxpayerClassification === 'Non-Individual'}
+                      value={editingBusiness.lastName || ''} 
+                      onChange={e => setEditingBusiness({...editingBusiness, lastName: e.target.value})}
                       className="form-input border-slate-400 dark:border-slate-600 disabled:opacity-50"
                     />
                     <span className="text-[10px] text-slate-500 mt-1 uppercase font-bold">Last Name</span>
@@ -514,9 +558,9 @@ export function ExtraModals() {
                   <div className="flex flex-col items-center">
                     <input 
                       type="text" 
-                      disabled={editingClient.taxpayerClassification === 'Non-Individual'}
-                      value={editingClient.firstName || ''} 
-                      onChange={e => setEditingClient({...editingClient, firstName: e.target.value})}
+                      disabled={editingBusiness.taxpayerClassification === 'Non-Individual'}
+                      value={editingBusiness.firstName || ''} 
+                      onChange={e => setEditingBusiness({...editingBusiness, firstName: e.target.value})}
                       className="form-input border-slate-400 dark:border-slate-600 disabled:opacity-50"
                     />
                     <span className="text-[10px] text-slate-500 mt-1 uppercase font-bold">First Name</span>
@@ -524,9 +568,9 @@ export function ExtraModals() {
                   <div className="flex flex-col items-center">
                     <input 
                       type="text" 
-                      disabled={editingClient.taxpayerClassification === 'Non-Individual'}
-                      value={editingClient.middleName || ''} 
-                      onChange={e => setEditingClient({...editingClient, middleName: e.target.value})}
+                      disabled={editingBusiness.taxpayerClassification === 'Non-Individual'}
+                      value={editingBusiness.middleName || ''} 
+                      onChange={e => setEditingBusiness({...editingBusiness, middleName: e.target.value})}
                       className="form-input border-slate-400 dark:border-slate-600 disabled:opacity-50"
                     />
                     <span className="text-[10px] text-slate-500 mt-1 uppercase font-bold">Middle Name</span>
@@ -538,8 +582,8 @@ export function ExtraModals() {
                 <label className="form-label">Trade Name:</label>
                 <input 
                   type="text" 
-                  value={editingClient.tradeName || ''} 
-                  onChange={e => setEditingClient({...editingClient, tradeName: e.target.value})}
+                  value={editingBusiness.tradeName || ''} 
+                  onChange={e => setEditingBusiness({...editingBusiness, tradeName: e.target.value})}
                   className="form-input border-slate-400 dark:border-slate-600"
                 />
               </div>
@@ -549,24 +593,24 @@ export function ExtraModals() {
                 <div className="grid grid-cols-3 gap-2 mb-4">
                   <div className="flex flex-col items-center">
                     <input 
-                      value={editingClient.substreet || ''} 
-                      onChange={e => setEditingClient({...editingClient, substreet: e.target.value})}
+                      value={editingBusiness.substreet || ''} 
+                      onChange={e => setEditingBusiness({...editingBusiness, substreet: e.target.value})}
                       className="form-input border-slate-400"
                     />
                     <span className="text-[10px] text-slate-500 mt-1 uppercase font-bold text-center">Substreet</span>
                   </div>
                   <div className="flex flex-col items-center">
                     <input 
-                      value={editingClient.street || ''} 
-                      onChange={e => setEditingClient({...editingClient, street: e.target.value})}
+                      value={editingBusiness.street || ''} 
+                      onChange={e => setEditingBusiness({...editingBusiness, street: e.target.value})}
                       className="form-input border-slate-400"
                     />
                     <span className="text-[10px] text-slate-500 mt-1 uppercase font-bold text-center">Street</span>
                   </div>
                   <div className="flex flex-col items-center">
                     <input 
-                      value={editingClient.barangay || ''} 
-                      onChange={e => setEditingClient({...editingClient, barangay: e.target.value})}
+                      value={editingBusiness.barangay || ''} 
+                      onChange={e => setEditingBusiness({...editingBusiness, barangay: e.target.value})}
                       className="form-input border-slate-400"
                     />
                     <span className="text-[10px] text-slate-500 mt-1 uppercase font-bold text-center">Barangay</span>
@@ -575,24 +619,24 @@ export function ExtraModals() {
                 <div className="grid grid-cols-3 gap-2">
                   <div className="flex flex-col items-center">
                     <input 
-                      value={editingClient.district || ''} 
-                      onChange={e => setEditingClient({...editingClient, district: e.target.value})}
+                      value={editingBusiness.district || ''} 
+                      onChange={e => setEditingBusiness({...editingBusiness, district: e.target.value})}
                       className="form-input border-slate-400"
                     />
                     <span className="text-[10px] text-slate-500 mt-1 uppercase font-bold text-center leading-tight">District/Municipality</span>
                   </div>
                   <div className="flex flex-col items-center">
                     <input 
-                      value={editingClient.city || ''} 
-                      onChange={e => setEditingClient({...editingClient, city: e.target.value})}
+                      value={editingBusiness.city || ''} 
+                      onChange={e => setEditingBusiness({...editingBusiness, city: e.target.value})}
                       className="form-input border-slate-400"
                     />
                     <span className="text-[10px] text-slate-500 mt-1 uppercase font-bold text-center leading-tight">City/Province</span>
                   </div>
                   <div className="flex flex-col items-center">
                     <input 
-                      value={editingClient.zipCode || ''} 
-                      onChange={e => setEditingClient({...editingClient, zipCode: e.target.value})}
+                      value={editingBusiness.zipCode || ''} 
+                      onChange={e => setEditingBusiness({...editingBusiness, zipCode: e.target.value})}
                       className="form-input border-slate-400"
                     />
                     <span className="text-[10px] text-slate-500 mt-1 uppercase font-bold text-center">Zip Code</span>
@@ -604,8 +648,8 @@ export function ExtraModals() {
                 <div className="col-span-3">
                   <label className="form-label">RDO Code:</label>
                   <select 
-                    value={editingClient.rdoCode || ''}
-                    onChange={e => setEditingClient({...editingClient, rdoCode: e.target.value})}
+                    value={editingBusiness.rdoCode || ''}
+                    onChange={e => setEditingBusiness({...editingBusiness, rdoCode: e.target.value})}
                     className="form-input border-slate-400"
                   >
                     <option value="">Select RDO</option>
@@ -616,32 +660,32 @@ export function ExtraModals() {
                 </div>
                 <div className="col-span-5 flex items-center gap-6 py-3 px-2">
                   <label className="flex items-center gap-2 cursor-pointer group">
-                    <input 
-                      type="radio" 
-                      className="w-4 h-4"
-                      name="accountingTypeBusinessMode" 
-                      checked={editingClient.accountingType === 'Calendar'}
-                      onChange={() => setEditingClient({...editingClient, accountingType: 'Calendar'})}
-                    />
-                    <span className="text-xs font-bold uppercase tracking-tight">Calendar</span>
+                     <input 
+                       type="radio" 
+                       className="w-4 h-4"
+                       name="accountingTypeBusinessMode" 
+                       checked={editingBusiness.accountingType === 'Calendar'}
+                       onChange={() => setEditingBusiness({...editingBusiness, accountingType: 'Calendar'})}
+                     />
+                     <span className="text-xs font-bold uppercase tracking-tight">Calendar</span>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer group">
-                    <input 
-                      type="radio" 
-                      className="w-4 h-4"
-                      name="accountingTypeBusinessMode" 
-                      checked={editingClient.accountingType === 'Fiscal'}
-                      onChange={() => setEditingClient({...editingClient, accountingType: 'Fiscal'})}
-                    />
-                    <span className="text-xs font-bold uppercase tracking-tight">Fiscal</span>
+                     <input 
+                       type="radio" 
+                       className="w-4 h-4"
+                       name="accountingTypeBusinessMode" 
+                       checked={editingBusiness.accountingType === 'Fiscal'}
+                       onChange={() => setEditingBusiness({...editingBusiness, accountingType: 'Fiscal'})}
+                     />
+                     <span className="text-xs font-bold uppercase tracking-tight">Fiscal</span>
                   </label>
                 </div>
                 <div className="col-span-4">
                   <label className="form-label">Fiscal Month End:</label>
                   <select 
-                    disabled={editingClient.accountingType !== 'Fiscal'}
-                    value={editingClient.fiscalMonthEnd || 12}
-                    onChange={e => setEditingClient({...editingClient, fiscalMonthEnd: parseInt(e.target.value)})}
+                    disabled={editingBusiness.accountingType !== 'Fiscal'}
+                    value={editingBusiness.fiscalMonthEnd || 12}
+                    onChange={e => setEditingBusiness({...editingBusiness, fiscalMonthEnd: parseInt(e.target.value)})}
                     className="form-input disabled:opacity-50 border-slate-400"
                   >
                     {Array.from({length: 12}, (_, i) => (
@@ -655,13 +699,17 @@ export function ExtraModals() {
             {/* Form Footer */}
             <div className="border-t border-slate-300 dark:border-slate-700 pt-4 flex justify-end gap-3 px-4">
               <button 
-                onClick={handleSaveProfile}
-                className="bg-slate-200 dark:bg-slate-700 font-bold px-6 py-2 rounded border border-slate-400 dark:border-slate-600 shadow-sm hover:bg-slate-300 dark:hover:bg-slate-600 flex items-center gap-2"
+                onClick={handleSaveBusinessProfile}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-2 rounded shadow-sm flex items-center gap-2 transition"
               >
                 <Save className="w-4 h-4" /> Save
               </button>
               <button 
-                onClick={() => setEditingClient({...clients[editingClient.id]})}
+                onClick={() => {
+                  if (businessProfile) {
+                    setEditingBusiness({ ...businessProfile });
+                  }
+                }}
                 className="bg-slate-200 dark:bg-slate-700 font-bold px-6 py-2 rounded border border-slate-400 dark:border-slate-600 shadow-sm hover:bg-slate-300 dark:hover:bg-slate-600 flex items-center gap-2"
               >
                 <RotateCcw className="w-4 h-4" /> Revert
@@ -677,23 +725,24 @@ export function ExtraModals() {
         ) : (
           <div className="flex flex-col items-center justify-center py-12 px-4 text-center bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm">
             <Building2 className="w-16 h-16 text-slate-300 mb-4" />
-            <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-2">No Active Business Profile Selected</h2>
-            <p className="text-slate-500 dark:text-slate-400 max-w-md mb-8">Please select or register a profile in Client Profiles first to manage its corporate identity details.</p>
-            {userRole === 'owner' ? (
+            <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-2">My Business Profile</h2>
+            <p className="text-slate-500 dark:text-slate-400 max-w-sm mb-6">Create your own business/firm profile to track your corporate identity, configuration, and tax info separately from your client profiles.</p>
+            
+            <div className="flex flex-col sm:flex-row gap-2 w-full max-w-md bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
+              <input 
+                type="text" 
+                placeholder="Business / Firm Name" 
+                value={newBusinessName}
+                onChange={e => setNewBusinessName(e.target.value)}
+                className="form-input flex-1"
+              />
               <button 
-                 onClick={() => addClient("My Business")}
-                 className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold shadow-lg shadow-blue-500/30 transition-all active:scale-95"
+                onClick={handleCreateBusinessProfile} 
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 transition active:scale-95 shrink-0 shadow-md"
               >
-                Register My Company
+                <Plus className="w-5 h-5" /> Let's Go
               </button>
-            ) : (
-              <button 
-                 onClick={() => openModal('clients')}
-                 className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold shadow-lg shadow-blue-500/30 transition-all active:scale-95"
-              >
-                Go to Client Profiles
-              </button>
-            )}
+            </div>
           </div>
         )}
       </Modal>

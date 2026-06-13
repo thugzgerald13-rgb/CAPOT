@@ -90,6 +90,27 @@ export interface Client {
   plData?: ProfitAndLossData;
 }
 
+export interface BusinessProfile {
+  id: string;
+  name: string;
+  tin?: string;
+  taxpayerClassification?: string;
+  registeredName?: string;
+  lastName?: string;
+  firstName?: string;
+  middleName?: string;
+  tradeName?: string;
+  substreet?: string;
+  street?: string;
+  barangay?: string;
+  district?: string;
+  city?: string;
+  zipCode?: string;
+  rdoCode?: string;
+  accountingType?: 'Calendar' | 'Fiscal';
+  fiscalMonthEnd?: number;
+}
+
 export interface ProfitAndLossLine {
   id: string;
   particulars: string;
