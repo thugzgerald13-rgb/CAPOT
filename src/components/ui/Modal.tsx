@@ -14,15 +14,11 @@ interface ModalProps {
 }
 
 export function Modal({ id, title, children, icon, maxWidth = 'max-w-4xl', badge }: ModalProps) {
-  const { activeModal, openModal, activeDevice, isProfileComplete } = useAccounting();
+  const { activeModal, openModal, activeDevice } = useAccounting();
   const isActive = activeModal === id;
   const isMobile = activeDevice === 'mobile';
-  const isUncloseable = id === 'business' && !isProfileComplete;
 
-  const handleClose = () => {
-    if (isUncloseable) return;
-    openModal(null);
-  };
+  const handleClose = () => openModal(null);
 
   return (
     <AnimatePresence>
@@ -56,15 +52,13 @@ export function Modal({ id, title, children, icon, maxWidth = 'max-w-4xl', badge
                   {badge}
                 </h3>
               </div>
-              {!isUncloseable && (
-                <button
-                  onClick={handleClose}
-                  className="p-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors"
-                  aria-label="Close modal"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              )}
+              <button
+                onClick={handleClose}
+                className="p-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors"
+                aria-label="Close modal"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
             
             {/* Body */}

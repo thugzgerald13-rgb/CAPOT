@@ -149,44 +149,6 @@ export function getMonthName(monthNum: number | string) {
   return MONTHS[parseInt(monthNum as string) - 1];
 }
 
-import { Client } from '../types';
-
-export function isBusinessProfileComplete(client: Client | null | undefined): boolean {
-  if (!client) return false;
-  
-  // 1. Check tin
-  const tinParts = (client.tin || '').split('-');
-  const validTin = tinParts.length === 3 && tinParts.every(part => part.trim().length > 0 && /^\d+$/.test(part.trim()));
-  if (!validTin) return false;
-
-  // 2. taxpayerClassification
-  if (!client.taxpayerClassification) return false;
-
-  // 3. Name fields based on Classification
-  if (client.taxpayerClassification === 'Individual') {
-    if (!client.firstName?.trim() || !client.lastName?.trim()) return false;
-  } else if (client.taxpayerClassification === 'Non-Individual') {
-    if (!client.registeredName?.trim()) return false;
-  } else {
-    return false;
-  }
-
-  // 4. Address check
-  if (!client.street?.trim()) return false;
-  if (!client.barangay?.trim()) return false;
-  if (!client.district?.trim()) return false;
-  if (!client.city?.trim()) return false;
-  if (!client.zipCode?.trim()) return false;
-
-  // 5. RDO code
-  if (!client.rdoCode?.trim()) return false;
-
-  // 6. Accounting type
-  if (!client.accountingType) return false;
-
-  return true;
-}
-
 export function generateDATFile(filename: string, content: string) {
   const blob = new Blob([content], { type: 'text/plain;charset=utf-8;' });
   const link = document.createElement('a');
