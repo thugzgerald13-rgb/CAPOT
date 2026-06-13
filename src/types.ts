@@ -47,6 +47,7 @@ export interface CoaAccount {
   id: string;
   name: string;
   type: string;
+  subType?: string;
   normalSide?: 'debit' | 'credit';
   parentId?: string;
 }

@@ -6,38 +6,46 @@ import { CoaAccount } from '../../types';
 import { cn } from '../../lib/utils';
 
 export const DEFAULT_ACCOUNTS: CoaAccount[] = [
-  { id: '1000', name: 'Cash on Hand', type: 'Asset', normalSide: 'debit' },
-  { id: '1100', name: 'Accounts Receivable', type: 'Asset', normalSide: 'debit' },
-  { id: '1200', name: 'Creditable Withholding Tax', type: 'Asset', normalSide: 'debit' },
-  { id: '1300', name: 'Inventory', type: 'Asset', normalSide: 'debit' },
-  { id: '2000', name: 'Accounts Payable', type: 'Liability', normalSide: 'credit' },
-  { id: '2100', name: 'VAT Output Payable', type: 'Liability', normalSide: 'credit' },
-  { id: '2200', name: 'VAT Input Receivable', type: 'Asset', normalSide: 'debit' },
-  { id: '2300', name: 'Withholding Tax Payable', type: 'Liability', normalSide: 'credit' },
+  { id: '1000', name: 'Cash on Hand', type: 'Asset', subType: 'Current Assets', normalSide: 'debit' },
+  { id: '1100', name: 'Accounts Receivable', type: 'Asset', subType: 'Current Assets', normalSide: 'debit' },
+  { id: '1200', name: 'Creditable Withholding Tax', type: 'Asset', subType: 'Current Assets', normalSide: 'debit' },
+  { id: '1300', name: 'Inventory', type: 'Asset', subType: 'Current Assets', normalSide: 'debit' },
+  { id: '2000', name: 'Accounts Payable', type: 'Liability', subType: 'Current Liabilities', normalSide: 'credit' },
+  { id: '2100', name: 'VAT Output Payable', type: 'Liability', subType: 'Current Liabilities', normalSide: 'credit' },
+  { id: '2200', name: 'VAT Input Receivable', type: 'Asset', subType: 'Current Assets', normalSide: 'debit' },
+  { id: '2300', name: 'Withholding Tax Payable', type: 'Liability', subType: 'Current Liabilities', normalSide: 'credit' },
   { id: '3000', name: 'Capital Stock', type: 'Equity', normalSide: 'credit' },
   { id: '3100', name: 'Retained Earnings', type: 'Equity', normalSide: 'credit' },
   { id: '4000', name: 'Sales Revenue', type: 'Revenue', normalSide: 'credit' },
-  { id: '5000', name: 'Cost of Goods Sold', type: 'Expense', normalSide: 'debit' },
-  { id: '5100', name: 'Operating Expenses', type: 'Expense', normalSide: 'debit' },
+  { id: '5000', name: 'Cost of Goods Sold', type: 'Expense', subType: 'Costs', normalSide: 'debit' },
+  { id: '5100', name: 'Operating Expenses', type: 'Expense', subType: 'Administrative expense', normalSide: 'debit' },
 ];
 
 export const DEFAULT_ACCOUNTS_ALPHA: CoaAccount[] = [
-  { id: 'COH-1000', name: 'Cash on Hand', type: 'Asset', normalSide: 'debit' },
-  { id: 'ACR-1100', name: 'Accounts Receivable', type: 'Asset', normalSide: 'debit' },
-  { id: 'CWT-1200', name: 'Creditable Withholding Tax', type: 'Asset', normalSide: 'debit' },
-  { id: 'INV-1300', name: 'Inventory', type: 'Asset', normalSide: 'debit' },
-  { id: 'ACP-2000', name: 'Accounts Payable', type: 'Liability', normalSide: 'credit' },
-  { id: 'VOP-2100', name: 'VAT Output Payable', type: 'Liability', normalSide: 'credit' },
-  { id: 'VIR-2200', name: 'VAT Input Receivable', type: 'Asset', normalSide: 'debit' },
-  { id: 'WTP-2300', name: 'Withholding Tax Payable', type: 'Liability', normalSide: 'credit' },
+  { id: 'COH-1000', name: 'Cash on Hand', type: 'Asset', subType: 'Current Assets', normalSide: 'debit' },
+  { id: 'ACR-1100', name: 'Accounts Receivable', type: 'Asset', subType: 'Current Assets', normalSide: 'debit' },
+  { id: 'CWT-1200', name: 'Creditable Withholding Tax', type: 'Asset', subType: 'Current Assets', normalSide: 'debit' },
+  { id: 'INV-1300', name: 'Inventory', type: 'Asset', subType: 'Current Assets', normalSide: 'debit' },
+  { id: 'ACP-2000', name: 'Accounts Payable', type: 'Liability', subType: 'Current Liabilities', normalSide: 'credit' },
+  { id: 'VOP-2100', name: 'VAT Output Payable', type: 'Liability', subType: 'Current Liabilities', normalSide: 'credit' },
+  { id: 'VIR-2200', name: 'VAT Input Receivable', type: 'Asset', subType: 'Current Assets', normalSide: 'debit' },
+  { id: 'WTP-2300', name: 'Withholding Tax Payable', type: 'Liability', subType: 'Current Liabilities', normalSide: 'credit' },
   { id: 'CAP-3000', name: 'Capital Stock', type: 'Equity', normalSide: 'credit' },
   { id: 'RET-3100', name: 'Retained Earnings', type: 'Equity', normalSide: 'credit' },
   { id: 'REV-4000', name: 'Sales Revenue', type: 'Revenue', normalSide: 'credit' },
-  { id: 'CGS-5000', name: 'Cost of Goods Sold', type: 'Expense', normalSide: 'debit' },
-  { id: 'OPE-5100', name: 'Operating Expenses', type: 'Expense', normalSide: 'debit' },
+  { id: 'CGS-5000', name: 'Cost of Goods Sold', type: 'Expense', subType: 'Costs', normalSide: 'debit' },
+  { id: 'OPE-5100', name: 'Operating Expenses', type: 'Expense', subType: 'Administrative expense', normalSide: 'debit' },
 ];
 
 const ACCOUNT_TYPES = ['Asset', 'Liability', 'Equity', 'Revenue', 'Expense'];
+
+const SUBTYPES_BY_TYPE: Record<string, string[]> = {
+  Asset: ['Current Assets', 'Noncurrent Assets'],
+  Liability: ['Current Liabilities', 'Noncurrent Liabilities'],
+  Expense: ['Costs', 'Selling expense', 'Administrative expense'],
+  Equity: [],
+  Revenue: []
+};
 
 export function getNormalSide(type: string): 'debit' | 'credit' {
   const t = type.toLowerCase();
@@ -62,6 +70,7 @@ export function ChartOfAccountsModal() {
   const [newCode, setNewCode] = useState('');
   const [newName, setNewName] = useState('');
   const [newType, setNewType] = useState('Asset');
+  const [newSubType, setNewSubType] = useState('Current Assets');
   const [newNormalSide, setNewNormalSide] = useState<'debit' | 'credit'>('debit');
 
   const [showPresets, setShowPresets] = useState(false);
@@ -71,6 +80,7 @@ export function ChartOfAccountsModal() {
   const [editCode, setEditCode] = useState('');
   const [editName, setEditName] = useState('');
   const [editType, setEditType] = useState('Asset');
+  const [editSubType, setEditSubType] = useState('');
   const [editNormalSide, setEditNormalSide] = useState<'debit' | 'credit'>('debit');
 
   useEffect(() => {
@@ -85,14 +95,22 @@ export function ChartOfAccountsModal() {
     };
   }, [presetsRef]);
 
-  // Adjust normal side automatically when type changes in adding form
+  // Adjust normal side and default sub-type automatically when type changes in adding form
   useEffect(() => {
     setNewNormalSide(getNormalSide(newType));
+    const subTypes = SUBTYPES_BY_TYPE[newType] || [];
+    setNewSubType(subTypes[0] || '');
   }, [newType]);
 
-  // Adjust normal side automatically when type changes in editing form
+  // Adjust normal side and default sub-type automatically when type changes in editing form
   useEffect(() => {
     setEditNormalSide(getNormalSide(editType));
+    const subTypes = SUBTYPES_BY_TYPE[editType] || [];
+    if (subTypes.length > 0 && !subTypes.includes(editSubType)) {
+      setEditSubType(subTypes[0]);
+    } else if (subTypes.length === 0) {
+      setEditSubType('');
+    }
   }, [editType]);
 
   if (!currentClient || !currentClientId) return null;
@@ -141,6 +159,7 @@ export function ChartOfAccountsModal() {
       id: newCode, 
       name: newName, 
       type: newType, 
+      subType: newSubType || undefined,
       normalSide: newNormalSide 
     }];
     handleSaveAccounts(updatedAccounts);
@@ -176,6 +195,7 @@ export function ChartOfAccountsModal() {
           id: editCode,
           name: editName,
           type: editType,
+          subType: editSubType || undefined,
           normalSide: editNormalSide
         };
       }
@@ -307,7 +327,7 @@ export function ChartOfAccountsModal() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Type</label>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Account Type</label>
                   <select 
                     value={newType} 
                     onChange={e => setNewType(e.target.value)} 
@@ -316,8 +336,20 @@ export function ChartOfAccountsModal() {
                     {ACCOUNT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>
+                {SUBTYPES_BY_TYPE[newType]?.length > 0 && (
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Sub-Type</label>
+                    <select 
+                      value={newSubType} 
+                      onChange={e => setNewSubType(e.target.value)} 
+                      className="w-full form-input"
+                    >
+                      {SUBTYPES_BY_TYPE[newType].map(st => <option key={st} value={st}>{st}</option>)}
+                    </select>
+                  </div>
+                )}
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Normal Side</label>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Normal Entry</label>
                   <select 
                     value={newNormalSide} 
                     onChange={e => setNewNormalSide(e.target.value as 'debit' | 'credit')} 
@@ -390,17 +422,18 @@ export function ChartOfAccountsModal() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-50 dark:bg-slate-850 border-b border-slate-250 dark:border-slate-850 text-[10.5px] font-bold text-slate-500 uppercase tracking-widest">
-                  <th className="px-5 py-3 w-[120px]">Code</th>
-                  <th className="px-5 py-3">Account Title</th>
-                  <th className="px-5 py-3 w-[150px]">Account Type</th>
-                  <th className="px-5 py-3 w-[150px]">Normal Entry</th>
-                  <th className="px-5 py-3 text-right w-[180px]">Balance</th>
+                  <th className="px-4 py-3 w-[100px]">Code</th>
+                  <th className="px-4 py-3">Account Title</th>
+                  <th className="px-4 py-3 w-[130px]">Account Type</th>
+                  <th className="px-4 py-3 w-[160px]">Sub-Type</th>
+                  <th className="px-4 py-3 w-[120px]">Normal Entry</th>
+                  <th className="px-4 py-3 text-right w-[150px]">Balance</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
                 {filteredAccounts.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-5 py-12 text-center text-slate-500 text-sm">
+                    <td colSpan={6} className="px-4 py-12 text-center text-slate-500 text-sm">
                       No accounts found matching the filter criteria.
                     </td>
                   </tr>
@@ -412,7 +445,7 @@ export function ChartOfAccountsModal() {
                     if (isEditing) {
                       return (
                         <tr key={account.id} className="bg-blue-50/50 dark:bg-slate-800/30">
-                          <td className="px-5 py-3">
+                          <td className="px-4 py-3">
                             <input 
                               type="text" 
                               value={editCode} 
@@ -420,7 +453,7 @@ export function ChartOfAccountsModal() {
                               className="w-full form-input py-1 px-2 text-xs font-mono"
                             />
                           </td>
-                          <td className="px-5 py-3">
+                          <td className="px-4 py-3">
                             <input 
                               type="text" 
                               value={editName} 
@@ -428,7 +461,7 @@ export function ChartOfAccountsModal() {
                               className="w-full form-input py-1 px-2 text-xs"
                             />
                           </td>
-                          <td className="px-5 py-3">
+                          <td className="px-4 py-3">
                             <select 
                               value={editType} 
                               onChange={e => setEditType(e.target.value)} 
@@ -437,7 +470,20 @@ export function ChartOfAccountsModal() {
                               {ACCOUNT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                             </select>
                           </td>
-                          <td className="px-5 py-3">
+                          <td className="px-4 py-3">
+                            {SUBTYPES_BY_TYPE[editType]?.length > 0 ? (
+                              <select 
+                                value={editSubType} 
+                                onChange={e => setEditSubType(e.target.value)} 
+                                className="w-full form-input py-1 px-1 text-xs"
+                              >
+                                {SUBTYPES_BY_TYPE[editType].map(st => <option key={st} value={st}>{st}</option>)}
+                              </select>
+                            ) : (
+                              <span className="text-xs text-slate-400 dark:text-slate-500 italic">None</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
                             <select 
                               value={editNormalSide} 
                               onChange={e => setEditNormalSide(e.target.value as 'debit' | 'credit')} 
@@ -447,7 +493,7 @@ export function ChartOfAccountsModal() {
                               <option value="credit">credit</option>
                             </select>
                           </td>
-                          <td className="px-5 py-3 text-right flex items-center justify-end gap-1.5 pt-4">
+                          <td className="px-4 py-3 text-right flex items-center justify-end gap-1.5 pt-4">
                             <button 
                               onClick={() => handleSaveEdit(account.id)}
                               className="p-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition-colors"
@@ -472,19 +518,22 @@ export function ChartOfAccountsModal() {
                         key={account.id} 
                         className="group hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors"
                       >
-                        <td className="px-5 py-3.5 font-mono text-slate-600 dark:text-slate-400 text-sm font-medium">
+                        <td className="px-4 py-3.5 font-mono text-slate-600 dark:text-slate-400 text-sm font-medium">
                           {account.id}
                         </td>
-                        <td className="px-5 py-3.5 font-sans font-medium text-slate-850 dark:text-slate-200 text-sm">
+                        <td className="px-4 py-3.5 font-sans font-medium text-slate-850 dark:text-slate-200 text-xs sm:text-sm">
                           {account.name}
                         </td>
-                        <td className="px-5 py-3.5 text-slate-600 dark:text-slate-400 text-sm">
+                        <td className="px-4 py-3.5 text-slate-600 dark:text-slate-400 text-xs sm:text-sm">
                           {account.type}
                         </td>
-                        <td className="px-5 py-3.5 text-slate-500 dark:text-slate-400 text-sm capitalize">
+                        <td className="px-4 py-3.5 text-slate-600 dark:text-slate-300 text-xs sm:text-sm">
+                          {account.subType || <span className="text-slate-400 dark:text-slate-600">—</span>}
+                        </td>
+                        <td className="px-4 py-3.5 text-slate-500 dark:text-slate-400 text-sm capitalize">
                           {account.normalSide || getNormalSide(account.type)}
                         </td>
-                        <td className="px-5 py-3.5 text-right font-mono text-slate-800 dark:text-slate-100 text-sm font-semibold">
+                        <td className="px-4 py-3.5 text-right font-mono text-slate-800 dark:text-slate-100 text-sm font-semibold">
                           <div className="flex items-center justify-end gap-2.5">
                             <span>
                               ₱ {balanceValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -496,6 +545,7 @@ export function ChartOfAccountsModal() {
                                   setEditCode(account.id);
                                   setEditName(account.name);
                                   setEditType(account.type);
+                                  setEditSubType(account.subType || '');
                                   setEditNormalSide(account.normalSide || getNormalSide(account.type));
                                 }}
                                 className="p-1 hover:bg-blue-100 dark:hover:bg-blue-900/40 rounded text-blue-500 transition-colors"
