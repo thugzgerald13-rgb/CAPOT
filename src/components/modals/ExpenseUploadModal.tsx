@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
 import { useAccounting } from '../../context/AccountingContext';
 import { formatTIN, MONTHS } from '../../lib/utils';
-import { Upload, FileSpreadsheet, FileText, CheckCircle2, AlertCircle, Info, Calculator, Calendar, Store, CreditCard, ChevronRight } from 'lucide-react';
+import { Upload, FileSpreadsheet, FileText, CheckCircle2, AlertCircle, Info, Calculator, Calendar, Store, CreditCard, ChevronRight, Search, Trash } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { DEFAULT_ACCOUNTS } from './ChartOfAccountsModal';
 
@@ -10,6 +10,7 @@ export function ExpenseUploadModal() {
   const { currentClient, currentClientId, currentDat, saveClient, showToast, openModal } = useAccounting();
 
   const [activeTab, setActiveTab] = useState<'csv' | 'receipt'>('receipt');
+  const [fileSearchQuery, setFileSearchQuery] = useState('');
   
   // Drag and drop / upload states
   const [isDragging, setIsDragging] = useState(false);
@@ -35,6 +36,106 @@ export function ExpenseUploadModal() {
   const [accountTitle, setAccountTitle] = useState('');
   const [transactionDetails, setTransactionDetails] = useState('');
   const [selectedAccountType, setSelectedAccountType] = useState('Expenses');
+
+  // AI category suggestion states
+  const [isSuggestingAI, setIsSuggestingAI] = useState(false);
+  const [isBulkSuggestingAI, setIsBulkSuggestingAI] = useState(false);
+  const [aiSuggestion, setAiSuggestion] = useState<{
+    suggestedCategory: string;
+    suggestedExpenseType: string;
+    confidence: string;
+    reason: string;
+  } | null>(null);
+
+  const getAISuggestion = async (vendorName: string, detailsText: string, currentAmount: string, currentType: string) => {
+    setIsSuggestingAI(true);
+    try {
+      const list = (currentClient?.accounts || DEFAULT_ACCOUNTS).map(a => a.name);
+      const response = await fetch("/api/suggest-category", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          vendor: vendorName,
+          details: detailsText,
+          amount: currentAmount,
+          availableCategories: list,
+          currentExpenseType: currentType
+        })
+      });
+      if (!response.ok) {
+        throw new Error("Failed to suggest category with AI");
+      }
+      const data = await response.json();
+      setAiSuggestion(data);
+      
+      // Auto-apply recommendation
+      if (data.suggestedCategory) {
+        setAccountTitle(data.suggestedCategory);
+        const acc = (currentClient?.accounts || DEFAULT_ACCOUNTS).find(a => a.name === data.suggestedCategory);
+        if (acc?.type) {
+          setSelectedAccountType(acc.type);
+        }
+      }
+      if (data.suggestedExpenseType) {
+        setExpenseType(data.suggestedExpenseType);
+      }
+      showToast("✨ AI suggested categories matched and applied!");
+    } catch (error) {
+      console.error("AI categorization failed:", error);
+    } finally {
+      setIsSuggestingAI(false);
+    }
+  };
+
+  const handleTriggerAISuggestion = () => {
+    getAISuggestion(supplierName, transactionDetails, amount, expenseType);
+  };
+
+  const handleBulkSuggestAI = async () => {
+    if (csvPreviewRows.length === 0) return;
+    setIsBulkSuggestingAI(true);
+    showToast("✨ Querying Gemini AI for CSV mapping...");
+    try {
+      const list = (currentClient?.accounts || DEFAULT_ACCOUNTS).map(a => a.name);
+      const updatedRows = await Promise.all(
+        csvPreviewRows.map(async (row) => {
+          try {
+            const resp = await fetch("/api/suggest-category", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                vendor: row.supplierName,
+                details: row.transactionDetails,
+                amount: row.grossAmount,
+                availableCategories: list,
+                currentExpenseType: row.expenseType
+              })
+            });
+            if (resp.ok) {
+              const data = await resp.json();
+              if (data && data.suggestedCategory) {
+                return {
+                  ...row,
+                  accountTitle: data.suggestedCategory,
+                  expenseType: data.suggestedExpenseType || row.expenseType
+                };
+              }
+            }
+          } catch (e) {
+            console.error("CSV Row AI Suggestion error:", e);
+          }
+          return row;
+        })
+      );
+      setCsvPreviewRows(updatedRows);
+      showToast("Completed! AI auto-categorization applied to all matching items.");
+    } catch (err) {
+      console.error("Bulk AI categorizing fail:", err);
+      showToast("Could not bulk suggest categories.");
+    } finally {
+      setIsBulkSuggestingAI(false);
+    }
+  };
 
   // Derive coaAccounts
   const coaAccounts = (() => {
@@ -88,6 +189,7 @@ export function ExpenseUploadModal() {
     setSupplierAddress('');
     setAmount('');
     setTransactionDetails('');
+    setAiSuggestion(null);
   };
 
   const processFile = (file: File) => {
@@ -269,6 +371,9 @@ export function ExpenseUploadModal() {
 
         setIsProcessing(false);
         showToast("OCR extracted billing details instantly!");
+
+        // Auto run Gemini AI category recommendation based on scanned values
+        getAISuggestion(extName, extDetails, extAmount, extExpenseType);
       }, 1500);
     }
   };
@@ -470,6 +575,140 @@ export function ExpenseUploadModal() {
           </div>
         )}
 
+        {/* Previous Uploads & Search Section */}
+        {!scannedData && csvPreviewRows.length === 0 && (
+          <div className="mt-4 border-t border-slate-100 dark:border-slate-800 pt-6 space-y-4">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                  Document Archives & Entries
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Search already uploaded receipts, CSV rows, or document entries.
+                </p>
+              </div>
+              
+              {/* Search Input */}
+              <div className="relative w-full md:w-85">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Search className="h-4 w-4 text-slate-400" />
+                </div>
+                <input
+                  type="text"
+                  value={fileSearchQuery}
+                  onChange={(e) => setFileSearchQuery(e.target.value)}
+                  placeholder="Search by supplier, date, or category..."
+                  className="w-full pl-9 pr-12 py-2 border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900/60 text-xs placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-550 transition-all text-slate-700 dark:text-slate-200"
+                />
+                {fileSearchQuery && (
+                  <button
+                    onClick={() => setFileSearchQuery('')}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-[10px] font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 animate-fade-in"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* List Results */}
+            {(() => {
+              const purchases = currentClient?.purchases || [];
+              const filtered = purchases.filter(p => {
+                const query = fileSearchQuery.toLowerCase().trim();
+                if (!query) return true;
+                
+                const matchesName = p.supplierName?.toLowerCase().includes(query);
+                const matchesDate = p.date?.includes(query);
+                const matchesAccount = p.accountTitle?.toLowerCase().includes(query);
+                const matchesType = p.expenseType?.toLowerCase().includes(query);
+                const matchesInvoice = p.invoiceNo?.toLowerCase().includes(query);
+                
+                return matchesName || matchesDate || matchesAccount || matchesType || matchesInvoice;
+              });
+
+              if (purchases.length === 0) {
+                return (
+                  <div className="text-center py-8 bg-slate-50/50 dark:bg-slate-900/10 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
+                    <p className="text-xs text-slate-400">No imported expense files or manually entered transactions found yet.</p>
+                  </div>
+                );
+              }
+
+              if (filtered.length === 0) {
+                return (
+                  <div className="text-center py-8 bg-slate-50/50 dark:bg-slate-900/10 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
+                    <p className="text-xs text-slate-400">No documents or entries match search query: "{fileSearchQuery}"</p>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[350px] overflow-y-auto pr-1">
+                  {filtered.map((item) => (
+                    <div 
+                      key={item.id} 
+                      className="p-3.5 bg-white dark:bg-slate-900/60 border border-slate-150 dark:border-slate-800/80 hover:border-amber-500/30 dark:hover:border-amber-500/20 rounded-2xl transition-all flex flex-col justify-between gap-2 group relative shadow-xs"
+                    >
+                      <div className="flex justify-between items-start gap-2">
+                        <div className="space-y-0.5 min-w-0">
+                          <h4 className="text-xs font-bold text-slate-800 dark:text-slate-150 truncate max-w-[180px]">
+                            {item.supplierName || 'Unknown Supplier'}
+                          </h4>
+                          <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
+                            <span className="truncate">Inv: {item.invoiceNo || 'N/A'}</span>
+                            <span>•</span>
+                            <span className="font-mono shrink-0">{item.date}</span>
+                          </div>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <div className="text-xs font-bold font-mono text-amber-700 dark:text-amber-400">
+                            ₱{((item.amount || 0) * (item.vatType === 'vat' ? 1.12 : 1)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </div>
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded text-slate-550 uppercase">
+                            {item.vatType}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-2 border-t border-slate-150/60 dark:border-slate-800 pt-2 mt-0.5">
+                        <div className="flex flex-wrap gap-1">
+                          <span className="text-[9.5px] px-2 py-0.5 bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 rounded-full font-bold truncate max-w-[150px]">
+                            {item.accountTitle}
+                          </span>
+                          <span className="text-[9.5px] px-2 py-0.5 bg-slate-50 text-slate-500 dark:bg-slate-850 dark:text-slate-400 rounded-full font-medium shrink-0">
+                            {item.expenseType}
+                          </span>
+                        </div>
+                        
+                        <div className="flex items-center gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (confirm(`Are you sure you want to delete the entry for ${item.supplierName || 'this supplier'}?`)) {
+                                const newPurchases = (currentClient?.purchases || []).filter(p => p.id !== item.id);
+                                saveClient(currentClientId, {
+                                  ...currentClient,
+                                  purchases: newPurchases
+                                });
+                                showToast("Document entry deleted successfully.");
+                              }
+                            }}
+                            className="p-1 text-slate-400 hover:text-rose-650 dark:hover:text-rose-400 rounded hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-all"
+                            title="Delete entry"
+                          >
+                            <Trash className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+          </div>
+        )}
+
         {/* Display Tab Navigation if data is scanned */}
         {(scannedData || csvPreviewRows.length > 0) && (
           <div className="border-b border-slate-200 dark:border-slate-700 pb-3 flex justify-between items-center">
@@ -557,8 +796,48 @@ export function ExpenseUploadModal() {
             {/* Right: Interactive review input forms */}
             <div className="lg:col-span-2 space-y-4">
               <h3 className="text-base font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                <CheckCircle2 className="w-5 h-5 text-emerald-500 animate-bounce" /> Verified Fields Review
+                <CheckCircle2 className="w-5 h-5 text-emerald-500" /> Verified Fields Review
               </h3>
+
+              {/* AI Suggestion Notification Card */}
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-indigo-950/20 dark:to-slate-900 border border-blue-200 dark:border-indigo-900/60 p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+                <div className="flex items-start gap-2.5">
+                  <div className="p-2 bg-blue-100 dark:bg-indigo-900/40 text-blue-600 dark:text-blue-300 rounded-xl mt-0.5 shrink-0">
+                    ✨
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
+                      AI Category Suggestion
+                      {isSuggestingAI && (
+                        <span className="inline-flex h-2 w-2 rounded-full bg-blue-600 animate-ping" />
+                      )}
+                    </h4>
+                    {isSuggestingAI ? (
+                      <p className="text-[11px] text-slate-400 mt-0.5 animate-pulse">Gemini AI is analyzing transaction details and mapping options...</p>
+                    ) : aiSuggestion ? (
+                      <div className="space-y-1 mt-0.5">
+                        <p className="text-[11px] text-slate-600 dark:text-slate-300">
+                          Recommended Category: <span className="font-bold text-blue-700 dark:text-blue-300 underline">{aiSuggestion.suggestedCategory}</span> (Class: <span className="font-semibold text-slate-700 dark:text-slate-200">{aiSuggestion.suggestedExpenseType}</span> with <span className="text-emerald-600 dark:text-emerald-400 font-bold">{aiSuggestion.confidence} Confidence</span>)
+                        </p>
+                        <p className="text-[10px] text-slate-400 italic">
+                          " {aiSuggestion.reason} "
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="text-[11px] text-slate-400 mt-0.5">Click the recommend button to analyze and map this expense using Gemini AI.</p>
+                    )}
+                  </div>
+                </div>
+                
+                <button
+                  type="button"
+                  onClick={handleTriggerAISuggestion}
+                  disabled={isSuggestingAI}
+                  className="shrink-0 px-4 py-2 bg-indigo-650 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold rounded-xl text-[11px] transition-all flex items-center gap-1 shadow-sm"
+                >
+                  {isSuggestingAI ? "Thinking..." : "✨ Ask Gemini AI"}
+                </button>
+              </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 dark:bg-slate-850 p-5 rounded-2xl border border-slate-150 dark:border-slate-800">
                 
@@ -702,19 +981,39 @@ export function ExpenseUploadModal() {
         {/* Display CSV bulk tables */}
         {csvPreviewRows.length > 0 && activeTab === 'csv' && (
           <div className="space-y-4">
-            <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-5 py-3 rounded-2xl">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-5 py-3 rounded-2xl gap-3">
               <div className="flex items-center gap-2">
                 <AlertCircle className="w-5 h-5 text-emerald-500" />
-                <span className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
                   {importStatus.msg}
                 </span>
               </div>
-              <button 
-                onClick={handleImportCSV}
-                className="px-6 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl transition-all text-xs"
-              >
-                Import All {csvPreviewRows.length} Rows
-              </button>
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={handleBulkSuggestAI}
+                  disabled={isBulkSuggestingAI}
+                  className="w-full sm:w-auto px-4 py-2 bg-indigo-605 disabled:opacity-50 text-indigo-705 dark:text-white dark:bg-indigo-900/60 font-bold rounded-xl border border-indigo-200 dark:border-indigo-800/80 transition-all text-xs flex items-center justify-center gap-1.5"
+                >
+                  {isBulkSuggestingAI ? (
+                    <>
+                      <span className="inline-block animate-spin rounded-full h-3.5 w-3.5 border-2 border-indigo-600 dark:border-white border-t-transparent" />
+                      <span>Categorizing...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>✨ Auto-Match with Gemini AI</span>
+                    </>
+                  )}
+                </button>
+                <button 
+                  onClick={handleImportCSV}
+                  disabled={isBulkSuggestingAI}
+                  className="w-full sm:w-auto px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition-all text-xs flex items-center justify-center"
+                >
+                  Import All {csvPreviewRows.length} Rows
+                </button>
+              </div>
             </div>
 
             <div className="overflow-x-auto border border-slate-250 dark:border-slate-705 rounded-2xl shadow-sm">
