@@ -28,14 +28,6 @@ export function PurchasesModal() {
 
   const [selectedAccountType, setSelectedAccountType] = useState('Expenses');
 
-  const [isUploadDropdownOpen, setIsUploadDropdownOpen] = useState(false);
-
-  const triggerUploadModal = (tab: 'csv' | 'receipt') => {
-    localStorage.setItem('expense_upload_tab', tab);
-    setIsUploadDropdownOpen(false);
-    openModal('expense-upload');
-  };
-
   // Derive available accounts from Chart of Accounts
   const coaAccounts = (() => {
     let accs = currentClient?.accounts || [];
@@ -313,65 +305,7 @@ export function PurchasesModal() {
         </div>
       )}
 
-      {/* Smart Document Import Dropdown Module Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between bg-emerald-50 dark:bg-emerald-950/15 p-4 rounded-3xl mb-6 gap-4 border border-emerald-200/60 dark:border-emerald-900/30 relative">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-xl">
-            <Upload className="w-5 h-5" />
-          </div>
-          <div>
-            <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100">Smart Document Import</h4>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400">Save manual entry work. Instantly list archives or scan receipt documents.</p>
-          </div>
-        </div>
 
-        {/* Dropdown Button */}
-        <div className="relative">
-          <button
-            onClick={() => setIsUploadDropdownOpen(!isUploadDropdownOpen)}
-            className="w-full sm:w-auto px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-lg shadow-emerald-600/10 transition-all flex items-center justify-center gap-2 text-xs"
-          >
-            <Upload className="w-4 h-4" />
-            <span>Expense Files</span>
-            <span className="text-[10px] opacity-70">▼</span>
-          </button>
-
-          {isUploadDropdownOpen && (
-            <>
-              {/* Overlay Backdrop to close on clicking out */}
-              <div className="fixed inset-0 z-10" onClick={() => setIsUploadDropdownOpen(false)} />
-              
-              <div className="absolute right-0 mt-2 w-72 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl z-20 py-1.5 animate-in fade-in slide-in-from-top-2 duration-200">
-                <div className="px-4 py-2 border-b border-slate-100 dark:border-slate-800 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                  Select Import Mode
-                </div>
-                
-                <button
-                  onClick={() => triggerUploadModal('receipt')}
-                  className="flex items-start gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800 w-full text-left transition-colors text-xs"
-                >
-                  <div className="p-1 px-1.5 bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 rounded-lg text-sm mt-0.5 font-bold">📷</div>
-                  <div>
-                    <p className="font-bold text-slate-800 dark:text-slate-200">Scan Receipt / Invoice (OCR)</p>
-                    <p className="text-[10px] text-slate-400 mt-0.5">Upload a PDF or image receipt to automatically extract billing details.</p>
-                  </div>
-                </button>
-
-                <button
-                  onClick={() => triggerUploadModal('csv')}
-                  className="flex items-start gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800 w-full text-left transition-colors text-xs border-t border-slate-100 dark:border-slate-800"
-                >
-                  <div className="p-1 px-1.5 bg-blue-100 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 rounded-lg text-sm mt-0.5 font-bold font-mono">CSV</div>
-                  <div>
-                    <p className="font-bold text-slate-800 dark:text-slate-200">Bulk Load CSV spreadsheet</p>
-                    <p className="text-[10px] text-slate-400 mt-0.5">Parse an offline table format of multiple items to populate list at once.</p>
-                  </div>
-                </button>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6 bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-700 relative">
         <div className="lg:col-span-3 pb-2 mb-2 border-b border-slate-200 dark:border-slate-700 flex flex-col md:flex-row gap-4 justify-between">

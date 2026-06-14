@@ -347,7 +347,7 @@ export function ExpenseUploadModal() {
     saveClient(currentClientId, updatedClient);
     showToast(`Successfully imported ${newPurchases.length} expenses from CSV!`);
     resetAll();
-    openModal('purchases'); // Return to screen
+    openModal(null); // Close modal
   };
 
   // Save the OCR reviewed single transaction
@@ -402,7 +402,7 @@ export function ExpenseUploadModal() {
     saveClient(currentClientId, updatedClient);
     showToast(`Saved expense from uploaded receipt OCR!`);
     resetAll();
-    openModal('purchases'); // Return to List view
+    openModal(null); // Close modal
   };
 
   return (
@@ -786,11 +786,11 @@ export function ExpenseUploadModal() {
           <button 
             onClick={() => {
               resetAll();
-              openModal('purchases');
+              openModal(null);
             }} 
             className="bg-slate-250 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-755 dark:text-slate-150 font-bold px-6 py-2.5 rounded-xl transition-colors flex items-center gap-1 text-sm"
           >
-            Go back to Expenses list
+            Close Window
           </button>
         </div>
 
