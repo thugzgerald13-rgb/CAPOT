@@ -387,7 +387,12 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       tinLibrary: { customers: [], suppliers: [] },
       sales: [],
       purchases: [],
-      expenses: []
+      expenses: [],
+      folders: [
+        { id: 'folder_revenue', name: 'Revenue', isDefault: true, type: 'revenue' },
+        { id: 'folder_expense', name: 'Expense', isDefault: true, type: 'expense' }
+      ],
+      files: []
     } as Client;
 
     if (user) {

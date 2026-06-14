@@ -90,6 +90,25 @@ export interface Client {
   gjEntries?: JournalEntry[];
   glAccounts?: GeneralLedgerAccount[];
   plData?: ProfitAndLossData;
+  folders?: AppFolder[];
+  files?: AppFile[];
+}
+
+export interface AppFolder {
+  id: string;
+  name: string;
+  isDefault: boolean;
+  type?: 'revenue' | 'expense' | 'custom';
+}
+
+export interface AppFile {
+  id: string;
+  name: string;
+  type: string;
+  size: number;
+  uploadedAt: string;
+  folderId: string;
+  content?: string; // base64 representation of file
 }
 
 export interface BusinessProfile {
