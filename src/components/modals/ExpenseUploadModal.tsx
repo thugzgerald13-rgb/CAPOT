@@ -36,16 +36,12 @@ export function ExpenseUploadModal() {
   const [accountTitle, setAccountTitle] = useState('');
   const [transactionDetails, setTransactionDetails] = useState('');
   const [selectedAccountType, setSelectedAccountType] = useState('Expenses');
+  const [tags, setTags] = useState<string[]>([]);
 
   // AI category suggestion states
   const [isSuggestingAI, setIsSuggestingAI] = useState(false);
   const [isBulkSuggestingAI, setIsBulkSuggestingAI] = useState(false);
-  const [aiSuggestion, setAiSuggestion] = useState<{
-    suggestedCategory: string;
-    suggestedExpenseType: string;
-    confidence: string;
-    reason: string;
-  } | null>(null);
+  const [aiSuggestion, setAiSuggestion] = useState<any>(null);
 
   const getAISuggestion = async (vendorName: string, detailsText: string, currentAmount: string, currentType: string) => {
     setIsSuggestingAI(true);
@@ -78,6 +74,9 @@ export function ExpenseUploadModal() {
       }
       if (data.suggestedExpenseType) {
         setExpenseType(data.suggestedExpenseType);
+      }
+      if (data.suggestedTags && Array.isArray(data.suggestedTags)) {
+        setTags(data.suggestedTags);
       }
       showToast("✨ AI suggested categories matched and applied!");
     } catch (error) {
@@ -190,6 +189,7 @@ export function ExpenseUploadModal() {
     setAmount('');
     setTransactionDetails('');
     setAiSuggestion(null);
+    setTags([]);
   };
 
   const processFile = (file: File) => {
@@ -441,7 +441,8 @@ export function ExpenseUploadModal() {
         expenseType: row.expenseType,
         accountTitle: row.accountTitle,
         transactionDetails: row.transactionDetails,
-        inputTax: inputTaxVal
+        inputTax: inputTaxVal,
+        tags: row.tags || []
       });
     });
 
@@ -496,7 +497,8 @@ export function ExpenseUploadModal() {
       expenseType,
       accountTitle,
       transactionDetails,
-      inputTax: inputTaxVal
+      inputTax: inputTaxVal,
+      tags: tags
     };
 
     const updatedClient = {
@@ -623,8 +625,9 @@ export function ExpenseUploadModal() {
                 const matchesAccount = p.accountTitle?.toLowerCase().includes(query);
                 const matchesType = p.expenseType?.toLowerCase().includes(query);
                 const matchesInvoice = p.invoiceNo?.toLowerCase().includes(query);
+                const matchesTags = p.tags && p.tags.some(t => t.toLowerCase().includes(query));
                 
-                return matchesName || matchesDate || matchesAccount || matchesType || matchesInvoice;
+                return matchesName || matchesDate || matchesAccount || matchesType || matchesInvoice || matchesTags;
               });
 
               if (purchases.length === 0) {
@@ -670,6 +673,16 @@ export function ExpenseUploadModal() {
                           </span>
                         </div>
                       </div>
+
+                      {item.tags && item.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1 px-0.5">
+                          {item.tags.map((tag, tIdx) => (
+                            <span key={tIdx} className="text-[9px] font-bold bg-amber-500/10 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300 px-1.5 py-0.5 rounded-md">
+                              #{tag}
+                            </span>
+                          ))}
+                        </div>
+                      )}
 
                       <div className="flex items-center justify-between gap-2 border-t border-slate-150/60 dark:border-slate-800 pt-2 mt-0.5">
                         <div className="flex flex-wrap gap-1">
@@ -954,6 +967,54 @@ export function ExpenseUploadModal() {
                     onChange={e => setTransactionDetails(e.target.value)} 
                     className="form-input" 
                   />
+                </div>
+
+                {/* AI Automated Tagging Suggestions */}
+                <div className="md:col-span-2">
+                  <label className="form-label flex items-center justify-between text-xs font-semibold text-slate-700 dark:text-slate-350">
+                    <span className="flex items-center gap-1.5">
+                      <span className="text-amber-500 font-bold shrink-0">✨</span> AI Suggested Primary Category Tags
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-bold tracking-wide italic bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">Auto-mapped by Gemini</span>
+                  </label>
+                  <div className="flex flex-wrap gap-2 p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-inner min-h-[50px] items-center">
+                    {tags.length > 0 ? (
+                      tags.map((tag, idx) => (
+                        <span key={idx} className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-500/10 dark:bg-amber-500/20 text-amber-800 dark:text-amber-300 rounded-full font-bold text-[11px] border border-amber-500/20 hover:border-rose-500/30 hover:bg-rose-50/20 dark:hover:bg-rose-950/20 hover:text-rose-600 dark:hover:text-rose-400 transition-all cursor-pointer group/tag select-none">
+                          <span>#{tag}</span>
+                          <button
+                            type="button"
+                            onClick={() => setTags(prev => prev.filter((_, i) => i !== idx))}
+                            className="text-amber-500 group-hover/tag:text-rose-500 transition-colors font-extrabold text-[12px] leading-none"
+                            title="Remove label"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-[11.5px] text-slate-400 italic pl-1">No labels yet. Drag a receipt/CSV or trigger Ask Gemini above to auto-tag.</span>
+                    )}
+
+                    {/* Inline Tag Adder */}
+                    <div className="ml-auto inline-flex items-center gap-1 bg-slate-50 dark:bg-slate-850 px-2 py-1 rounded-xl border border-slate-150 dark:border-slate-800">
+                      <input
+                        type="text"
+                        placeholder="+ Add custom tag..."
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            const val = e.currentTarget.value.trim();
+                            if (val && !tags.includes(val)) {
+                              setTags(prev => [...prev, val]);
+                              e.currentTarget.value = '';
+                            }
+                          }
+                        }}
+                        className="bg-transparent border-none p-0 outline-none focus:ring-0 text-[10.5px] placeholder:text-slate-400 text-slate-700 dark:text-slate-200 max-w-[120px]"
+                      />
+                    </div>
+                  </div>
                 </div>
 
               </div>

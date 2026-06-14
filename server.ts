@@ -54,6 +54,7 @@ Analyze the description and supplier industry:
 
 Select the most matching account title from the list of available categories. If no direct match exists, return the closest matched category.
 Also determine the appropriate expense class: "Capital Goods" (for machinery/assets), "Services", or "Others".
+Additionally, suggest 1 to 3 primary human-friendly tags or primary categories (e.g., 'Office Supplies', 'Travel', 'Utilities', 'Food & Pantry', 'Electronics/Equipment', 'Communication', 'Software/SaaS') to label this purchase.
 
 Return your recommendation as a JSON object matching the requested schema.`;
 
@@ -81,9 +82,14 @@ Return your recommendation as a JSON object matching the requested schema.`;
             reason: { 
               type: Type.STRING,
               description: "Short human-friendly sentence explaining this categorization logic."
+            },
+            suggestedTags: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING },
+              description: "Suggest 1-3 highly relevant primary tags (like 'Office Supplies', 'Travel', 'Utilities', 'Food & Pantry', 'Electronics/Equipment', 'Communication', 'Software/SaaS', 'Repairs') based on invoice details."
             }
           },
-          required: ["suggestedCategory", "suggestedExpenseType", "confidence", "reason"]
+          required: ["suggestedCategory", "suggestedExpenseType", "confidence", "reason", "suggestedTags"]
         }
       }
     });
