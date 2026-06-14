@@ -80,6 +80,7 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
     { id: 'coa', label: 'Chart of Accounts', icon: BookOpen },
     { id: 'sales', label: 'Income', icon: Receipt },
     { id: 'files', label: 'Upload Files', icon: FolderUp },
+    { id: 'ap-workspace', label: 'AP & Disbursements', icon: Banknote },
   ];
 
   const historyItems = [

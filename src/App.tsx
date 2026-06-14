@@ -19,12 +19,13 @@ import { ProfitAndLossModal } from './components/modals/ProfitAndLossModal';
 import { ExtraModals } from './components/modals/ExtraModals';
 import { AdminSettingsModal } from './components/modals/AdminSettingsModal';
 import { FileManagerModal } from './components/modals/FileManagerModal';
+import AccountsPayableModal from './components/modals/AccountsPayableModal';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { AuthContainer } from './components/AuthContainer';
 
 function AppLayout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const { toastMsg, clients, openModal } = useAccounting();
+  const { toastMsg, clients, openModal, activeModal } = useAccounting();
   const { userRole } = useAuth();
 
   const hasClients = Object.keys(clients).length > 0;
@@ -82,6 +83,7 @@ function AppLayout() {
         <AdminSettingsModal />
         <ExtraModals />
         <FileManagerModal />
+        {activeModal === 'ap-workspace' && <AccountsPayableModal />}
       </main>
     </div>
   );
