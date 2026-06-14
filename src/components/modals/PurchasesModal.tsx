@@ -29,7 +29,7 @@ export function PurchasesModal() {
   const [selectedAccountType, setSelectedAccountType] = useState('Expenses');
   const [attachedFileId, setAttachedFileId] = useState<string | null>(null);
 
-  // Auto-link session-based fast-track files if they came from the Vault
+  // Auto-link session-based fast-track files if they came from the upload section
   useEffect(() => {
     const preFileId = sessionStorage.getItem('pre_linked_file_id');
     const preFileName = sessionStorage.getItem('pre_linked_file_name');
@@ -557,7 +557,7 @@ export function PurchasesModal() {
             );
           })() : (
             <div className="flex flex-col sm:flex-row items-center gap-3">
-              <span className="text-[11px] text-slate-400 font-medium shrink-0">Attach an uploaded file from your vault:</span>
+              <span className="text-[11px] text-slate-400 font-medium shrink-0">Attach an uploaded file:</span>
               <select 
                 value={attachedFileId || ''} 
                 onChange={e => setAttachedFileId(e.target.value || null)}

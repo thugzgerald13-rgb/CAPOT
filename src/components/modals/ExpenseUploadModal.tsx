@@ -110,7 +110,7 @@ export function ExpenseUploadModal() {
           expenseFiles: updatedFiles
         };
         saveClient(currentClientId, updatedClient);
-        showToast(`Successfully uploaded ${uploadedCount} file(s) to vault!`);
+        showToast(`Successfully uploaded ${uploadedCount} file(s)!`);
       }
       
       if (oversizeCount > 0) {
@@ -153,7 +153,7 @@ export function ExpenseUploadModal() {
       purchases: updatedPurchases,
       expenseFiles: updatedFiles
     });
-    showToast("File deleted from vault");
+    showToast("File deleted");
   };
 
   const handleLinkFileToPurchase = (fileId: string, purchaseId: string) => {
@@ -329,7 +329,7 @@ export function ExpenseUploadModal() {
   return (
     <Modal
       id="expense-upload"
-      title="Expense Files & Documents Vault"
+      title="Expense Files & Documents"
       maxWidth="max-w-5xl"
       icon={<Upload className="w-5 h-5 text-amber-500" />}
     >
@@ -339,7 +339,7 @@ export function ExpenseUploadModal() {
         <div className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-slate-800/40 dark:to-orange-950/20 p-4 rounded-2xl border border-amber-200/50 dark:border-amber-900/30 flex items-start gap-3">
           <Info className="w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
           <div>
-            <h4 className="text-sm font-bold text-amber-900 dark:text-amber-100">Document Repository & Receipts Vault</h4>
+            <h4 className="text-sm font-bold text-amber-900 dark:text-amber-100">Document Repository & Receipts</h4>
             <p className="text-xs text-amber-700/80 dark:text-amber-400/80 leading-relaxed mt-0.5">
               Securely upload and archive receipts, bills, invoice scans, PDFs, and spreadsheet files directly. Check upload status, link your digital files directly to specific expense records for Audit-Ready Tax reporting, or download archived items instantly.
             </p>
@@ -612,7 +612,7 @@ export function ExpenseUploadModal() {
                           <button 
                             onClick={() => handleDeleteFile(file.id)}
                             className="p-1 px-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg border border-transparent hover:border-red-100 transition-all"
-                            title="Delete File from Vault"
+                            title="Delete File"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -739,7 +739,7 @@ export function ExpenseUploadModal() {
             <div className="text-center py-16 border rounded-2xl border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/20 text-slate-400 dark:text-slate-500 flex flex-col items-center justify-center gap-3">
               <Upload className="w-8 h-8 opacity-30 animate-pulse" />
               <div>
-                <p className="font-bold text-slate-600 dark:text-slate-400 text-sm">Vault contains no matches</p>
+                <p className="font-bold text-slate-600 dark:text-slate-400 text-sm">No files found</p>
                 <p className="text-xs mt-1 max-w-xs mx-auto text-slate-400">
                   {searchQuery 
                     ? "Adjust your search keywords or parameters and try again" 
@@ -761,7 +761,7 @@ export function ExpenseUploadModal() {
             }} 
             className="bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-100 font-bold px-6 py-2 rounded-xl transition-colors text-xs"
           >
-            Close Vault
+            Close Folder Panel
           </button>
         </div>
 
