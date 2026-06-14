@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Modal } from '../ui/Modal';
 import { useAccounting } from '../../context/AccountingContext';
 import { formatTIN, generateCSV, MONTHS, getMonthName } from '../../lib/utils';
-import { ShoppingCart, Plus, ArrowLeft, FolderClock, ChevronsLeft, ChevronsRight, ChevronLeft, ChevronRight, PlusCircle, Trash2, Upload } from 'lucide-react';
+import { ShoppingCart, Plus, ArrowLeft, FolderClock, ChevronsLeft, ChevronsRight, ChevronLeft, ChevronRight, PlusCircle, Trash2, Upload, Paperclip, Download, Link2 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { DEFAULT_ACCOUNTS } from './ChartOfAccountsModal';
 
@@ -27,6 +27,19 @@ export function PurchasesModal() {
   const [inputTax, setInputTax] = useState(0);
 
   const [selectedAccountType, setSelectedAccountType] = useState('Expenses');
+  const [attachedFileId, setAttachedFileId] = useState<string | null>(null);
+
+  // Auto-link session-based fast-track files if they came from the Vault
+  useEffect(() => {
+    const preFileId = sessionStorage.getItem('pre_linked_file_id');
+    const preFileName = sessionStorage.getItem('pre_linked_file_name');
+    if (preFileId && preFileName) {
+      setAttachedFileId(preFileId);
+      setTransactionDetails(prev => prev ? `${prev} (Attached file: ${preFileName})` : `Attached document file: ${preFileName}`);
+      sessionStorage.removeItem('pre_linked_file_id');
+      sessionStorage.removeItem('pre_linked_file_name');
+    }
+  }, [openModal]);
 
   // Derive available accounts from Chart of Accounts
   const coaAccounts = (() => {
@@ -116,6 +129,7 @@ export function PurchasesModal() {
 
       setTransactionDetails(p.transactionDetails || '');
       setSequenceNumber(p.sequenceNumber || (index + 1));
+      setAttachedFileId(p.attachedFileId || null);
       setViewIndex(index);
     }
   };
@@ -130,6 +144,7 @@ export function PurchasesModal() {
     setBankName('');
     setCheckNumber('');
     setTransactionDetails('');
+    setAttachedFileId(null);
     const count = periodPurchases.length;
     setSequenceNumber(count + 1);
   };
@@ -200,8 +215,9 @@ export function PurchasesModal() {
     const [y, m, d] = date.split('-');
     const formattedDate = `${m}/${d}/${y}`;
 
+    const purchaseId = viewIndex !== null ? periodPurchases[viewIndex].id : Date.now();
     const purchaseData = {
-      id: viewIndex !== null ? periodPurchases[viewIndex].id : Date.now(),
+      id: purchaseId,
       sequenceNumber: viewIndex !== null ? (periodPurchases[viewIndex].sequenceNumber || sequenceNumber) : sequenceNumber,
       datMonthYear: currentDat ? currentDat.formatted : `${MONTHS[parseInt(m) - 1]} ${y}`,
       date: formattedDate,
@@ -217,7 +233,8 @@ export function PurchasesModal() {
       expenseType,
       accountTitle,
       transactionDetails,
-      inputTax
+      inputTax,
+      attachedFileId: attachedFileId || undefined
     };
 
     // Auto-add to TIN Library if new
@@ -244,10 +261,24 @@ export function PurchasesModal() {
       updatedPurchases = [...currentClient.purchases, purchaseData];
     }
 
+    // Propagate the association back to Client.expenseFiles
+    const updatedFiles = (currentClient.expenseFiles || []).map(f => {
+      // If this file was previously linked to this purchase and is now unlinked/replaced, clean it
+      if (f.associatedExpenseId?.toString() === purchaseId.toString() && f.id !== attachedFileId) {
+        return { ...f, associatedExpenseId: undefined };
+      }
+      // Link the new file
+      if (f.id === attachedFileId) {
+        return { ...f, associatedExpenseId: purchaseId.toString() };
+      }
+      return f;
+    });
+
     const updatedClient = {
       ...currentClient,
       purchases: updatedPurchases,
-      tinLibrary: updatedTinLibrary
+      tinLibrary: updatedTinLibrary,
+      expenseFiles: updatedFiles
     };
     saveClient(currentClientId, updatedClient);
     showToast(viewIndex !== null ? 'Entry updated' : (exists ? 'Expense entry added' : 'Expense added & Supplier saved to Library'));
@@ -261,6 +292,7 @@ export function PurchasesModal() {
     setBankName('');
     setCheckNumber('');
     setTransactionDetails('');
+    setAttachedFileId(null);
   };
 
   const handleDelete = (id: number) => {
@@ -478,6 +510,75 @@ export function PurchasesModal() {
             placeholder="Enter additional details about this transaction..." 
             className="form-input" 
           />
+        </div>
+
+        {/* Real Attached files integration */}
+        <div className="lg:col-span-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-2xl">
+          <label className="form-label mb-2 flex items-center gap-1.5 text-xs font-bold text-slate-500 uppercase">
+            <Paperclip className="w-3.5 h-3.5" /> Paperclipped Receipt / Invoice Document
+          </label>
+          
+          {attachedFileId ? (() => {
+            const fileObj = (currentClient?.expenseFiles || []).find(f => f.id === attachedFileId);
+            return (
+              <div className="flex items-center justify-between bg-amber-500/5 dark:bg-amber-500/10 border border-amber-500/20 px-3.5 py-2 rounded-xl">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Paperclip className="w-4 h-4 text-amber-500 shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate pr-4">
+                      {fileObj ? fileObj.name : "Attached Document file"}
+                    </p>
+                    {fileObj && (
+                      <p className="text-[10px] text-slate-400">
+                        {parseFloat((fileObj.size / 1024).toFixed(1))} KB
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  {fileObj?.dataUrl && (
+                    <a 
+                      href={fileObj.dataUrl} 
+                      download={fileObj.name}
+                      className="p-1 px-2 hover:bg-amber-100 hover:text-amber-700 rounded-md text-[10px] font-bold border border-amber-200 transition-all flex items-center gap-1 text-slate-700 bg-white"
+                    >
+                      <Download className="w-3.5 h-3.5" /> Download
+                    </a>
+                  )}
+                  <button 
+                    type="button"
+                    onClick={() => setAttachedFileId(null)}
+                    className="p-1 px-2 border border-slate-200 text-[10px] hover:text-red-500 bg-white hover:bg-slate-50 rounded-md text-slate-600 font-semibold"
+                  >
+                    Disconnect File
+                  </button>
+                </div>
+              </div>
+            );
+          })() : (
+            <div className="flex flex-col sm:flex-row items-center gap-3">
+              <span className="text-[11px] text-slate-400 font-medium shrink-0">Attach an uploaded file from your vault:</span>
+              <select 
+                value={attachedFileId || ''} 
+                onChange={e => setAttachedFileId(e.target.value || null)}
+                className="text-xs flex-1 px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-250 dark:border-slate-800 rounded-xl text-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-500"
+              >
+                <option value="">-- No file connected --</option>
+                {(currentClient?.expenseFiles || []).filter(f => !f.associatedExpenseId || f.associatedExpenseId === (viewIndex !== null ? periodPurchases[viewIndex].id : '')).map(f => (
+                  <option key={f.id} value={f.id}>
+                    {f.name} ({parseFloat((f.size / 1024).toFixed(1))} KB)
+                  </option>
+                ))}
+              </select>
+              <button 
+                type="button"
+                onClick={() => openModal('expense-upload')}
+                className="text-xs bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 font-bold px-3 py-2 rounded-xl transition-all whitespace-nowrap text-slate-700 dark:text-slate-200 flex items-center gap-1"
+              >
+                <Upload className="w-3.5 h-3.5" /> Upload File
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="lg:col-span-3 flex justify-between items-center mt-2 border-t border-slate-200 dark:border-slate-700 pt-4">

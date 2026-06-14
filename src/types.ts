@@ -22,6 +22,7 @@ export interface Purchase {
   accountTitle: string;
   transactionDetails?: string;
   inputTax: number;
+  attachedFileId?: string;
 }
 
 export interface Sale {
@@ -50,6 +51,16 @@ export interface CoaAccount {
   subType?: string;
   normalSide?: 'debit' | 'credit';
   parentId?: string;
+}
+
+export interface ExpenseFile {
+  id: string;
+  name: string;
+  size: number;
+  type: string;
+  uploadedAt: string;
+  dataUrl?: string;
+  associatedExpenseId?: string;
 }
 
 export interface Client {
@@ -90,6 +101,7 @@ export interface Client {
   gjEntries?: JournalEntry[];
   glAccounts?: GeneralLedgerAccount[];
   plData?: ProfitAndLossData;
+  expenseFiles?: ExpenseFile[];
 }
 
 export interface BusinessProfile {
