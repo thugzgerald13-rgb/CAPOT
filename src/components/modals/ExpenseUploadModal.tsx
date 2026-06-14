@@ -194,8 +194,8 @@ export function ExpenseUploadModal() {
         let extTin = "000-441-235-000";
         let extAddress = "Quad Alpha Centrum, Mandaluyong City";
         let extAmount = "890.30";
-        let extDetails = "Office Supplies & Stationery";
-        let extAccount = "Operating Expenses";
+        let extDetails = "";
+        let extAccount = "";
         let extExpenseType = "Others";
 
         if (lowerName.includes("meralco") || lowerName.includes("electric") || lowerName.includes("power")) {
@@ -203,41 +203,26 @@ export function ExpenseUploadModal() {
           extTin = "000-112-234-000";
           extAddress = "Ortigas Ave, Pasig City";
           extAmount = "4850.00";
-          extDetails = "Electricity Bill Monthly";
-          extAccount = "Operating Expenses";
-          extExpenseType = "Services";
         } else if (lowerName.includes("globe") || lowerName.includes("telecom") || lowerName.includes("pldt")) {
           extName = "Globe Telecom Inc.";
           extTin = "000-512-334-000";
           extAddress = "Pioneer St, Mandaluyong City";
           extAmount = "1499.00";
-          extDetails = "Internet & Phone Service Plan";
-          extAccount = "Operating Expenses";
-          extExpenseType = "Services";
         } else if (lowerName.includes("grab") || lowerName.includes("uber") || lowerName.includes("taxi")) {
           extName = "Grab Car Philippines";
           extTin = "003-912-321-000";
           extAddress = "Valero St, Salcedo Village, Makati City";
           extAmount = "450.00";
-          extDetails = "Business Travel Expense";
-          extAccount = "Operating Expenses";
-          extExpenseType = "Services";
         } else if (lowerName.includes("sm") || lowerName.includes("supermarket") || lowerName.includes("grocery")) {
           extName = "SM Supermarket Inc.";
           extTin = "000-123-456-111";
           extAddress = "SM Megamall, Mandaluyong City";
           extAmount = "2350.50";
-          extDetails = "Kitchen Supplies & Groceries";
-          extAccount = "Operating Expenses";
-          extExpenseType = "Others";
         } else if (lowerName.includes("capital") || lowerName.includes("machine") || lowerName.includes("asset") || lowerName.includes("pc")) {
           extName = "Dell Systems Philippines";
           extTin = "221-443-445-000";
           extAddress = "Chino Roces Ave, Makati City";
           extAmount = "45000.00";
-          extDetails = "Workstation Computer Setup";
-          extAccount = "Capital Stock";
-          extExpenseType = "Capital Goods";
         }
 
         const dateStr = currentDat 
@@ -418,9 +403,9 @@ export function ExpenseUploadModal() {
         <div className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-slate-800/40 dark:to-orange-950/20 p-4 rounded-2xl border border-amber-200/50 dark:border-amber-900/30 flex items-start gap-3">
           <Info className="w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
           <div>
-            <h4 className="text-sm font-bold text-amber-900 dark:text-amber-200">Expense Smart Upload Module</h4>
+            <h4 className="text-sm font-bold text-amber-900 dark:text-amber-200">Expense Upload Module</h4>
             <p className="text-xs text-amber-700/80 dark:text-amber-400/80 leading-relaxed mt-0.5">
-              Select or drop files below. Drop a <strong>CSV</strong> file to parse and bulk-load a series of accounts instantly, or upload a <strong>PNG/JPG/PDF receipt</strong> to run AI-assisted OCR scanning, letting you preview, edit and commit transaction details automatically.
+              Select or drop files below. Drop a <strong>CSV</strong> file to parse and bulk-load a series of accounts instantly, or upload a <strong>PNG/JPG/PDF receipt</strong> to run OCR scanning, letting you preview billing details and manually select their accounts and expense categories.
             </p>
           </div>
         </div>
