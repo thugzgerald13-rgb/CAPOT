@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
 import { useAccounting } from '../../context/AccountingContext';
-import { Search, Trash2, Receipt, ShoppingCart, FolderClock, History, FileDown, FileSpreadsheet, Paperclip } from 'lucide-react';
+import { Search, Trash2, Receipt, ShoppingCart, FolderClock, History, FileDown, FileSpreadsheet } from 'lucide-react';
 import { cn, MONTHS, generateCSV, formatTIN } from '../../lib/utils';
 import * as XLSX from 'xlsx';
 
@@ -351,21 +351,7 @@ export function HistoryModal() {
                           </div>
                         </div>
 
-                        <div className="flex justify-end gap-2 pt-1">
-                          {p.attachedFileId && (() => {
-                            const fileObj = (currentClient?.expenseFiles || []).find(f => f.id === p.attachedFileId);
-                            if (!fileObj || !fileObj.dataUrl) return null;
-                            return (
-                              <a 
-                                href={fileObj.dataUrl} 
-                                download={fileObj.name}
-                                className="px-3 py-1.5 bg-amber-50 dark:bg-amber-950/20 text-amber-600 hover:text-amber-700 hover:bg-amber-100 dark:hover:bg-amber-900/40 rounded-lg text-xs font-bold transition-all flex items-center gap-1 border border-amber-250/20"
-                                title={`Download Attached: ${fileObj.name}`}
-                              >
-                                <Paperclip className="w-3.5 h-3.5" /> Download
-                              </a>
-                            );
-                          })()}
+                        <div className="flex justify-end pt-1">
                           <button 
                             onClick={() => handleDeleteExpense(p.id)}
                             className="px-3 py-1.5 bg-red-50 dark:bg-red-950/20 text-red-500 hover:text-red-700 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-lg text-xs font-bold transition-all flex items-center gap-1"
@@ -490,29 +476,13 @@ export function HistoryModal() {
                               ₱{(p.inputTax || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                             </td>
                             <td className="px-3 py-3 text-center align-top sticky right-0 bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800/50 z-10 border-l border-slate-100 dark:border-slate-800">
-                              <div className="flex items-center gap-1.5 justify-center">
-                                {p.attachedFileId && (() => {
-                                  const fileObj = (currentClient?.expenseFiles || []).find(f => f.id === p.attachedFileId);
-                                  if (!fileObj || !fileObj.dataUrl) return null;
-                                  return (
-                                    <a 
-                                      href={fileObj.dataUrl} 
-                                      download={fileObj.name}
-                                      className="p-1.5 text-amber-500 hover:text-amber-600 hover:bg-amber-100 dark:hover:bg-amber-950/20 rounded-lg transition-all"
-                                      title={`Download Attached: ${fileObj.name}`}
-                                    >
-                                      <Paperclip className="w-4 h-4" />
-                                    </a>
-                                  );
-                                })()}
-                                <button 
-                                  onClick={() => handleDeleteExpense(p.id)}
-                                  className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
-                                  title="Delete Entry"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              </div>
+                              <button 
+                                onClick={() => handleDeleteExpense(p.id)}
+                                className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
+                                title="Delete Entry"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
                             </td>
                           </tr>
                         ))

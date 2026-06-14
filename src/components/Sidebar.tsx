@@ -196,7 +196,7 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
                     className="flex items-center gap-3 px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 rounded-lg hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-slate-800 dark:hover:text-rose-400 transition-all w-full text-left"
                   >
                     <Upload className="w-4 h-4" />
-                    Expense Files
+                    Upload Expense File
                   </button>
                 </motion.div>
               )}
