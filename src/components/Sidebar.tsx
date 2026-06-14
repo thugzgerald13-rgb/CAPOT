@@ -7,7 +7,8 @@ import {
   Users, Building2, BookText, BookOpen, 
   LineChart, Scale, Receipt, ShoppingCart, 
   TrendingUp, FileText, Library, Lightbulb, FolderClock, History,
-  ChevronDown, LayoutGrid, Settings, Key, Banknote, Wallet, CreditCard, ShieldAlert, RefreshCw, LogOut, Shield
+  ChevronDown, LayoutGrid, Settings, Key, Banknote, Wallet, CreditCard, ShieldAlert, RefreshCw, LogOut, Shield,
+  UploadCloud
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -187,6 +188,16 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
                   >
                     <ShoppingCart className="w-4 h-4" />
                     Normal Entry
+                  </button>
+                  <button
+                    onClick={() => {
+                        openModal('expense-files');
+                        setIsOpen(false);
+                    }}
+                    className="flex items-center gap-3 px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 rounded-lg hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-slate-800 dark:hover:text-rose-400 transition-all w-full text-left"
+                  >
+                    <UploadCloud className="w-4 h-4" />
+                    Expense Files
                   </button>
                 </motion.div>
               )}
