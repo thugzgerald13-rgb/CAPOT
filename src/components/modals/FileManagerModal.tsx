@@ -7,6 +7,16 @@ import {
   Check, X, FileText, Download, Plus, File, AlertTriangle 
 } from 'lucide-react';
 
+export interface StagedFile {
+  id: string;
+  name: string;
+  originalName: string;
+  type: string;
+  size: number;
+  content: string; // base64 representation
+  description: string;
+}
+
 export function FileManagerModal() {
   const { currentClient, saveClient, showToast } = useAccounting();
   const [selectedFolderId, setSelectedFolderId] = useState<string>('folder_revenue');
@@ -14,6 +24,7 @@ export function FileManagerModal() {
   const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
   const [editingFolderName, setEditingFolderName] = useState('');
   const [isDragging, setIsDragging] = useState(false);
+  const [stagedFiles, setStagedFiles] = useState<StagedFile[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!currentClient) return null;
@@ -109,7 +120,7 @@ export function FileManagerModal() {
     showToast(`Deleted folder "${folder.name}" and any files inside`);
   };
 
-  // File processing supporting Base64 conversion
+  // File processing supporting Base64 conversion and staging
   const processFiles = (fileList: FileList) => {
     const validFiles: File[] = [];
     let sizeError = false;
@@ -129,38 +140,61 @@ export function FileManagerModal() {
 
     if (validFiles.length === 0) return;
 
-    // Read and save valid files sequentially
-    let uploadCount = 0;
+    let readCount = 0;
+    const newlyStaged: StagedFile[] = [];
+
     validFiles.forEach(file => {
       const reader = new FileReader();
-      reader.onload = async (event) => {
+      reader.onload = (event) => {
         const base64Content = event.target?.result as string;
 
-        const newFile: AppFile = {
-          id: 'file_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+        newlyStaged.push({
+          id: 'stage_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
           name: file.name,
+          originalName: file.name,
           type: file.type || 'application/octet-stream',
           size: file.size,
-          uploadedAt: new Date().toISOString(),
-          folderId: activeFolderId,
-          content: base64Content
-        };
+          content: base64Content,
+          description: ''
+        });
 
-        // Fetch most up-to-date client files to avoid race conditions
-        const latestFiles = currentClient.files || [];
-        const updatedClient = {
-          ...currentClient,
-          files: [...latestFiles, newFile]
-        };
-
-        await saveClient(currentClient.id, updatedClient);
-        uploadCount++;
-        if (uploadCount === validFiles.length) {
-          showToast(`Successfully uploaded ${validFiles.length} file(s)`);
+        readCount++;
+        if (readCount === validFiles.length) {
+          setStagedFiles(prev => [...prev, ...newlyStaged]);
+          showToast(`Staged ${validFiles.length} file(s) for review`);
         }
       };
       reader.readAsDataURL(file);
     });
+  };
+
+  const handleConfirmUpload = async () => {
+    if (stagedFiles.length === 0) return;
+
+    const newFiles: AppFile[] = stagedFiles.map(sf => ({
+      id: 'file_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+      name: sf.name.trim() || sf.originalName,
+      type: sf.type,
+      size: sf.size,
+      uploadedAt: new Date().toISOString(),
+      folderId: activeFolderId,
+      content: sf.content,
+      description: sf.description.trim() || undefined
+    }));
+
+    const currentFiles = currentClient.files || [];
+    const updatedClient = {
+      ...currentClient,
+      files: [...currentFiles, ...newFiles]
+    };
+
+    await saveClient(currentClient.id, updatedClient);
+    setStagedFiles([]);
+    showToast(`Successfully uploaded ${newFiles.length} file(s)`);
+  };
+
+  const handleCancelStaging = () => {
+    setStagedFiles([]);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -362,37 +396,140 @@ export function FileManagerModal() {
             </p>
           </div>
 
-          {/* Interactive Drag & Drop Box */}
-          <div
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-            onClick={() => fileInputRef.current?.click()}
-            className={`border-2 border-dashed rounded-3xl p-8 py-10 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-3 ${
-              isDragging 
-                ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-900/10' 
-                : 'border-slate-200 dark:border-slate-700 hover:border-blue-400 hover:bg-slate-50/50 dark:hover:bg-slate-800/20'
-            }`}
-          >
-            <input 
-              type="file" 
-              ref={fileInputRef} 
-              onChange={handleFileChange} 
-              multiple 
-              className="hidden" 
-            />
-            <div className="p-4 bg-blue-50/80 dark:bg-blue-950/40 text-blue-600 rounded-2xl shrink-0">
-              <Upload className="w-6 h-6" />
+          {/* Interactive Drag & Drop Box OR Staging Editor */}
+          {stagedFiles.length > 0 ? (
+            <div className="bg-slate-50 dark:bg-slate-800/40 border border-blue-100 dark:border-blue-900/40 p-5 rounded-3xl flex flex-col gap-4">
+              <div className="flex items-center justify-between border-b border-slate-200/60 dark:border-slate-800 pb-2.5">
+                <div>
+                  <h4 className="font-bold text-sm text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
+                    Configure File Uploads ({stagedFiles.length})
+                  </h4>
+                  <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
+                    Rename your files and provide optional metadata before saving to this folder.
+                  </p>
+                </div>
+                <button
+                  onClick={handleCancelStaging}
+                  className="text-xs text-slate-400 dark:text-slate-500 hover:text-red-500 font-bold transition-all"
+                >
+                  Clear Queue
+                </button>
+              </div>
+
+              <div className="flex flex-col gap-3.5 max-h-[300px] overflow-y-auto custom-scrollbar pr-1">
+                {stagedFiles.map((sf, index) => (
+                  <div key={sf.id} className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800/80 p-4 rounded-2xl flex flex-col gap-3 relative">
+                    <div className="absolute top-3 right-3">
+                      <button
+                        type="button"
+                        onClick={() => setStagedFiles(stagedFiles.filter(item => item.id !== sf.id))}
+                        className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-red-500 transition-all font-semibold"
+                        title="Remove from queue"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-blue-50 dark:bg-blue-950/40 text-blue-600 rounded-xl shrink-0">
+                        <FileText className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0 pr-6">
+                        <span className="font-semibold text-xs text-slate-400 block pb-0.5">Original filename</span>
+                        <span className="text-xs font-bold text-slate-700 dark:text-slate-300 truncate block max-w-xs">{sf.originalName}</span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">
+                          Rename File
+                        </label>
+                        <input
+                          type="text"
+                          value={sf.name}
+                          onChange={(e) => {
+                            const updated = [...stagedFiles];
+                            updated[index].name = e.target.value;
+                            setStagedFiles(updated);
+                          }}
+                          className="form-input w-full py-1.5 px-3 text-xs"
+                          placeholder="Filename"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">
+                          File Description / Memo
+                        </label>
+                        <input
+                          type="text"
+                          value={sf.description}
+                          onChange={(e) => {
+                            const updated = [...stagedFiles];
+                            updated[index].description = e.target.value;
+                            setStagedFiles(updated);
+                          }}
+                          className="form-input w-full py-1.5 px-3 text-xs"
+                          placeholder="What is this document for?"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Action row */}
+              <div className="flex items-center justify-end gap-3 border-t border-slate-200/60 dark:border-slate-800/80 pt-3">
+                <button
+                  type="button"
+                  onClick={handleCancelStaging}
+                  className="px-4 py-2 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-semibold transition-all"
+                >
+                  Discard All
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmUpload}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm shadow-blue-500/20"
+                >
+                  <Check className="w-4 h-4" />
+                  <span>Upload & Save Documents</span>
+                </button>
+              </div>
             </div>
-            <div>
-              <span className="font-bold text-slate-700 dark:text-slate-300 block text-sm">
-                Drag & drop files here, or <span className="text-blue-600 dark:text-blue-400 hover:underline">browse</span>
-              </span>
-              <span className="text-[11px] text-slate-400 dark:text-slate-500 block mt-1">
-                Upload image, PDF, or text files up to 800KB for real-time document synchronization.
-              </span>
+          ) : (
+            <div
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onClick={() => fileInputRef.current?.click()}
+              className={`border-2 border-dashed rounded-3xl p-8 py-10 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-3 ${
+                isDragging 
+                  ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-900/10' 
+                  : 'border-slate-200 dark:border-slate-700 hover:border-blue-400 hover:bg-slate-50/50 dark:hover:bg-slate-800/20'
+              }`}
+            >
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                onChange={handleFileChange} 
+                multiple 
+                className="hidden" 
+              />
+              <div className="p-4 bg-blue-50/80 dark:bg-blue-950/40 text-blue-600 rounded-2xl shrink-0">
+                <Upload className="w-6 h-6" />
+              </div>
+              <div>
+                <span className="font-bold text-slate-700 dark:text-slate-300 block text-sm">
+                  Drag & drop files here, or <span className="text-blue-600 dark:text-blue-400 hover:underline">browse</span>
+                </span>
+                <span className="text-[11px] text-slate-400 dark:text-slate-500 block mt-1">
+                  Upload image, PDF, or text files up to 800KB for real-time document synchronization.
+                </span>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Uploaded File List */}
           <div className="flex-1 flex flex-col">
@@ -427,7 +564,12 @@ export function FileManagerModal() {
                         <span className="font-bold text-sm text-slate-700 dark:text-slate-200 block truncate" title={file.name}>
                           {file.name}
                         </span>
-                        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[10px] text-slate-400 dark:text-slate-500 mt-0.5 font-medium">
+                        {file.description && (
+                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 italic break-words block max-w-md">
+                            "{file.description}"
+                          </p>
+                        )}
+                        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[10px] text-slate-400 dark:text-slate-500 mt-1 font-medium">
                           <span>{formatBytes(file.size)}</span>
                           <span className="text-slate-300 dark:text-slate-700">•</span>
                           <span>{new Date(file.uploadedAt).toLocaleDateString(undefined, {

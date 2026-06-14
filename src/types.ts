@@ -109,6 +109,7 @@ export interface AppFile {
   uploadedAt: string;
   folderId: string;
   content?: string; // base64 representation of file
+  description?: string;
 }
 
 export interface BusinessProfile {
