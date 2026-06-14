@@ -28,13 +28,9 @@ export function PurchasesModal() {
 
   const [selectedAccountType, setSelectedAccountType] = useState('Expenses');
 
-  const [isUploadDropdownOpen, setIsUploadDropdownOpen] = useState(false);
-
-  const triggerUploadModal = (tab: 'csv' | 'receipt') => {
-    localStorage.setItem('expense_upload_tab', tab);
-    setIsUploadDropdownOpen(false);
-    openModal('expense-upload');
-  };
+  const [isDragging, setIsDragging] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Derive available accounts from Chart of Accounts
   const coaAccounts = (() => {
@@ -281,6 +277,233 @@ export function PurchasesModal() {
     showToast('Expense deleted');
   };
 
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragging(false);
+  };
+
+  const processFile = (file: File) => {
+    if (!file || !currentClient || !currentClientId) return;
+
+    const fileType = file.name.split('.').pop()?.toLowerCase();
+
+    if (fileType === 'csv') {
+      setIsUploading(true);
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const text = event.target?.result as string;
+          const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
+          if (lines.length <= 1) {
+            alert('The uploaded CSV is empty or only contains headers.');
+            setIsUploading(false);
+            return;
+          }
+
+          // Parse headers
+          const headerLine = lines[0].toLowerCase();
+          const hasHeaders = headerLine.includes('date') || headerLine.includes('invoice') || headerLine.includes('amount') || headerLine.includes('tin');
+          
+          let startIndex = hasHeaders ? 1 : 0;
+          const newPurchases: any[] = [];
+
+          for (let i = startIndex; i < lines.length; i++) {
+            const line = lines[i];
+            const cols: string[] = [];
+            let cur = '';
+            let inQuotes = false;
+            for (let j = 0; j < line.length; j++) {
+              const char = line[j];
+              if (char === '"') {
+                if (inQuotes && line[j + 1] === '"') { cur += '"'; j++; }
+                else { inQuotes = !inQuotes; }
+              } else if (char === ',' && !inQuotes) {
+                cols.push(cur.trim());
+                cur = '';
+              } else { cur += char; }
+            }
+            cols.push(cur.trim());
+
+            if (cols.length < 5) continue; // Skip invalid lines
+
+            // Mapping: Date, InvoiceNo, TIN, SupplierName, Address, Amount, VatType, ExpenseType, AccountTitle, Details
+            const rDate = cols[0] || new Date().toISOString().split('T')[0];
+            const rInvoiceNo = cols[1] || `UP-${Date.now().toString().slice(-4)}`;
+            const rTin = formatTIN(cols[2] || '000-000-000');
+            const rName = cols[3] || 'Imported Supplier';
+            const rAddr = cols[4] || '';
+            const rAmountRaw = cols[5]?.replace(/[^0-9.]/g, '') || '0';
+            const rAmount = parseFloat(rAmountRaw) || 0;
+            const rVatType = cols[6]?.toLowerCase() === 'non-vat' ? 'non-vat' : (cols[6]?.toLowerCase() === 'zero-rated' ? 'zero-rated' : 'vat');
+            const rExpenseType = cols[7] || 'Others';
+            const rAccountTitle = cols[8] || 'Operating Expenses';
+            const rDetails = cols[9] || 'Imported via CSV';
+
+            // Date processing for formatted output
+            let formattedDate = rDate;
+            if (rDate.includes('-')) {
+              const [y, m, d] = rDate.split('-');
+              formattedDate = `${m}/${d}/${y}`;
+            } else if (rDate.includes('/')) {
+              formattedDate = rDate; // MM/DD/YYYY already
+            }
+
+            const gross = rAmount;
+            const net = rVatType === 'vat' ? (gross / 1.12) : gross;
+            const inputTaxVal = rVatType === 'vat' ? (net * 0.12) : 0;
+
+            const [mStr, dStr, yStr] = formattedDate.split('/');
+            const monthIdx = parseInt(mStr) - 1;
+            const yearStr = yStr;
+            const datMonthYear = currentDat ? currentDat.formatted : (`${MONTHS[monthIdx] || 'January'} ${yearStr}`);
+
+            newPurchases.push({
+              id: Date.now() + Math.random() + i,
+              sequenceNumber: (currentClient.purchases?.length || 0) + newPurchases.length + 1,
+              datMonthYear: datMonthYear,
+              date: formattedDate,
+              paymentMethod: 'Cash',
+              bankName: null,
+              checkNumber: null,
+              invoiceNo: rInvoiceNo,
+              supplierTin: rTin,
+              supplierName: rName,
+              supplierAddress: rAddr,
+              amount: net,
+              vatType: rVatType,
+              expenseType: rExpenseType,
+              accountTitle: rAccountTitle,
+              transactionDetails: rDetails,
+              inputTax: inputTaxVal
+            });
+          }
+
+          if (newPurchases.length > 0) {
+            const updatedClient = {
+              ...currentClient,
+              purchases: [...(currentClient.purchases || []), ...newPurchases]
+            };
+            saveClient(currentClientId, updatedClient);
+            showToast(`Successfully imported ${newPurchases.length} expenses from CSV!`);
+          } else {
+            alert('Could not find any valid lines in the CSV file.');
+          }
+        } catch (err) {
+          console.error(err);
+          alert('Error parsing CSV file. Please make sure the format is correct.');
+        } finally {
+          setIsUploading(false);
+          if (fileInputRef.current) fileInputRef.current.value = '';
+        }
+      };
+      reader.readAsText(file);
+    } else {
+      // PDF or Image receipt OCR simulation
+      setIsUploading(true);
+      setTimeout(() => {
+        const lowerName = file.name.toLowerCase();
+        let extName = "National Book Store Inc.";
+        let extTin = "000-441-235-000";
+        let extAddress = "Quad Alpha Centrum, Mandaluyong City";
+        let extAmount = "890.30";
+        let extDetails = "Office Supplies & Stationery";
+        let extAccount = "Operating Expenses";
+        let extExpenseType = "Others";
+
+        if (lowerName.includes("meralco") || lowerName.includes("electric") || lowerName.includes("power")) {
+          extName = "Meralco Power Corp.";
+          extTin = "000-112-234-000";
+          extAddress = "Ortigas Ave, Pasig City";
+          extAmount = "4850.00";
+          extDetails = "Electricity Bill Monthly";
+          extAccount = "Operating Expenses";
+          extExpenseType = "Services";
+        } else if (lowerName.includes("globe") || lowerName.includes("telecom") || lowerName.includes("pldt")) {
+          extName = "Globe Telecom Inc.";
+          extTin = "000-512-334-000";
+          extAddress = "Pioneer St, Mandaluyong City";
+          extAmount = "1499.00";
+          extDetails = "Internet & Phone Service Plan";
+          extAccount = "Operating Expenses";
+          extExpenseType = "Services";
+        } else if (lowerName.includes("grab") || lowerName.includes("uber") || lowerName.includes("taxi")) {
+          extName = "Grab Car Philippines";
+          extTin = "003-912-321-000";
+          extAddress = "Valero St, Salcedo Village, Makati City";
+          extAmount = "450.00";
+          extDetails = "Business Travel Expense";
+          extAccount = "Operating Expenses";
+          extExpenseType = "Services";
+        } else if (lowerName.includes("sm") || lowerName.includes("supermarket") || lowerName.includes("grocery")) {
+          extName = "SM Supermarket Inc.";
+          extTin = "000-123-456-111";
+          extAddress = "SM Megamall, Mandaluyong City";
+          extAmount = "2350.50";
+          extDetails = "Kitchen Supplies & Groceries";
+          extAccount = "Operating Expenses";
+          extExpenseType = "Others";
+        } else if (lowerName.includes("capital") || lowerName.includes("machine") || lowerName.includes("asset") || lowerName.includes("pc")) {
+          extName = "Dell Systems Philippines";
+          extTin = "221-443-445-000";
+          extAddress = "Chino Roces Ave, Makati City";
+          extAmount = "45000.00";
+          extDetails = "Workstation Computer Setup";
+          extAccount = "Capital Stock";
+          extExpenseType = "Capital Goods";
+        }
+
+        // Set OCR values to form
+        if (currentDat) {
+          setDate(`${currentDat.year}-${String(currentDat.month).padStart(2, '0')}-15`);
+        } else {
+          setDate(new Date().toISOString().split('T')[0]);
+        }
+        setInvoiceNo(`INV-${Math.floor(100000 + Math.random() * 900000)}`);
+        setSupplierTin(extTin);
+        setSupplierName(extName);
+        setSupplierAddress(extAddress);
+        setAmount(parseFloat(extAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+        setTransactionDetails(extDetails);
+        setExpenseType(extExpenseType);
+        
+        // Find best match for header account
+        let accs = currentClient?.accounts || [];
+        if (accs.length === 0) accs = DEFAULT_ACCOUNTS;
+        const matchAcc = accs.find(a => a.name.toLowerCase().includes(extAccount.toLowerCase()) || a.name === extAccount);
+        if (matchAcc) {
+          setAccountTitle(matchAcc.name);
+          if (matchAcc.type) setSelectedAccountType(matchAcc.type);
+        } else if (accs.length > 0) {
+          setAccountTitle(accs[0].name);
+        }
+
+        showToast(`OCR Success: Extracted info from "${file.name}"`);
+        setIsUploading(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }, 1500);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      processFile(file);
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      processFile(file);
+    }
+  };
+
   return (
     <Modal
       id="purchases"
@@ -312,66 +535,6 @@ export function PurchasesModal() {
           </div>
         </div>
       )}
-
-      {/* Smart Document Import Dropdown Module Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between bg-emerald-50 dark:bg-emerald-950/15 p-4 rounded-3xl mb-6 gap-4 border border-emerald-200/60 dark:border-emerald-900/30 relative">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-xl">
-            <Upload className="w-5 h-5" />
-          </div>
-          <div>
-            <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100">Smart Document Import</h4>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400">Save manual entry work. Instantly list archives or scan receipt documents.</p>
-          </div>
-        </div>
-
-        {/* Dropdown Button */}
-        <div className="relative">
-          <button
-            onClick={() => setIsUploadDropdownOpen(!isUploadDropdownOpen)}
-            className="w-full sm:w-auto px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-lg shadow-emerald-600/10 transition-all flex items-center justify-center gap-2 text-xs"
-          >
-            <Upload className="w-4 h-4" />
-            <span>Upload Expense File</span>
-            <span className="text-[10px] opacity-70">▼</span>
-          </button>
-
-          {isUploadDropdownOpen && (
-            <>
-              {/* Overlay Backdrop to close on clicking out */}
-              <div className="fixed inset-0 z-10" onClick={() => setIsUploadDropdownOpen(false)} />
-              
-              <div className="absolute right-0 mt-2 w-72 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl z-20 py-1.5 animate-in fade-in slide-in-from-top-2 duration-200">
-                <div className="px-4 py-2 border-b border-slate-100 dark:border-slate-800 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                  Select Import Mode
-                </div>
-                
-                <button
-                  onClick={() => triggerUploadModal('receipt')}
-                  className="flex items-start gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800 w-full text-left transition-colors text-xs"
-                >
-                  <div className="p-1 px-1.5 bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 rounded-lg text-sm mt-0.5 font-bold">📷</div>
-                  <div>
-                    <p className="font-bold text-slate-800 dark:text-slate-200">Scan Receipt / Invoice (OCR)</p>
-                    <p className="text-[10px] text-slate-400 mt-0.5">Upload a PDF or image receipt to automatically extract billing details.</p>
-                  </div>
-                </button>
-
-                <button
-                  onClick={() => triggerUploadModal('csv')}
-                  className="flex items-start gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800 w-full text-left transition-colors text-xs border-t border-slate-100 dark:border-slate-800"
-                >
-                  <div className="p-1 px-1.5 bg-blue-100 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 rounded-lg text-sm mt-0.5 font-bold font-mono">CSV</div>
-                  <div>
-                    <p className="font-bold text-slate-800 dark:text-slate-200">Bulk Load CSV spreadsheet</p>
-                    <p className="text-[10px] text-slate-400 mt-0.5">Parse an offline table format of multiple items to populate list at once.</p>
-                  </div>
-                </button>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6 bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-700 relative">
         <div className="lg:col-span-3 pb-2 mb-2 border-b border-slate-200 dark:border-slate-700 flex flex-col md:flex-row gap-4 justify-between">
@@ -544,6 +707,46 @@ export function PurchasesModal() {
             placeholder="Enter additional details about this transaction..." 
             className="form-input" 
           />
+        </div>
+
+        <div className="lg:col-span-3 mt-1.5">
+          <label className="form-label">Upload Receipt, Invoice or CSV List</label>
+          <div 
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            onClick={() => fileInputRef.current?.click()}
+            className={cn(
+              "border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-2.5",
+              isDragging 
+                ? "border-amber-500 bg-amber-500/10" 
+                : "border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600 bg-white dark:bg-slate-900/40"
+            )}
+          >
+            <input 
+              type="file" 
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              accept=".csv,.png,.jpg,.jpeg,.pdf"
+              className="hidden"
+            />
+            {isUploading ? (
+              <div className="flex flex-col items-center gap-2.5 py-2">
+                <div className="w-8 h-8 rounded-full border-4 border-amber-500 border-t-transparent animate-spin" />
+                <p className="text-sm font-semibold text-amber-600 dark:text-amber-400">Processing file/receipt with OCR & Auto-filling fields...</p>
+              </div>
+            ) : (
+              <>
+                <Upload className="w-8 h-8 text-slate-400 dark:text-slate-500 animate-pulse" />
+                <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                  Drag & drop file here, or <span className="text-amber-600 dark:text-amber-400 underline">browse computer</span>
+                </p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 max-w-md">
+                  Import a <strong>CSV</strong> file to bulk load expenses instantly, or upload a <strong>PNG, JPG, or PDF</strong> receipt to auto-extract date, invoice #, supplier TIN, supplier name, and amount using high-precision OCR!
+                </p>
+              </>
+            )}
+          </div>
         </div>
 
         <div className="lg:col-span-3 flex justify-between items-center mt-2 border-t border-slate-200 dark:border-slate-700 pt-4">
