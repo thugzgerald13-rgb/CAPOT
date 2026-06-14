@@ -504,7 +504,6 @@ export function ExpenseUploadModal() {
         <div className="space-y-4">
           <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-extrabold uppercase tracking-widest text-slate-400 dark:text-slate-500">Document Vault list</span>
               <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
                 {filteredFiles.length} file(s)
               </span>
