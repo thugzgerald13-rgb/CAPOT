@@ -408,7 +408,7 @@ export function ExpenseUploadModal() {
   return (
     <Modal
       id="expense-upload"
-      title="Upload & Import Expense File"
+      title="Expense Files"
       maxWidth="max-w-5xl"
       icon={<Upload className="w-5 h-5 text-amber-500" />}
     >

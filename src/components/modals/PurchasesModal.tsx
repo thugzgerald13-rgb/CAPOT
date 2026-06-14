@@ -332,7 +332,7 @@ export function PurchasesModal() {
             className="w-full sm:w-auto px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-lg shadow-emerald-600/10 transition-all flex items-center justify-center gap-2 text-xs"
           >
             <Upload className="w-4 h-4" />
-            <span>Upload Expense File</span>
+            <span>Expense Files</span>
             <span className="text-[10px] opacity-70">▼</span>
           </button>
 
