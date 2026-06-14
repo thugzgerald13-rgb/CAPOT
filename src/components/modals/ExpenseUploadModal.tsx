@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Modal } from '../ui/Modal';
 import { useAccounting } from '../../context/AccountingContext';
-import { Upload, FileText, FileSpreadsheet, FileArchive, Image, Trash2, Download, Link, Link2, Link2Off, Info, CheckCircle2, AlertCircle, ShoppingCart, Plus } from 'lucide-react';
+import { Upload, FileText, FileSpreadsheet, FileArchive, Image, Trash2, Download, Link, Link2, Link2Off, Info, CheckCircle2, AlertCircle, ShoppingCart, Plus, Folder, FolderPlus, FolderOpen, FolderClosed, ChevronRight, ChevronLeft, FolderDown } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { ExpenseFile, Purchase } from '../../types';
 
@@ -11,6 +11,12 @@ export function ExpenseUploadModal() {
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Folders and navigation state
+  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
+  const [newFolderName, setNewFolderName] = useState('');
+  const [isCreatingFolder, setIsCreatingFolder] = useState(false);
+  const [movingFileId, setMovingFileId] = useState<string | null>(null);
 
   // Filter linked/unlinked states in user selection
   const [showFilter, setShowFilter] = useState<'all' | 'unlinked' | 'linked'>('all');
@@ -84,7 +90,8 @@ export function ExpenseUploadModal() {
             size: file.size,
             type: file.type || 'application/octet-stream',
             uploadedAt: new Date().toISOString(),
-            dataUrl
+            dataUrl,
+            folderId: selectedFolderId || undefined
           });
           uploadedCount++;
           resolve();
@@ -225,18 +232,98 @@ export function ExpenseUploadModal() {
     showToast("Creating new invoice entry pre-linked to scan!");
   };
 
+  const handleCreateFolder = () => {
+    if (!newFolderName.trim() || !currentClient || !currentClientId) return;
+    const existingFolders = currentClient.expenseFolders || [];
+    
+    // Prevent duplicated names in client directory
+    if (existingFolders.some(f => f.name.toLowerCase() === newFolderName.trim().toLowerCase())) {
+      alert("A folder with this name already exists.");
+      return;
+    }
+
+    const newFolder = {
+      id: 'folder_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+      name: newFolderName.trim(),
+      createdAt: new Date().toISOString()
+    };
+
+    saveClient(currentClientId, {
+      ...currentClient,
+      expenseFolders: [...existingFolders, newFolder]
+    });
+
+    setNewFolderName('');
+    setIsCreatingFolder(false);
+    setSelectedFolderId(newFolder.id); // auto-navigate inside the new folder
+    showToast(`Folder "${newFolder.name}" created!`);
+  };
+
+  const handleDeleteFolder = (folderId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!currentClient || !currentClientId) return;
+
+    const folder = (currentClient.expenseFolders || []).find(f => f.id === folderId);
+    if (!folder) return;
+
+    if (confirm(`Are you sure you want to delete folder "${folder.name}"? Files inside will be moved back to the main section.`)) {
+      const updatedFolders = (currentClient.expenseFolders || []).filter(f => f.id !== folderId);
+      
+      // Move any files in this folder back to Root (undefined)
+      const updatedFiles = (currentClient.expenseFiles || []).map(f => {
+        if (f.folderId === folderId) {
+          return { ...f, folderId: undefined };
+        }
+        return f;
+      });
+
+      saveClient(currentClientId, {
+        ...currentClient,
+        expenseFolders: updatedFolders,
+        expenseFiles: updatedFiles
+      });
+
+      if (selectedFolderId === folderId) {
+        setSelectedFolderId(null);
+      }
+      showToast("Folder deleted. Files moved to main section.");
+    }
+  };
+
+  const handleMoveFile = (fileId: string, folderId: string | undefined) => {
+    if (!currentClient || !currentClientId) return;
+
+    const updatedFiles = (currentClient.expenseFiles || []).map(f => {
+      if (f.id === fileId) {
+        return { ...f, folderId };
+      }
+      return f;
+    });
+
+    saveClient(currentClientId, {
+      ...currentClient,
+      expenseFiles: updatedFiles
+    });
+
+    showToast("File directory transfer completed!");
+  };
+
   const files = currentClient?.expenseFiles || [];
   const purchases = currentClient?.purchases || [];
 
   const filteredFiles = files.filter(f => {
     const matchesSearch = f.name.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    // If searching, look everywhere. Otherwise, restrict to selected folder (undefined means Root)
+    const matchesFolder = searchQuery ? true : (f.folderId === (selectedFolderId || undefined));
+
     if (showFilter === 'unlinked') {
-      return matchesSearch && !f.associatedExpenseId;
+      return matchesSearch && matchesFolder && !f.associatedExpenseId;
     }
     if (showFilter === 'linked') {
-      return matchesSearch && !!f.associatedExpenseId;
+      return matchesSearch && matchesFolder && !!f.associatedExpenseId;
     }
-    return matchesSearch;
+    return matchesSearch && matchesFolder;
   });
 
   return (
@@ -294,12 +381,123 @@ export function ExpenseUploadModal() {
                 <p className="text-sm font-bold text-slate-800 dark:text-slate-100">
                   Drag & drop your files here, or <span className="text-amber-600 dark:text-amber-400 underline decoration-dotted">browse folder</span>
                 </p>
-                <p className="text-[11px] text-slate-400 mt-1">
-                  Supports PDF scan slips, images (.PNG, .JPG), CSV ledgers, and XLS spreadsheets (up to 450KB each)
+                <p className="text-[11px] text-slate-400 mt-1.5 flex items-center justify-center gap-1.5 flex-wrap">
+                  Supports PDF, PNG, JPG, CSV, XLS. Uploading destination: 
+                  <span className="px-2 py-0.5 rounded bg-amber-500/10 text-amber-700 dark:text-amber-400 font-bold border border-amber-500/20 text-[10px]">
+                     {selectedFolderId ? (currentClient?.expenseFolders || []).find(f => f.id === selectedFolderId)?.name || 'Folder' : '/ (Root)'}
+                  </span>
                 </p>
               </div>
             </>
           )}
+        </div>
+
+        {/* Folders Management Section */}
+        <div className="bg-slate-50 dark:bg-slate-900/45 p-5 rounded-3xl border border-slate-200/60 dark:border-slate-800">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+            <div className="flex items-center gap-2">
+              <Folder className="w-5 h-5 text-amber-500" />
+              <h3 className="text-sm font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-350">Folders / Collections</h3>
+            </div>
+            
+            {isCreatingFolder ? (
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <input
+                  type="text"
+                  placeholder="Folder name..."
+                  value={newFolderName}
+                  onChange={e => setNewFolderName(e.target.value)}
+                  className="px-3 py-1 bg-white dark:bg-slate-950 border border-slate-250 dark:border-slate-800 rounded-xl text-xs focus:ring-1 focus:ring-amber-500 focus:outline-none w-full sm:w-44"
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') handleCreateFolder();
+                  }}
+                  autoFocus
+                />
+                <button
+                  onClick={handleCreateFolder}
+                  className="px-3 py-1 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-[11px] rounded-xl transition-colors shrink-0"
+                >
+                  Create
+                </button>
+                <button
+                  onClick={() => setIsCreatingFolder(false)}
+                  className="px-2 py-1 text-[11px] text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setIsCreatingFolder(true)}
+                className="text-xs bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-400 font-bold px-3 py-1.5 rounded-xl transition-colors flex items-center gap-1.5 whitespace-nowrap ml-auto"
+              >
+                <FolderPlus className="w-3.5 h-3.5" /> New Folder
+              </button>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+            {/* Root Navigation */}
+            <div
+              onClick={() => setSelectedFolderId(null)}
+              className={cn(
+                "p-3 rounded-2xl border text-left cursor-pointer transition-all flex items-center justify-between group",
+                selectedFolderId === null
+                  ? "bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-400 ring-2 ring-amber-500/20 shadow-xs"
+                  : "bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 text-slate-600 dark:text-slate-300"
+              )}
+            >
+              <div className="flex items-center gap-1.5 min-w-0">
+                <FolderOpen className="w-4 h-4 shrink-0 text-amber-500" />
+                <span className="text-xs font-bold truncate">Root Folder</span>
+              </div>
+              <span className="text-[10px] bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded-md font-bold text-slate-500 shrink-0">
+                {(currentClient?.expenseFiles || []).filter(f => !f.folderId).length}
+              </span>
+            </div>
+
+            {/* User directories */}
+            {(currentClient?.expenseFolders || []).map(folder => {
+              const count = (currentClient?.expenseFiles || []).filter(f => f.folderId === folder.id).length;
+              const isSelected = selectedFolderId === folder.id;
+
+              return (
+                <div
+                  key={folder.id}
+                  onClick={() => setSelectedFolderId(folder.id)}
+                  className={cn(
+                    "p-3 rounded-2xl border text-left cursor-pointer transition-all flex items-center justify-between group relative min-w-0",
+                    isSelected
+                      ? "bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-400 ring-2 ring-amber-500/20 shadow-xs"
+                      : "bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 text-slate-600 dark:text-slate-300"
+                  )}
+                >
+                  <div className="flex items-center gap-1.5 min-w-0 mr-5">
+                    {isSelected ? (
+                      <FolderOpen className="w-4 h-4 text-amber-500 shrink-0" />
+                    ) : (
+                      <FolderClosed className="w-4 h-4 text-amber-500 shrink-0" />
+                    )}
+                    <span className="text-xs font-bold truncate" title={folder.name}>
+                      {folder.name}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <span className="text-[10px] bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded-md font-bold text-slate-500">
+                      {count}
+                    </span>
+                    <button
+                      onClick={(e) => handleDeleteFolder(folder.id, e)}
+                      className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-50 dark:hover:bg-red-950/20 text-slate-400 hover:text-red-500 transition-all absolute right-1.5 top-1.5 bg-white dark:bg-slate-900 shadow-xs border border-slate-150 dark:border-slate-800"
+                      title="Delete folder (files are preserved & moved back to Root)"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
 
         {/* Search, Filter & Content Section */}
@@ -398,6 +596,20 @@ export function ExpenseUploadModal() {
                               <Download className="w-3.5 h-3.5" />
                             </a>
                           )}
+
+                          <button
+                            onClick={() => setMovingFileId(movingFileId === file.id ? null : file.id)}
+                            className={cn(
+                              "p-1 px-1.5 rounded-lg border transition-all shadow-sm",
+                              movingFileId === file.id
+                                ? "text-amber-600 border-amber-300 bg-amber-50 dark:bg-amber-950/30"
+                                : "text-slate-500 hover:text-amber-600 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700"
+                            )}
+                            title="Move to another folder"
+                          >
+                            <FolderDown className="w-3.5 h-3.5" />
+                          </button>
+
                           <button 
                             onClick={() => handleDeleteFile(file.id)}
                             className="p-1 px-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg border border-transparent hover:border-red-100 transition-all"
@@ -487,6 +699,38 @@ export function ExpenseUploadModal() {
                           </div>
                         )}
                       </div>
+
+                      {/* Moving Dropdown UI */}
+                      {movingFileId === file.id && (
+                        <div className="absolute inset-x-0 bottom-0 bg-white dark:bg-slate-950 border-t border-slate-200 dark:border-slate-800 p-3 rounded-b-2xl flex flex-col gap-1.5 z-20 shadow-lg animate-in fade-in slide-in-from-bottom duration-150">
+                          <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                            Move file to folder:
+                          </label>
+                          <select
+                            value={file.folderId || ''}
+                            onChange={(e) => {
+                              handleMoveFile(file.id, e.target.value || undefined);
+                              setMovingFileId(null);
+                            }}
+                            className="text-[11px] py-1 px-2 bg-slate-50 dark:bg-slate-900 border border-slate-250 dark:border-slate-800 rounded-lg focus:outline-none w-full text-slate-700 dark:text-slate-200"
+                          >
+                            <option value="">Root Folder</option>
+                            {(currentClient?.expenseFolders || []).map(f => (
+                              <option key={f.id} value={f.id}>{f.name}</option>
+                            ))}
+                          </select>
+                          <div className="flex justify-end">
+                            <button
+                              type="button"
+                              onClick={() => setMovingFileId(null)}
+                              className="text-[9px] text-slate-500 hover:text-amber-600 font-bold hover:underline"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
                     </div>
                   </div>
                 );

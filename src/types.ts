@@ -53,6 +53,12 @@ export interface CoaAccount {
   parentId?: string;
 }
 
+export interface ExpenseFolder {
+  id: string;
+  name: string;
+  createdAt: string;
+}
+
 export interface ExpenseFile {
   id: string;
   name: string;
@@ -61,6 +67,7 @@ export interface ExpenseFile {
   uploadedAt: string;
   dataUrl?: string;
   associatedExpenseId?: string;
+  folderId?: string; // Associated folder ID (undefined means Root folder)
 }
 
 export interface Client {
@@ -102,6 +109,7 @@ export interface Client {
   glAccounts?: GeneralLedgerAccount[];
   plData?: ProfitAndLossData;
   expenseFiles?: ExpenseFile[];
+  expenseFolders?: ExpenseFolder[];
 }
 
 export interface BusinessProfile {
