@@ -7,7 +7,8 @@ import {
   Users, Building2, BookText, BookOpen, 
   LineChart, Scale, Receipt, ShoppingCart, 
   TrendingUp, FileText, Library, Lightbulb, FolderClock, History,
-  ChevronDown, LayoutGrid, Settings, Key, Banknote, Wallet, CreditCard, ShieldAlert, RefreshCw, LogOut, Shield, FolderUp
+  ChevronDown, LayoutGrid, Settings, Key, Banknote, Wallet, CreditCard, ShieldAlert, RefreshCw, LogOut, Shield, FolderUp,
+  Boxes
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -81,6 +82,7 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
     { id: 'sales', label: 'Income', icon: Receipt },
     { id: 'files', label: 'Upload Files', icon: FolderUp },
     { id: 'ap-workspace', label: 'AP & Disbursements', icon: Banknote },
+    { id: 'inventory', label: 'Inventory', icon: Boxes },
   ];
 
   const historyItems = [

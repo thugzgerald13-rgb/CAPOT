@@ -101,6 +101,37 @@ export interface Client {
   debitCreditMemos?: DebitCreditMemo[];
   checkVouchers?: CheckVoucher[];
   miscellaneousPayments?: MiscellaneousPayment[];
+  inventoryItems?: InventoryItem[];
+  inventoryMovements?: InventoryMovement[];
+}
+
+export interface InventoryItem {
+  id: string;
+  code: string;
+  name: string;
+  sku: string;
+  description?: string;
+  category: 'Raw Materials' | 'Work in Progress' | 'Finished Goods' | 'Merchandise' | 'Services' | string;
+  unitOfMeasure: string;
+  costPrice: number;
+  sellingPrice: number;
+  stockLevel: number;
+  reorderPoint: number;
+  location?: string;
+}
+
+export interface InventoryMovement {
+  id: string;
+  itemId: string;
+  itemName: string;
+  itemCode: string;
+  date: string;
+  type: 'Inbound' | 'Outbound' | 'Adjustment';
+  qty: number;
+  unitCost: number;
+  totalValue: number;
+  reference: string;
+  notes?: string;
 }
 
 export interface AppFolder {
