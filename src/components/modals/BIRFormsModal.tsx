@@ -94,7 +94,13 @@ export function BIRFormsModal() {
         purchasesTotal: 0,
         vatPurchasesTotal: 0,
         purchasesInputTax: 0,
-        expensesTotal: 0
+        expensesTotal: 0,
+        monthlyEwtTotal: 0,
+        ewtMonth1: 0,
+        ewtMonth2: 0,
+        ewtMonth3: 0,
+        quarterlyAtcList: [] as { atcCode: string; description: string; baseAmount: number; rate: number; taxWithheld: number }[],
+        quarterlyTotalTaxesWithheld: 0
       };
     }
 

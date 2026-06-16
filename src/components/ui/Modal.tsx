@@ -15,7 +15,7 @@ interface ModalProps {
 
 export function Modal({ id, title, children, icon, maxWidth = 'max-w-4xl', badge }: ModalProps) {
   const { activeModal, openModal, activeDevice } = useAccounting();
-  const isActive = activeModal === id;
+  const isActive = activeModal === id || (id === 'bir-forms' && activeModal?.startsWith('bir-'));
   const isMobile = activeDevice === 'mobile';
 
   const handleClose = () => openModal(null);
