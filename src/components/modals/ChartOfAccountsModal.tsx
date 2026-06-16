@@ -362,61 +362,164 @@ export function ChartOfAccountsModal() {
     const accountA = accounts.find(a => a.id === idA);
     const accountB = accounts.find(a => a.id === idB);
     if (!accountA || !accountB) return;
-    
-    const updatedAccounts = accounts.map(a => {
-      if (a.id === idA) {
-        const bCustomFields: Record<string, any> = {};
-        coaColumns.forEach(c => {
-          if (!c.isSystem && c.id !== 'subType' && c.id !== 'normalSide') {
-            bCustomFields[c.id] = accountB[c.id];
-          }
-        });
-        
-        return {
-          ...a,
-          name: accountB.name,
-          type: accountB.type,
-          subType: accountB.subType,
-          normalSide: accountB.normalSide,
-          parentId: accountB.parentId,
-          ...bCustomFields
-        };
-      }
-      if (a.id === idB) {
-        const aCustomFields: Record<string, any> = {};
-        coaColumns.forEach(c => {
-          if (!c.isSystem && c.id !== 'subType' && c.id !== 'normalSide') {
-            aCustomFields[c.id] = accountA[c.id];
-          }
-        });
-        
-        return {
-          ...a,
-          name: accountA.name,
-          type: accountA.type,
-          subType: accountA.subType,
-          normalSide: accountA.normalSide,
-          parentId: accountA.parentId,
-          ...aCustomFields
-        };
+
+    // Helper to find common prefix and construct a swapped code
+    const getSwappedCode = (oldId: string, oldParentId: string, newParentId: string): string => {
+      let commonPrefixLen = 0;
+      while (
+        commonPrefixLen < oldId.length && 
+        commonPrefixLen < oldParentId.length && 
+        oldId[commonPrefixLen] === oldParentId[commonPrefixLen]
+      ) {
+        commonPrefixLen++;
       }
       
-      let newParentId = a.parentId;
-      if (a.parentId === idA) {
-        newParentId = idB;
-      } else if (a.parentId === idB) {
-        newParentId = idA;
+      if (commonPrefixLen > 0) {
+        const newPrefix = newParentId.slice(0, commonPrefixLen);
+        const suffix = oldId.slice(commonPrefixLen);
+        return newPrefix + suffix;
       }
       
-      return {
-        ...a,
-        parentId: newParentId
-      };
+      return `${newParentId}-${oldId}`;
+    };
+
+    // Helper to ensure generated codes are unique
+    const makeUniqueCode = (candidate: string, existingIds: Set<string>): string => {
+      if (!existingIds.has(candidate)) return candidate;
+      const numMatch = candidate.match(/^(.*?)(\d+)$/);
+      if (numMatch) {
+        const prefix = numMatch[1];
+        let num = parseInt(numMatch[2], 10);
+        let attempts = 0;
+        while (attempts < 100) {
+          num++;
+          const test = `${prefix}${num}`;
+          if (!existingIds.has(test)) return test;
+          attempts++;
+        }
+      }
+      let suffix = 1;
+      while (existingIds.has(`${candidate}_${suffix}`)) {
+        suffix++;
+      }
+      return `${candidate}_${suffix}`;
+    };
+
+    // Recursive helper to get all descendants in stable sorted order
+    const getDescendantsRecursive = (id: string): CoaAccount[] => {
+      const children = accounts.filter(a => a.parentId === id);
+      const sortedChildren = [...children].sort((x, y) => x.id.localeCompare(y.id, undefined, { numeric: true }));
+      const list: CoaAccount[] = [];
+      sortedChildren.forEach(c => {
+        list.push(c);
+        list.push(...getDescendantsRecursive(c.id));
+      });
+      return list;
+    };
+
+    const descA = getDescendantsRecursive(idA);
+    const descB = getDescendantsRecursive(idB);
+
+    const familyA = [accountA, ...descA];
+    const familyB = [accountB, ...descB];
+
+    // IDs outside of both families
+    const outerIds = new Set<string>(
+      accounts
+        .filter(a => !familyA.some(x => x.id === a.id) && !familyB.some(x => x.id === a.id))
+        .map(a => a.id)
+    );
+
+    const newIdsMapA: Record<string, string> = {};
+    const newIdsMapB: Record<string, string> = {};
+    const occupiedInThisSwap = new Set<string>(outerIds);
+
+    // Roots mapped
+    newIdsMapA[idA] = idB;
+    occupiedInThisSwap.add(idB);
+
+    newIdsMapB[idB] = idA;
+    occupiedInThisSwap.add(idA);
+
+    // Map descendants of A
+    descA.forEach((a, index) => {
+      if (index < descB.length) {
+        newIdsMapA[a.id] = descB[index].id;
+      } else {
+        const oldParentId = a.parentId!;
+        const newParentId = newIdsMapA[oldParentId] || idB;
+        let candidate = getSwappedCode(a.id, oldParentId, newParentId);
+        candidate = makeUniqueCode(candidate, occupiedInThisSwap);
+        newIdsMapA[a.id] = candidate;
+      }
+      occupiedInThisSwap.add(newIdsMapA[a.id]);
     });
-    
-    handleSaveAccounts(updatedAccounts);
+
+    // Map descendants of B
+    descB.forEach((b, index) => {
+      if (index < descA.length) {
+        newIdsMapB[b.id] = descA[index].id;
+      } else {
+        const oldParentId = b.parentId!;
+        const newParentId = newIdsMapB[oldParentId] || idA;
+        let candidate = getSwappedCode(b.id, oldParentId, newParentId);
+        candidate = makeUniqueCode(candidate, occupiedInThisSwap);
+        newIdsMapB[b.id] = candidate;
+      }
+      occupiedInThisSwap.add(newIdsMapB[b.id]);
+    });
+
+    // Build the updated accounts list
+    const swappedAccounts: CoaAccount[] = [];
+
+    // All outer accounts
+    accounts.forEach(a => {
+      if (!familyA.some(x => x.id === a.id) && !familyB.some(x => x.id === a.id)) {
+        let pId = a.parentId;
+        if (pId) {
+          if (newIdsMapA[pId]) pId = newIdsMapA[pId];
+          else if (newIdsMapB[pId]) pId = newIdsMapB[pId];
+        }
+        swappedAccounts.push({
+          ...a,
+          parentId: pId
+        });
+      }
+    });
+
+    // Add updated family A elements (placed in tree B's slot/IDs)
+    familyA.forEach(a => {
+      const newId = newIdsMapA[a.id];
+      let pId = a.parentId;
+      if (pId) {
+        pId = newIdsMapA[pId] || pId;
+      }
+      
+      swappedAccounts.push({
+        ...a,
+        id: newId,
+        parentId: pId
+      });
+    });
+
+    // Add updated family B elements (placed in tree A's slot/IDs)
+    familyB.forEach(b => {
+      const newId = newIdsMapB[b.id];
+      let pId = b.parentId;
+      if (pId) {
+        pId = newIdsMapB[pId] || pId;
+      }
+      
+      swappedAccounts.push({
+        ...b,
+        id: newId,
+        parentId: pId
+      });
+    });
+
+    handleSaveAccounts(swappedAccounts);
     setSwappingId(null);
-    showToast(`Swapped "${accountA.name}" and "${accountB.name}" together with their Account Codes!`);
+    showToast(`Swapped "${accountA.name}" branch and "${accountB.name}" branch together with their subaccounts successfully!`);
   };
 
   // Dynamically calculate actual real-time balances from active journals / ledger
