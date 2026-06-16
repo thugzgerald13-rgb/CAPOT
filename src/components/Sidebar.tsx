@@ -8,7 +8,7 @@ import {
   LineChart, Scale, Receipt, ShoppingCart, 
   TrendingUp, FileText, Library, Lightbulb, FolderClock, History,
   ChevronDown, LayoutGrid, Settings, Key, Banknote, Wallet, CreditCard, ShieldAlert, RefreshCw, LogOut, Shield, FolderUp,
-  Boxes
+  Boxes, CheckCircle2
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -397,20 +397,31 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
             </button>
 
             <AnimatePresence>
-              {isFormsOpen && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="overflow-hidden flex flex-col gap-1 mt-1 pl-4"
+            {isFormsOpen && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="overflow-hidden flex flex-col gap-1 mt-1 pl-4"
+              >
+                <button
+                  onClick={() => {
+                    setHistoryTab('tracker');
+                    openModal('bir-forms');
+                    setIsOpen(false);
+                  }}
+                  className="flex items-center gap-3 px-4 py-2 text-xs font-bold text-emerald-600 dark:text-emerald-400 rounded-lg bg-emerald-50/50 dark:bg-emerald-950/10 border border-emerald-100/30 hover:bg-emerald-100/50 dark:hover:bg-emerald-900/20 transition-all w-full text-left"
                 >
-                  <button
-                    onClick={() => {
-                      setHistoryTab('2550Q');
-                      openModal('bir-forms');
-                      setIsOpen(false);
-                    }}
+                  <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                  Compliance Tracker
+                </button>
+                <button
+                  onClick={() => {
+                    setHistoryTab('2550Q');
+                    openModal('bir-forms');
+                    setIsOpen(false);
+                  }}
                     className="flex items-center gap-3 px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 rounded-lg hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-slate-800 dark:hover:text-indigo-400 transition-all w-full text-left"
                   >
                     <FileText className="w-4 h-4" />

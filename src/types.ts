@@ -111,6 +111,20 @@ export interface Client {
   miscellaneousPayments?: MiscellaneousPayment[];
   inventoryItems?: InventoryItem[];
   inventoryMovements?: InventoryMovement[];
+  taxDeadlines?: TaxDeadline[];
+}
+
+export interface TaxDeadline {
+  id: string;
+  formType: '2550Q' | '1701Q' | '2551Q' | '1601-C' | '0619-E' | '1601-EQ';
+  title: string;
+  period: string;
+  dueDate: string;
+  status: 'Pending' | 'Filed' | 'Overdue';
+  amountDue?: number;
+  dateFiled?: string;
+  referenceNo?: string;
+  notes?: string;
 }
 
 export interface InventoryItem {
