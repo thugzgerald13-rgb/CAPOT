@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { BookOpen, Plus, Trash2, RefreshCcw, Edit2, ClipboardList, Check, X, Columns } from 'lucide-react';
+import { BookOpen, Plus, Trash2, RefreshCcw, Edit2, ClipboardList, Check, X, Columns, ArrowUpDown } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { useAccounting } from '../../context/AccountingContext';
 import { CoaAccount } from '../../types';
@@ -117,6 +117,7 @@ export function ChartOfAccountsModal() {
   const [editSubType, setEditSubType] = useState('');
   const [editNormalSide, setEditNormalSide] = useState<'debit' | 'credit'>('debit');
   const [editParentId, setEditParentId] = useState('');
+  const [swappingId, setSwappingId] = useState<string | null>(null);
 
   const coaColumns = useMemo(() => {
     const defaultColumns = [
@@ -353,6 +354,69 @@ export function ChartOfAccountsModal() {
     setEditingId(null);
     setEditParentId('');
     setEditCustomValues({});
+  };
+
+  const handleSwapConfirm = (idA: string, idB: string) => {
+    if (idA === idB) return;
+    
+    const accountA = accounts.find(a => a.id === idA);
+    const accountB = accounts.find(a => a.id === idB);
+    if (!accountA || !accountB) return;
+    
+    const updatedAccounts = accounts.map(a => {
+      if (a.id === idA) {
+        const bCustomFields: Record<string, any> = {};
+        coaColumns.forEach(c => {
+          if (!c.isSystem && c.id !== 'subType' && c.id !== 'normalSide') {
+            bCustomFields[c.id] = accountB[c.id];
+          }
+        });
+        
+        return {
+          ...a,
+          name: accountB.name,
+          type: accountB.type,
+          subType: accountB.subType,
+          normalSide: accountB.normalSide,
+          parentId: accountB.parentId,
+          ...bCustomFields
+        };
+      }
+      if (a.id === idB) {
+        const aCustomFields: Record<string, any> = {};
+        coaColumns.forEach(c => {
+          if (!c.isSystem && c.id !== 'subType' && c.id !== 'normalSide') {
+            aCustomFields[c.id] = accountA[c.id];
+          }
+        });
+        
+        return {
+          ...a,
+          name: accountA.name,
+          type: accountA.type,
+          subType: accountA.subType,
+          normalSide: accountA.normalSide,
+          parentId: accountA.parentId,
+          ...aCustomFields
+        };
+      }
+      
+      let newParentId = a.parentId;
+      if (a.parentId === idA) {
+        newParentId = idB;
+      } else if (a.parentId === idB) {
+        newParentId = idA;
+      }
+      
+      return {
+        ...a,
+        parentId: newParentId
+      };
+    });
+    
+    handleSaveAccounts(updatedAccounts);
+    setSwappingId(null);
+    showToast(`Swapped "${accountA.name}" and "${accountB.name}" together with their Account Codes!`);
   };
 
   // Dynamically calculate actual real-time balances from active journals / ledger
@@ -691,6 +755,24 @@ export function ChartOfAccountsModal() {
           </div>
         )}
 
+        {/* Swapping Active Banner */}
+        {swappingId && (
+          <div className="flex justify-between items-center bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 p-4 rounded-xl mb-4 text-xs font-semibold text-indigo-800 dark:text-indigo-200 shadow-sm animate-pulse">
+            <div className="flex items-center gap-2.5">
+              <ArrowUpDown className="w-4 h-4 text-indigo-600 dark:text-indigo-400 animate-bounce shrink-0" />
+              <span>
+                Swapping active: Select another account below to swap with <strong>{accounts.find(a => a.id === swappingId)?.name} ({swappingId})</strong> to change positions and trade corresponding Account Codes.
+              </span>
+            </div>
+            <button 
+              onClick={() => setSwappingId(null)}
+              className="px-3 py-1.5 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold transition-colors shadow-sm ml-4 shrink-0"
+            >
+              Cancel Swap Mode
+            </button>
+          </div>
+        )}
+
         {/* Chart of Accounts card layout matching image exactly */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
           {/* Card Header */}
@@ -948,39 +1030,69 @@ export function ChartOfAccountsModal() {
                             <span>
                               ₱ {balanceValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </span>
-                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-2 shrink-0">
-                              <button
-                                onClick={() => {
-                                  setEditingId(account.id);
-                                  setEditCode(account.id);
-                                  setEditName(account.name);
-                                  setEditType(account.type);
-                                  setEditSubType(account.subType || '');
-                                  setEditNormalSide(account.normalSide || getNormalSide(account.type));
-                                  setEditParentId(account.parentId || '');
+                            
+                            {swappingId ? (
+                              <div className="flex items-center gap-1.5 ml-2 shrink-0">
+                                {account.id === swappingId ? (
+                                  <button
+                                    onClick={() => setSwappingId(null)}
+                                    className="px-2.5 py-1 text-[11px] font-bold text-red-600 bg-red-50 hover:bg-red-100 dark:text-red-400 dark:bg-red-950/20 dark:hover:bg-red-950/40 border border-red-200 dark:border-red-900/50 rounded-lg transition-colors flex items-center gap-1 shrink-0"
+                                    title="Cancel swap mode"
+                                  >
+                                    <X className="w-3 h-3" /> Cancel
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={() => handleSwapConfirm(swappingId, account.id)}
+                                    className="px-2.5 py-1 text-[11px] font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 dark:text-indigo-400 dark:bg-indigo-950/20 dark:hover:bg-indigo-950/45 border border-indigo-200 dark:border-indigo-900/50 rounded-lg transition-colors flex items-center gap-1 shrink-0"
+                                    title={`Swap with ${accounts.find(a => a.id === swappingId)?.name}`}
+                                  >
+                                    <ArrowUpDown className="w-3 h-3" /> Swap Here
+                                  </button>
+                                )}
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-2 shrink-0">
+                                <button
+                                  onClick={() => setSwappingId(account.id)}
+                                  className="p-1 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 rounded text-indigo-500 transition-colors"
+                                  title="Swap/Switch Account Code and Order"
+                                >
+                                  <ArrowUpDown className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setEditingId(account.id);
+                                    setEditCode(account.id);
+                                    setEditName(account.name);
+                                    setEditType(account.type);
+                                    setEditSubType(account.subType || '');
+                                    setEditNormalSide(account.normalSide || getNormalSide(account.type));
+                                    setEditParentId(account.parentId || '');
 
-                                  // Collect custom fields
-                                  const editingMap: Record<string, string> = {};
-                                  coaColumns.forEach(c => {
-                                    if (!c.isSystem && c.id !== 'subType' && c.id !== 'normalSide') {
-                                      editingMap[c.id] = account[c.id] || '';
-                                    }
-                                  });
-                                  setEditCustomValues(editingMap);
-                                }}
-                                className="p-1 hover:bg-blue-100 dark:hover:bg-blue-900/40 rounded text-blue-500 transition-colors"
-                                title="Edit Account"
-                              >
-                                <Edit2 className="w-3.5 h-3.5" />
-                              </button>
-                              <button 
-                                onClick={() => handleDelete(account.id)}
-                                className="p-1 hover:bg-red-100 dark:hover:bg-red-900/40 rounded text-red-500 transition-colors"
-                                title="Delete Account"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
+                                    // Collect custom fields
+                                    const editingMap: Record<string, string> = {};
+                                    coaColumns.forEach(c => {
+                                      if (!c.isSystem && c.id !== 'subType' && c.id !== 'normalSide') {
+                                        editingMap[c.id] = account[c.id] || '';
+                                      }
+                                    });
+                                    setEditCustomValues(editingMap);
+                                  }}
+                                  className="p-1 hover:bg-blue-100 dark:hover:bg-blue-900/40 rounded text-blue-500 transition-colors"
+                                  title="Edit Account"
+                                >
+                                  <Edit2 className="w-3.5 h-3.5" />
+                                </button>
+                                <button 
+                                  onClick={() => handleDelete(account.id)}
+                                  className="p-1 hover:bg-red-100 dark:hover:bg-red-900/40 rounded text-red-500 transition-colors"
+                                  title="Delete Account"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            )}
                           </div>
                         </td>
                       </tr>
