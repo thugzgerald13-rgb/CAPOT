@@ -194,27 +194,30 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     loadCloudPrefs();
   }, [user, isReady]);
 
+  // Synchronous initial load of local storage on startup for instant UI responsiveness
+  useEffect(() => {
+    const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        setClients(parsed);
+        const keys = Object.keys(parsed);
+        if (keys.length > 0) setCurrentClientId(keys[0]);
+      } catch (e) {
+        console.error("Local storage parse error on startup", e);
+      }
+    }
+    const savedBiz = localStorage.getItem('capo_business_profile_react');
+    if (savedBiz) {
+      try {
+        setBusinessProfile(JSON.parse(savedBiz));
+      } catch (e) {}
+    }
+  }, []);
+
   // Real-time Firestore Sync & Local Fallback
   useEffect(() => {
     if (!user) {
-      // Fallback to local storage when not logged in
-      const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          setClients(parsed);
-          const keys = Object.keys(parsed);
-          if (keys.length > 0) setCurrentClientId(keys[0]);
-        } catch (e) {
-          console.error("Local storage parse error", e);
-        }
-      }
-      const savedBiz = localStorage.getItem('capo_business_profile_react');
-      if (savedBiz) {
-        try {
-          setBusinessProfile(JSON.parse(savedBiz));
-        } catch (e) {}
-      }
       setIsReady(true);
       return;
     }
@@ -242,11 +245,12 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         cloudClients[docSnap.id] = docSnap.data() as Client;
       });
       
-      // Merge logic: If we have local clients that are NOT in the cloud yet, 
-      // keep them in state so they don't "disappear" during migration
+      // Merge logic: If we have local clients or local chart of accounts changes,
+      // preserve them and ensure local storage has the ultimate backup copy.
       setClients(prev => {
         const merged = { ...cloudClients };
-        // Check local storage directly for items not yet in cloud
+        
+        // Merge from local storage
         const keysToCheck = [LOCAL_STORAGE_KEY, OLD_STORAGE_KEY];
         keysToCheck.forEach(key => {
           const saved = localStorage.getItem(key);
@@ -254,14 +258,29 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
             try {
               const localData = JSON.parse(saved) as Record<string, Client>;
               Object.keys(localData).forEach(id => {
+                const localClient = localData[id];
                 if (!merged[id]) {
                   console.log(`Merging local record ${id} from ${key}`);
-                  merged[id] = localData[id];
+                  merged[id] = localClient;
+                } else {
+                  // If both cloud and local exist, check if local has custom accounts that cloud lacks
+                  const cloudClient = merged[id];
+                  if (localClient.accounts && localClient.accounts.length > 0 && (!cloudClient.accounts || cloudClient.accounts.length === 0)) {
+                    console.log(`Merging local chart of accounts for client ${id}`);
+                    merged[id] = {
+                      ...cloudClient,
+                      accounts: localClient.accounts,
+                      coaFormat: localClient.coaFormat || cloudClient.coaFormat
+                    };
+                  }
                 }
               });
             } catch(e) {}
           }
         });
+        
+        // Always synchronously update local storage with the final state
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(merged));
         return merged;
       });
       
@@ -359,14 +378,19 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   }, [user, isReady]);
 
   const saveClient = async (id: string, clientData: Client) => {
-    // Optimistically update the state so the user sees results immediately
-    setClients(prev => ({
-      ...prev,
-      [id]: {
-        ...clientData,
-        userId: user ? user.uid : undefined
-      }
-    }));
+    const updatedClient = {
+      ...clientData,
+      userId: user ? user.uid : undefined
+    };
+
+    setClients(prev => {
+      const next = {
+        ...prev,
+        [id]: updatedClient
+      };
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
 
     if (user) {
       try {
@@ -381,7 +405,7 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         handleFirestoreError(error, OperationType.UPDATE, `clients/${id}`);
       }
     } else {
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({ ...clients, [id]: clientData }));
+      showToast('Profile updated');
     }
   };
 
@@ -402,6 +426,19 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       files: []
     } as Client;
 
+    setClients(prev => {
+      const next = {
+        ...prev,
+        [newId]: {
+          ...newClient,
+          userId: user ? user.uid : undefined
+        }
+      };
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
+    setCurrentClientId(newId);
+
     if (user) {
       try {
         const clientRef = doc(db, 'clients', newId);
@@ -410,16 +447,11 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           userId: user.uid,
           updatedAt: serverTimestamp()
         });
-        setCurrentClientId(newId);
         showToast('Client added');
       } catch (error) {
         handleFirestoreError(error, OperationType.CREATE, `clients/${newId}`);
       }
     } else {
-      const newClients = { ...clients, [newId]: newClient };
-      setClients(newClients);
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(newClients));
-      setCurrentClientId(newId);
       showToast('Client added');
     }
   };
@@ -439,35 +471,30 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       }
     });
 
+    setClients(prev => {
+      const updated = { ...prev };
+      delete updated[id];
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updated));
+      return updated;
+    });
+
+    if (currentClientId === id) {
+      setClients(currentMerged => {
+        const remainingIds = Object.keys(currentMerged).filter(cid => cid !== id);
+        setCurrentClientId(remainingIds.length > 0 ? remainingIds[0] : null);
+        return currentMerged;
+      });
+    }
+
     if (user) {
       try {
         const clientRef = doc(db, 'clients', id);
         await deleteDoc(clientRef);
-        
-        setClients(prev => {
-          const updated = { ...prev };
-          delete updated[id];
-          return updated;
-        });
-
-        if (currentClientId === id) {
-          const remainingIds = Object.keys(clients).filter(cid => cid !== id);
-          setCurrentClientId(remainingIds.length > 0 ? remainingIds[0] : null);
-        }
         showToast('Client profile deleted');
       } catch (error) {
         handleFirestoreError(error, OperationType.DELETE, `clients/${id}`);
       }
     } else {
-      setClients(prev => {
-        const updated = { ...prev };
-        delete updated[id];
-        return updated;
-      });
-      if (currentClientId === id) {
-        const remainingIds = Object.keys(clients).filter(cid => cid !== id);
-        setCurrentClientId(remainingIds.length > 0 ? remainingIds[0] : null);
-      }
       showToast('Client profile deleted');
     }
   };
