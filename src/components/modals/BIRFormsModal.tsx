@@ -8,10 +8,10 @@ import {
 } from 'lucide-react';
 
 export function BIRFormsModal() {
-  const { currentClient, activeModal, openModal } = useAccounting();
+  const { currentClient, activeModal, openModal, historyTab } = useAccounting();
 
-  // Active form choice: '2550Q' | '1701Q' | '2551Q' | '1601-C'
-  const [activeFormType, setActiveFormType] = useState<'2550Q' | '1701Q' | '2551Q' | '1601-C'>('2550Q');
+  // Active form choice: '2550Q' | '1701Q' | '2551Q' | '1601-C' | '0619-E' | '1601-EQ'
+  const [activeFormType, setActiveFormType] = useState<'2550Q' | '1701Q' | '2551Q' | '1601-C' | '0619-E' | '1601-EQ'>('2550Q');
 
   // Query configurations
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
@@ -38,15 +38,34 @@ export function BIRFormsModal() {
   const [manualTotalSalaries, setManualTotalSalaries] = useState<string>('50000');
   const [manualNonTaxableSalaries, setManualNonTaxableSalaries] = useState<string>('15000');
 
-  // Load correct form type on activeModal change if triggered from Sidebar
+  // 5. Monthly Expanded Tax Overrides (0619-E)
+  const [manual0619EAmount, setManual0619EAmount] = useState<string>('');
+  const [manual0619EPrevRemitted, setManual0619EPrevRemitted] = useState<string>('0');
+  const [manual0619ESurcharge, setManual0619ESurcharge] = useState<string>('0');
+  const [manual0619EInterest, setManual0619EInterest] = useState<string>('0');
+  const [manual0619ECompromise, setManual0619ECompromise] = useState<string>('0');
+
+  // 6. Quarterly Expanded Tax Overrides (1601-EQ)
+  const [manual1601EQMonth1, setManual1601EQMonth1] = useState<string>('');
+  const [manual1601EQMonth2, setManual1601EQMonth2] = useState<string>('');
+  const [manual1601EQPrevFiled, setManual1601EQPrevFiled] = useState<string>('0');
+  const [manual1601EQOverRemit, setManual1601EQOverRemit] = useState<string>('0');
+  const [manual1601EQOtherPayments, setManual1601EQOtherPayments] = useState<string>('0');
+  const [manual1601EQSurcharge, setManual1601EQSurcharge] = useState<string>('0');
+  const [manual1601EQInterest, setManual1601EQInterest] = useState<string>('0');
+  const [manual1601EQCompromise, setManual1601EQCompromise] = useState<string>('0');
+
+  // Load correct form type on activeModal or historyTab change if triggered from Sidebar
   useEffect(() => {
-    if (activeModal && activeModal.startsWith('bir-')) {
+    if (historyTab && ['2550Q', '1701Q', '2551Q', '1601-C', '0619-E', '1601-EQ'].includes(historyTab)) {
+      setActiveFormType(historyTab as any);
+    } else if (activeModal && activeModal.startsWith('bir-')) {
       const type = activeModal.split('-')[1]?.toUpperCase() as any;
-      if (['2550Q', '1701Q', '2551Q', '1601C'].includes(type)) {
-        setActiveFormType(type === '1601C' ? '1601-C' : type);
+      if (['2550Q', '1701Q', '2551Q', '1601C', '0619E', '1601EQ'].includes(type)) {
+        setActiveFormType(type === '1601C' ? '1601-C' : type === '0619E' ? '0619-E' : type === '1601EQ' ? '1601-EQ' : type);
       }
     }
-  }, [activeModal]);
+  }, [activeModal, historyTab]);
 
   // Utility to determine date quarter
   const getQuarterNum = (dateStr: string) => {
@@ -84,7 +103,7 @@ export function BIRFormsModal() {
       const d = new Date(s.date);
       if (isNaN(d.getTime())) return false;
       const isYear = d.getFullYear() === selectedYear;
-      if (activeFormType === '1601-C') {
+      if (['1601-C', '0619-E'].includes(activeFormType)) {
         return isYear && getMonthNum(s.date) === selectedMonth;
       } else {
         return isYear && getQuarterNum(s.date) === selectedQuarter;
@@ -96,7 +115,7 @@ export function BIRFormsModal() {
       const d = new Date(p.date);
       if (isNaN(d.getTime())) return false;
       const isYear = d.getFullYear() === selectedYear;
-      if (activeFormType === '1601-C') {
+      if (['1601-C', '0619-E'].includes(activeFormType)) {
         return isYear && getMonthNum(p.date) === selectedMonth;
       } else {
         return isYear && getQuarterNum(p.date) === selectedQuarter;
@@ -108,7 +127,7 @@ export function BIRFormsModal() {
       const d = new Date(e.date);
       if (isNaN(d.getTime())) return false;
       const isYear = d.getFullYear() === selectedYear;
-      if (activeFormType === '1601-C') {
+      if (['1601-C', '0619-E'].includes(activeFormType)) {
         return isYear && getMonthNum(e.date) === selectedMonth;
       } else {
         return isYear && getQuarterNum(e.date) === selectedQuarter;
@@ -125,12 +144,81 @@ export function BIRFormsModal() {
       .reduce((sum, p) => sum + (p.inputTax || p.amount * 0.12), 0);
     const expensesTotal = expensesList.reduce((sum, e) => sum + e.amount, 0);
 
+    // Monthly Expanded Withholding Tax (EWT) computation (for 0619-E)
+    const monthlyWhtInvoices = (currentClient.payableInvoices || []).filter(inv => {
+      const d = new Date(inv.date);
+      if (isNaN(d.getTime())) return false;
+      return d.getFullYear() === selectedYear && (d.getMonth() + 1) === selectedMonth;
+    });
+    const monthlyEwtTotal = monthlyWhtInvoices.reduce((sum, inv) => sum + (inv.whtAmount || 0), 0);
+
+    // Quarterly EWT breakdown for 1601-EQ
+    const qMonths = [
+      (selectedQuarter - 1) * 3 + 1,
+      (selectedQuarter - 1) * 3 + 2,
+      (selectedQuarter - 1) * 3 + 3
+    ];
+
+    const ewtMonth1 = (currentClient.payableInvoices || []).filter(inv => {
+      const d = new Date(inv.date);
+      if (isNaN(d.getTime())) return false;
+      return d.getFullYear() === selectedYear && (d.getMonth() + 1) === qMonths[0];
+    }).reduce((sum, inv) => sum + (inv.whtAmount || 0), 0);
+
+    const ewtMonth2 = (currentClient.payableInvoices || []).filter(inv => {
+      const d = new Date(inv.date);
+      if (isNaN(d.getTime())) return false;
+      return d.getFullYear() === selectedYear && (d.getMonth() + 1) === qMonths[1];
+    }).reduce((sum, inv) => sum + (inv.whtAmount || 0), 0);
+
+    const ewtMonth3 = (currentClient.payableInvoices || []).filter(inv => {
+      const d = new Date(inv.date);
+      if (isNaN(d.getTime())) return false;
+      return d.getFullYear() === selectedYear && (d.getMonth() + 1) === qMonths[2];
+    }).reduce((sum, inv) => sum + (inv.whtAmount || 0), 0);
+
+    // Grouping for 1601-EQ ATC Matrix
+    const quarterlyWhtInvoices = (currentClient.payableInvoices || []).filter(inv => {
+      const d = new Date(inv.date);
+      if (isNaN(d.getTime())) return false;
+      const isYear = d.getFullYear() === selectedYear;
+      return isYear && getQuarterNum(inv.date) === selectedQuarter;
+    });
+
+    const quarterlyAtcGrid: Record<string, { atcCode: string; description: string; baseAmount: number; rate: number; taxWithheld: number }> = {};
+    quarterlyWhtInvoices.forEach(inv => {
+      if (!inv.withholdingTaxId) return;
+      const atc = (currentClient.withholdingTaxEntries || []).find(w => w.id === inv.withholdingTaxId);
+      if (!atc) return;
+
+      if (!quarterlyAtcGrid[atc.atcCode]) {
+        quarterlyAtcGrid[atc.atcCode] = {
+          atcCode: atc.atcCode,
+          description: atc.description,
+          baseAmount: 0,
+          rate: atc.taxRate,
+          taxWithheld: 0
+        };
+      }
+      quarterlyAtcGrid[atc.atcCode].baseAmount += inv.subtotal;
+      quarterlyAtcGrid[atc.atcCode].taxWithheld += inv.whtAmount || 0;
+    });
+
+    const quarterlyAtcList = Object.values(quarterlyAtcGrid);
+    const quarterlyTotalTaxesWithheld = quarterlyAtcList.reduce((sum, item) => sum + item.taxWithheld, 0);
+
     return {
       salesTotal,
       purchasesTotal,
       vatPurchasesTotal,
       purchasesInputTax,
-      expensesTotal
+      expensesTotal,
+      monthlyEwtTotal,
+      ewtMonth1,
+      ewtMonth2,
+      ewtMonth3,
+      quarterlyAtcList,
+      quarterlyTotalTaxesWithheld
     };
   }, [currentClient, selectedYear, selectedQuarter, selectedMonth, activeFormType]);
 
@@ -212,6 +300,30 @@ export function BIRFormsModal() {
     return 183541.67 + (avgMonthlyComp - 666667) * 0.35;
   }, [taxableCompensation]);
 
+  // Form 0619-E Calculations (Monthly Remittance Form of Creditable Income Taxes Withheld (Expanded))
+  const active0619EAmount = manual0619EAmount !== '' ? parseFloat(manual0619EAmount) || 0 : compiledData.monthlyEwtTotal;
+  const active0619EPrevRemitted = parseFloat(manual0619EPrevRemitted) || 0;
+  const active0619ENetAmount = Math.max(0, active0619EAmount - active0619EPrevRemitted);
+  const active0619ESurcharge = parseFloat(manual0619ESurcharge) || 0;
+  const active0619EInterest = parseFloat(manual0619EInterest) || 0;
+  const active0619ECompromise = parseFloat(manual0619ECompromise) || 0;
+  const active0619ETotalPenalties = active0619ESurcharge + active0619EInterest + active0619ECompromise;
+  const active0619ETotalDue = active0619ENetAmount + active0619ETotalPenalties;
+
+  // Form 1601-EQ Calculations (Quarterly Remittance Return of Creditable Income Taxes Withheld (Expanded))
+  const active1601EQMonth1 = manual1601EQMonth1 !== '' ? parseFloat(manual1601EQMonth1) || 0 : compiledData.ewtMonth1;
+  const active1601EQMonth2 = manual1601EQMonth2 !== '' ? parseFloat(manual1601EQMonth2) || 0 : compiledData.ewtMonth2;
+  const active1601EQPrevFiled = parseFloat(manual1601EQPrevFiled) || 0;
+  const active1601EQOverRemit = parseFloat(manual1601EQOverRemit) || 0;
+  const active1601EQOtherPayments = parseFloat(manual1601EQOtherPayments) || 0;
+  const active1601EQTotalRemittances = active1601EQMonth1 + active1601EQMonth2 + active1601EQPrevFiled + active1601EQOverRemit + active1601EQOtherPayments;
+  const active1601EQTaxStillDue = compiledData.quarterlyTotalTaxesWithheld - active1601EQTotalRemittances;
+  const active1601EQSurcharge = parseFloat(manual1601EQSurcharge) || 0;
+  const active1601EQInterest = parseFloat(manual1601EQInterest) || 0;
+  const active1601EQCompromise = parseFloat(manual1601EQCompromise) || 0;
+  const active1601EQTotalPenalties = active1601EQSurcharge + active1601EQInterest + active1601EQCompromise;
+  const active1601EQTotalDue = active1601EQTaxStillDue + active1601EQTotalPenalties;
+
   // Format TIN
   const formattedTin = (tinString?: string) => {
     if (!tinString) return '—';
@@ -241,19 +353,21 @@ export function BIRFormsModal() {
                 { type: '2550Q', label: 'BIR Form 2550Q', desc: 'Quarterly Value-Added Tax' },
                 { type: '1701Q', label: 'BIR Form 1701Q', desc: 'Quarterly Income Tax (Individual)' },
                 { type: '2551Q', label: 'BIR Form 2551Q', desc: 'Quarterly Percentage Tax' },
-                { type: '1601-C', label: 'BIR Form 1601-C', desc: 'Monthly Withholding on Salaries' }
+                { type: '1601-C', label: 'BIR Form 1601-C', desc: 'Monthly Withholding on Salaries' },
+                { type: '0619-E', label: 'BIR Form 0619-E', desc: 'Monthly Remittance of EWT' },
+                { type: '1601-EQ', label: 'BIR Form 1601-EQ', desc: 'Quarterly Remittance of EWT' }
               ].map((f) => (
                 <button
                   key={f.type}
                   onClick={() => setActiveFormType(f.type as any)}
-                  className={`w-full p-3.5 rounded-xl text-left border transition-all ${
+                  className={`w-full p-3 text-left border transition-all ${
                     activeFormType === f.type 
                       ? 'bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-500/10' 
                       : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100'
                   }`}
                 >
-                  <span className="font-bold text-xs block">{f.label}</span>
-                  <span className={`text-[10px] block font-medium mt-0.5 ${activeFormType === f.type ? 'text-blue-100' : 'text-slate-500'}`}>{f.desc}</span>
+                  <span className="font-bold text-xs block leading-tight">{f.label}</span>
+                  <span className={`text-[10px] block font-medium mt-0.5 leading-tight ${activeFormType === f.type ? 'text-blue-100' : 'text-slate-500'}`}>{f.desc}</span>
                 </button>
               ))}
             </div>
@@ -277,7 +391,7 @@ export function BIRFormsModal() {
                 </select>
               </div>
 
-              {activeFormType === '1601-C' ? (
+              {['1601-C', '0619-E'].includes(activeFormType) ? (
                 <div>
                   <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-1">Tax Month</label>
                   <select 
@@ -455,6 +569,146 @@ export function BIRFormsModal() {
                     onChange={e => setManualNonTaxableSalaries(e.target.value)}
                     className="w-full text-xs border border-slate-200 bg-white dark:bg-slate-800 p-2 rounded-lg"
                   />
+                </div>
+              </div>
+            )}
+
+            {activeFormType === '0619-E' && (
+              <div className="space-y-3 font-medium">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 block mb-1">Monthly Remittance Amount (₱)</label>
+                  <input 
+                    type="number" 
+                    placeholder={compiledData.monthlyEwtTotal.toString()}
+                    value={manual0619EAmount} 
+                    onChange={e => setManual0619EAmount(e.target.value)}
+                    className="w-full text-xs border border-slate-200 bg-white dark:bg-slate-800 p-2 rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 block mb-1">Amount Previously Paid (₱)</label>
+                  <input 
+                    type="number" 
+                    value={manual0619EPrevRemitted} 
+                    onChange={e => setManual0619EPrevRemitted(e.target.value)}
+                    className="w-full text-xs border border-slate-200 bg-white dark:bg-slate-800 p-2 rounded-lg"
+                  />
+                </div>
+                <div className="border-t border-slate-200 dark:border-slate-700 pt-2 shrink-0 border-dashed">
+                  <span className="text-[10px] font-black uppercase text-slate-400 block mb-1.5">Penalties</span>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    <div>
+                      <label className="text-[8px] font-semibold text-slate-400 block mb-0.5">Surcharge</label>
+                      <input 
+                        type="number" 
+                        value={manual0619ESurcharge} 
+                        onChange={e => setManual0619ESurcharge(e.target.value)}
+                        className="w-full text-[11px] border border-slate-200 bg-white dark:bg-slate-800 p-1.5 rounded-lg text-center font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[8px] font-semibold text-slate-400 block mb-0.5">Interest</label>
+                      <input 
+                        type="number" 
+                        value={manual0619EInterest} 
+                        onChange={e => setManual0619EInterest(e.target.value)}
+                        className="w-full text-[11px] border border-slate-200 bg-white dark:bg-slate-800 p-1.5 rounded-lg text-center font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[8px] font-semibold text-slate-400 block mb-0.5">Compromise</label>
+                      <input 
+                        type="number" 
+                        value={manual0619ECompromise} 
+                        onChange={e => setManual0619ECompromise(e.target.value)}
+                        className="w-full text-[11px] border border-slate-200 bg-white dark:bg-slate-800 p-1.5 rounded-lg text-center font-mono"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeFormType === '1601-EQ' && (
+              <div className="space-y-3 font-medium">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 block mb-1">1st Month Remitted (₱)</label>
+                  <input 
+                    type="number" 
+                    placeholder={compiledData.ewtMonth1.toString()}
+                    value={manual1601EQMonth1} 
+                    onChange={e => setManual1601EQMonth1(e.target.value)}
+                    className="w-full text-xs border border-slate-200 bg-white dark:bg-slate-800 p-2 rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 block mb-1">2nd Month Remitted (₱)</label>
+                  <input 
+                    type="number" 
+                    placeholder={compiledData.ewtMonth2.toString()}
+                    value={manual1601EQMonth2} 
+                    onChange={e => setManual1601EQMonth2(e.target.value)}
+                    className="w-full text-xs border border-slate-200 bg-white dark:bg-slate-800 p-2 rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 block mb-1">Over-remit Previous Qtr (₱)</label>
+                  <input 
+                    type="number" 
+                    value={manual1601EQOverRemit} 
+                    onChange={e => setManual1601EQOverRemit(e.target.value)}
+                    className="w-full text-xs border border-slate-200 bg-white dark:bg-slate-800 p-2 rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 block mb-1">Previously remitted return (₱)</label>
+                  <input 
+                    type="number" 
+                    value={manual1601EQPrevFiled} 
+                    onChange={e => setManual1601EQPrevFiled(e.target.value)}
+                    className="w-full text-xs border border-slate-200 bg-white dark:bg-slate-800 p-2 rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 block mb-1">Other Payments (Form 0605) (₱)</label>
+                  <input 
+                    type="number" 
+                    value={manual1601EQOtherPayments} 
+                    onChange={e => setManual1601EQOtherPayments(e.target.value)}
+                    className="w-full text-xs border border-slate-200 bg-white dark:bg-slate-800 p-2 rounded-lg"
+                  />
+                </div>
+                <div className="border-t border-slate-200 dark:border-slate-700 pt-2 shrink-0 border-dashed">
+                  <span className="text-[10px] font-black uppercase text-slate-400 block mb-1.5">Penalties</span>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    <div>
+                      <label className="text-[8px] font-semibold text-slate-400 block mb-0.5">Surcharge</label>
+                      <input 
+                        type="number" 
+                        value={manual1601EQSurcharge} 
+                        onChange={e => setManual1601EQSurcharge(e.target.value)}
+                        className="w-full text-[11px] border border-slate-200 bg-white dark:bg-slate-800 p-1.5 rounded-lg text-center font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[8px] font-semibold text-slate-400 block mb-0.5">Interest</label>
+                      <input 
+                        type="number" 
+                        value={manual1601EQInterest} 
+                        onChange={e => setManual1601EQInterest(e.target.value)}
+                        className="w-full text-[11px] border border-slate-200 bg-white dark:bg-slate-800 p-1.5 rounded-lg text-center font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[8px] font-semibold text-slate-400 block mb-0.5">Compromise</label>
+                      <input 
+                        type="number" 
+                        value={manual1601EQCompromise} 
+                        onChange={e => setManual1601EQCompromise(e.target.value)}
+                        className="w-full text-[11px] border border-slate-200 bg-white dark:bg-slate-800 p-1.5 rounded-lg text-center font-mono"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
@@ -918,6 +1172,248 @@ export function BIRFormsModal() {
 
                 <div className="flex justify-between items-center text-[10px] font-bold text-slate-500 pt-2 border-t border-black">
                   <span>CAPOTBOOKS Tax Compensation Engine</span>
+                  <span>Form Version: January 2018 (revised)</span>
+                </div>
+              </div>
+            )}
+
+            {/* BIR FORM NO 0619-E */}
+            {activeFormType === '0619-E' && (
+              <div className="border-[2px] border-black p-4 text-black bg-white max-w-4xl mx-auto space-y-4 print:border-0 print:p-0">
+                {/* Form Header */}
+                <div className="flex items-center border-b border-black pb-3">
+                  <div className="border border-black px-3 py-1 font-mono text-center shrink-0 mr-4 font-black">
+                    <span className="text-[10px] block font-semibold uppercase leading-none">BIR Form No.</span>
+                    <span className="text-xl leading-none">0619-E</span>
+                  </div>
+                  <div className="flex-1 text-center font-bold font-serif leading-tight">
+                    <div className="text-[10px] uppercase tracking-wide">Republika ng Pilipinas</div>
+                    <div className="text-[11px] uppercase tracking-wide">Kagawaran ng Pananalapi</div>
+                    <div className="text-[12px] uppercase">Kawanihan ng Rentas Internas</div>
+                    <h1 className="text-sm uppercase font-black tracking-tighter mt-1">Monthly Remittance Form of Creditable Income Taxes Withheld (Expanded)</h1>
+                  </div>
+                  <div className="shrink-0 text-[10px] font-bold text-right pl-4">
+                    <div>Amended: <span className="underline">No</span></div>
+                    <div>Period: <span className="underline font-black">{selectedMonth}/{selectedYear}</span></div>
+                  </div>
+                </div>
+
+                {/* Section Part I: Background Information */}
+                <div>
+                  <div className="bg-yellow-50 outline outline-[1px] outline-black text-[11px] font-black uppercase px-2 py-0.5 tracking-wide mb-1 leading-none select-none">
+                    Part I: Background Information
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 border border-black p-2 bg-slate-50 text-[11px] font-bold gap-3">
+                    <div>
+                      <span className="text-[9px] block text-slate-500">1 Taxpayer Identification Number (TIN)</span>
+                      <span className="font-mono text-xs">{formattedTin(currentClient?.tin)}</span>
+                    </div>
+                    <div>
+                      <span className="text-[9px] block text-slate-500">2 RDO Code</span>
+                      <span>{currentClient?.rdoCode || '043B'}</span>
+                    </div>
+                    <div className="md:col-span-2 border-t border-slate-200 pt-1.5">
+                      <span className="text-[9px] block text-slate-500">3 Withholding Agent's Registered Legal Name</span>
+                      <span className="uppercase text-xs">{currentClient?.registeredName || currentClient?.name}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section Part II: Computation of Remittance */}
+                <div>
+                  <div className="bg-yellow-50 outline outline-[1px] outline-black text-[11px] font-black uppercase px-2 py-0.5 tracking-wide mb-1 select-none">
+                    Part II: Computation of Remittance
+                  </div>
+                  <table className="w-full text-xs border border-black border-collapse">
+                    <thead>
+                      <tr className="bg-slate-100 font-bold border-b border-black text-[10px]">
+                        <th className="border-r border-black p-1 text-center w-10">Item</th>
+                        <th className="border-r border-black p-1 text-left">Withholding Remittance Description</th>
+                        <th className="p-1 text-right w-44">Totals (₱)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="font-bold">
+                      <tr className="border-b border-black">
+                        <td className="border-r border-black p-1 text-center font-mono text-[10px]">14</td>
+                        <td className="border-r border-black p-1 font-semibold">Amount of Remittance</td>
+                        <td className="p-1 text-right font-mono">₱{active0619EAmount.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                      </tr>
+                      <tr className="border-b border-black">
+                        <td className="border-r border-black p-1 text-center font-mono text-[10px]">15</td>
+                        <td className="border-r border-black p-1 font-semibold">Less: Amount Remitted from Previously Filed Form (if amended)</td>
+                        <td className="p-1 text-right font-mono text-rose-600">₱({active0619EPrevRemitted.toLocaleString(undefined, {minimumFractionDigits: 2})})</td>
+                      </tr>
+                      <tr className="border-b border-black bg-slate-50">
+                        <td className="border-r border-black p-1 text-center font-mono text-[10px]">16</td>
+                        <td className="border-r border-black p-1 uppercase">Net Amount of Remittance (Line 14 - Line 15)</td>
+                        <td className="p-1 text-right font-mono text-emerald-800">₱{active0619ENetAmount.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                      </tr>
+                      <tr className="border-b border-black">
+                        <td className="border-r border-black p-1 text-center font-mono text-[10px]">17</td>
+                        <td className="border-r border-black p-1 font-semibold">Add Penalties:</td>
+                        <td className="p-1 text-right font-mono text-rose-600">
+                          <div className="text-[10px] space-y-0.5">
+                            <div>Surcharge: ₱{active0619ESurcharge.toLocaleString(undefined, {minimumFractionDigits: 2})}</div>
+                            <div>Interest: ₱{active0619EInterest.toLocaleString(undefined, {minimumFractionDigits: 2})}</div>
+                            <div>Compromise: ₱{active0619ECompromise.toLocaleString(undefined, {minimumFractionDigits: 2})}</div>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr className="border-b border-black bg-slate-50">
+                        <td className="border-r border-black p-1 text-center font-mono text-[10px]">17D</td>
+                        <td className="border-r border-black p-1 uppercase">Total Penalties (Surcharge + Interest + Compromise)</td>
+                        <td className="p-1 text-right font-mono">₱{active0619ETotalPenalties.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                      </tr>
+                      <tr className="bg-amber-100">
+                        <td className="border-r border-black p-1.5 text-center font-mono text-[10px]">18</td>
+                        <td className="border-r border-black p-1.5 font-black uppercase text-amber-900 leading-tight">Total Amount of Remittance Due</td>
+                        <td className="p-1.5 text-right font-mono text-base font-black text-amber-950">₱{active0619ETotalDue.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="flex justify-between items-center text-[10px] font-bold text-slate-500 pt-2 border-t border-black">
+                  <span>CAPOTBOOKS Monthly EWT Remittance Engine</span>
+                  <span>Form Version: January 2018 (revised)</span>
+                </div>
+              </div>
+            )}
+
+            {/* BIR FORM NO 1601-EQ */}
+            {activeFormType === '1601-EQ' && (
+              <div className="border-[2px] border-black p-4 text-black bg-white max-w-4xl mx-auto space-y-4 print:border-0 print:p-0">
+                {/* Form Header */}
+                <div className="flex items-center border-b border-black pb-3">
+                  <div className="border border-black px-3 py-1 font-mono text-center shrink-0 mr-4 font-black">
+                    <span className="text-[10px] block font-semibold uppercase leading-none">BIR Form No.</span>
+                    <span className="text-xl leading-none">1601-EQ</span>
+                  </div>
+                  <div className="flex-1 text-center font-bold font-serif leading-tight">
+                    <div className="text-[10px] uppercase tracking-wide">Republika ng Pilipinas</div>
+                    <div className="text-[11px] uppercase tracking-wide">Kagawaran ng Pananalapi</div>
+                    <div className="text-[12px] uppercase">Kawanihan ng Rentas Internas</div>
+                    <h1 className="text-sm uppercase font-black tracking-tighter mt-1">Quarterly Remittance Return of Creditable Income Taxes Withheld (Expanded)</h1>
+                  </div>
+                  <div className="shrink-0 text-[10px] font-bold text-right pl-4">
+                    <div>Amended: <span className="underline">No</span></div>
+                    <div>Quarter: <span className="underline font-black">{selectedQuarter}</span></div>
+                    <div>Year: <span className="underline font-black">{selectedYear}</span></div>
+                  </div>
+                </div>
+
+                {/* Section Part I: Background Information */}
+                <div>
+                  <div className="bg-yellow-50 outline outline-[1px] outline-black text-[11px] font-black uppercase px-2 py-0.5 tracking-wide mb-1 leading-none select-none">
+                    Part I: Background Information
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 border border-black p-2 bg-slate-50 text-[11px] font-bold gap-3">
+                    <div>
+                      <span className="text-[9px] block text-slate-500">1 Taxpayer Identification Number (TIN)</span>
+                      <span className="font-mono text-xs">{formattedTin(currentClient?.tin)}</span>
+                    </div>
+                    <div>
+                      <span className="text-[9px] block text-slate-500">2 RDO Code</span>
+                      <span>{currentClient?.rdoCode || '043B'}</span>
+                    </div>
+                    <div className="md:col-span-2 border-t border-slate-200 pt-1.5">
+                      <span className="text-[9px] block text-slate-500">3 Withholding Agent's Registered Name</span>
+                      <span className="uppercase text-xs">{currentClient?.registeredName || currentClient?.name}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ATC Details List */}
+                <div>
+                  <div className="bg-yellow-50 outline outline-[1px] outline-black text-[11px] font-black uppercase px-2 py-0.5 tracking-wide mb-1 select-none">
+                    Part II: Details of Withholding Taxes for the Quarter
+                  </div>
+                  <table className="w-full text-xs border border-black border-collapse">
+                    <thead>
+                      <tr className="bg-slate-100 font-bold border-b border-black text-[10px]">
+                        <th className="border-r border-black p-1 text-center w-12">ATC</th>
+                        <th className="border-r border-black p-1 text-left">Tax Description Classification</th>
+                        <th className="border-r border-black p-1 text-right w-36">Total Amount of Income Payment (₱)</th>
+                        <th className="border-r border-black p-1 text-center w-16">Tax Rate</th>
+                        <th className="p-1 text-right w-36">Total Quarterly Tax Withheld (₱)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="font-bold">
+                      {compiledData.quarterlyAtcList.length === 0 ? (
+                        <tr className="border-b border-black">
+                          <td className="border-r border-black p-2 text-center text-slate-400 font-normal italic" colSpan={5}>
+                            No active Witheld Expanded Transactions recorded for Q{selectedQuarter} {selectedYear}
+                          </td>
+                        </tr>
+                      ) : (
+                        compiledData.quarterlyAtcList.map(atc => (
+                          <tr key={atc.atcCode} className="border-b border-black">
+                            <td className="border-r border-black p-1 text-center font-mono uppercase text-[10px]">{atc.atcCode}</td>
+                            <td className="border-r border-black p-1 text-[11px] truncate max-w-xs font-semibold">{atc.description}</td>
+                            <td className="border-r border-black p-1 text-right font-mono">₱{atc.baseAmount.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                            <td className="border-r border-black p-1 text-center font-mono">{(atc.rate * 100).toFixed(1)}%</td>
+                            <td className="p-1 text-right font-mono">₱{atc.taxWithheld.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                          </tr>
+                        ))
+                      )}
+                      
+                      <tr className="border-t border-b border-black bg-slate-50">
+                        <td className="border-r border-black p-1 text-center font-mono text-[10px]">19</td>
+                        <td className="border-r border-black p-1 uppercase" colSpan={3}>Total Taxes Withheld for the Quarter (Sum of ATC Entries)</td>
+                        <td className="p-1 text-right font-mono text-emerald-800">₱{compiledData.quarterlyTotalTaxesWithheld.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                      </tr>
+                      
+                      <tr className="border-b border-black">
+                        <td className="border-r border-black p-1 text-center font-mono text-[10px]">20</td>
+                        <td className="border-r border-black p-1 font-semibold" colSpan={3}>Less: Remittances Made - 1st Month of the Quarter</td>
+                        <td className="p-1 text-right font-mono text-rose-600">₱({active1601EQMonth1.toLocaleString(undefined, {minimumFractionDigits: 2})})</td>
+                      </tr>
+                      <tr className="border-b border-black">
+                        <td className="border-r border-black p-1 text-center font-mono text-[10px]">21</td>
+                        <td className="border-r border-black p-1 font-semibold" colSpan={3}>Less: Remittances Made - 2nd Month of the Quarter</td>
+                        <td className="p-1 text-right font-mono text-rose-600">₱({active1601EQMonth2.toLocaleString(undefined, {minimumFractionDigits: 2})})</td>
+                      </tr>
+                      <tr className="border-b border-black">
+                        <td className="border-r border-black p-1 text-center font-mono text-[10px]">22</td>
+                        <td className="border-r border-black p-1 font-semibold" colSpan={3}>Less: Tax Remitted in Previous Return (Amended files)</td>
+                        <td className="p-1 text-right font-mono text-rose-600">₱({active1601EQPrevFiled.toLocaleString(undefined, {minimumFractionDigits: 2})})</td>
+                      </tr>
+                      <tr className="border-b border-black">
+                        <td className="border-r border-black p-1 text-center font-mono text-[10px]">23</td>
+                        <td className="border-r border-black p-1 font-semibold" colSpan={3}>Less: Over-remittance from Previous Quarter of Same Year</td>
+                        <td className="p-1 text-right font-mono text-rose-600">₱({active1601EQOverRemit.toLocaleString(undefined, {minimumFractionDigits: 2})})</td>
+                      </tr>
+                      <tr className="border-b border-black">
+                        <td className="border-r border-black p-1 text-center font-mono text-[10px]">24</td>
+                        <td className="border-r border-black p-1 font-semibold" colSpan={3}>Less: Other Payments Made (BIR Form No. 0605)</td>
+                        <td className="p-1 text-right font-mono text-rose-600">₱({active1601EQOtherPayments.toLocaleString(undefined, {minimumFractionDigits: 2})})</td>
+                      </tr>
+                      <tr className="border-b border-black bg-slate-50">
+                        <td className="border-r border-black p-1 text-center font-mono text-[10px]">25</td>
+                        <td className="border-r border-black p-1 uppercase" colSpan={3}>Total Remittances Made (Sum of Lines 20 to 24)</td>
+                        <td className="p-1 text-right font-mono">₱{active1601EQTotalRemittances.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                      </tr>
+                      <tr className="border-b border-black bg-slate-50">
+                        <td className="border-r border-black p-1 text-center font-mono text-[10px]">26</td>
+                        <td className="border-r border-black p-1 uppercase" colSpan={3}>Tax Still Due / (Over-remittance) (Line 19 - Line 25)</td>
+                        <td className="p-1 text-right font-mono text-emerald-800">₱{active1601EQTaxStillDue.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                      </tr>
+                      <tr className="border-b border-black">
+                        <td className="border-r border-black p-1 text-center font-mono text-[10px]">27-29</td>
+                        <td className="border-r border-black p-1 font-semibold" colSpan={3}>Add Penalties (Surcharge, Interest, Compromise)</td>
+                        <td className="p-1 text-right font-mono text-rose-600">₱{active1601EQTotalPenalties.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                      </tr>
+                      <tr className="bg-amber-100">
+                        <td className="border-r border-black p-1.5 text-center font-mono text-[10px]">31</td>
+                        <td className="border-r border-black p-1.5 font-black uppercase text-amber-900 leading-tight" colSpan={3}>Total Amount Still Due / (Over-remittance)</td>
+                        <td className="p-1.5 text-right font-mono text-base font-black text-amber-950">₱{active1601EQTotalDue.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="flex justify-between items-center text-[10px] font-bold text-slate-500 pt-2 border-t border-black">
+                  <span>CAPOTBOOKS Quarterly EWT Return Engine</span>
                   <span>Form Version: January 2018 (revised)</span>
                 </div>
               </div>

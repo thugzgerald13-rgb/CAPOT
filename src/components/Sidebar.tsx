@@ -449,6 +449,28 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
                     <FileText className="w-4 h-4" />
                     Form 1601-C (Withholding)
                   </button>
+                  <button
+                    onClick={() => {
+                      setHistoryTab('0619-E');
+                      openModal('bir-forms');
+                      setIsOpen(false);
+                    }}
+                    className="flex items-center gap-3 px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 rounded-lg hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-slate-800 dark:hover:text-indigo-400 transition-all w-full text-left"
+                  >
+                    <FileText className="w-4 h-4" />
+                    Form 0619-E (Monthly EWT)
+                  </button>
+                  <button
+                    onClick={() => {
+                      setHistoryTab('1601-EQ');
+                      openModal('bir-forms');
+                      setIsOpen(false);
+                    }}
+                    className="flex items-center gap-3 px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 rounded-lg hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-slate-800 dark:hover:text-indigo-400 transition-all w-full text-left"
+                  >
+                    <FileText className="w-4 h-4" />
+                    Form 1601-EQ (Quarterly EWT)
+                  </button>
                 </motion.div>
               )}
             </AnimatePresence>
