@@ -173,7 +173,7 @@ export function generateStandardDeadlines(year: number): TaxDeadline[] {
       formType: '0619-E',
       title: 'BIR Form 0619-E (Monthly EWT)',
       period: `${m.name} ${year}`,
-      dueDate: `${year}-${String(m.num + 1).padStart(2, '0')}-10`,
+      dueDate: m.num === 12 ? `${year + 1}-01-10` : `${year}-${String(m.num + 1).padStart(2, '0')}-10`,
       status: 'Pending'
     });
   });

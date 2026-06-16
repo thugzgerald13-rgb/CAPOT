@@ -55,7 +55,7 @@ const LOCAL_STORAGE_KEY = 'capo_accounting_v14_react';
 const OLD_STORAGE_KEY = 'capo_accounting_v13_react';
 
 export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user } = useAuth();
+  const { user, userRole } = useAuth();
   const [clients, setClients] = useState<Record<string, Client>>({});
   const [currentClientId, setCurrentClientId] = useState<string | null>(null);
   const [businessProfile, setBusinessProfile] = useState<BusinessProfile | null>(null);
@@ -377,6 +377,74 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     migrateData();
   }, [user, isReady]);
 
+  // Sync Business Profile to client_owner for Owner role
+  useEffect(() => {
+    if (userRole === 'owner' && businessProfile) {
+      const existing = clients['client_owner'];
+      const needsSync = !existing || 
+        existing.name !== businessProfile.name ||
+        existing.tin !== businessProfile.tin ||
+        existing.registeredName !== (businessProfile.registeredName || businessProfile.name);
+        
+      if (needsSync) {
+        const matchingClient: Client = {
+          id: 'client_owner',
+          name: businessProfile.name,
+          tin: businessProfile.tin || '',
+          taxpayerClassification: businessProfile.taxpayerClassification || '',
+          registeredName: businessProfile.registeredName || businessProfile.name,
+          lastName: businessProfile.lastName || '',
+          firstName: businessProfile.firstName || '',
+          middleName: businessProfile.middleName || '',
+          tradeName: businessProfile.tradeName || '',
+          substreet: businessProfile.substreet || '',
+          street: businessProfile.street || '',
+          barangay: businessProfile.barangay || '',
+          district: businessProfile.district || '',
+          city: businessProfile.city || '',
+          zipCode: businessProfile.zipCode || '',
+          rdoCode: businessProfile.rdoCode || '',
+          accountingType: businessProfile.accountingType || 'Calendar',
+          fiscalMonthEnd: businessProfile.fiscalMonthEnd || 12,
+          tinLibrary: existing?.tinLibrary || { customers: [], suppliers: [] },
+          sales: existing?.sales || [],
+          purchases: existing?.purchases || [],
+          expenses: existing?.expenses || [],
+          folders: existing?.folders || [
+            { id: 'folder_revenue', name: 'Revenue', isDefault: true, type: 'revenue' },
+            { id: 'folder_expense', name: 'Expense', isDefault: true, type: 'expense' }
+          ],
+          files: existing?.files || [],
+          payableInvoices: existing?.payableInvoices || [],
+          withholdingTaxEntries: existing?.withholdingTaxEntries || [],
+          taxDeadlines: existing?.taxDeadlines || []
+        } as unknown as Client;
+
+        setClients(prev => {
+          const next = {
+            ...prev,
+            client_owner: matchingClient
+          };
+          localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(next));
+          return next;
+        });
+        
+        if (!currentClientId) {
+          setCurrentClientId('client_owner');
+        }
+
+        if (user && isReady) {
+          const clientRef = doc(db, 'clients', 'client_owner');
+          setDoc(clientRef, {
+            ...matchingClient,
+            userId: user.uid,
+            updatedAt: serverTimestamp()
+          }, { merge: true }).catch(err => console.error("Auto-syncing client_owner failed:", err));
+        }
+      }
+    }
+  }, [userRole, businessProfile, clients, currentClientId, user, isReady]);
+
   const saveClient = async (id: string, clientData: Client) => {
     const updatedClient = {
       ...clientData,
@@ -500,6 +568,7 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   };
 
   const saveBusinessProfile = async (profileData: BusinessProfile) => {
+    setBusinessProfile(profileData);
     if (user) {
       try {
         const bizRef = doc(db, 'business_profiles', user.uid);
@@ -508,13 +577,112 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           id: user.uid,
           updatedAt: serverTimestamp()
         }, { merge: true });
+        
+        // Also update matching clients 'client_owner' immediately to unlock hasClients and currentClient
+        const existing = clients['client_owner'];
+        const matchingClient: Client = {
+          id: 'client_owner',
+          name: profileData.name,
+          tin: profileData.tin || '',
+          taxpayerClassification: profileData.taxpayerClassification || '',
+          registeredName: profileData.registeredName || profileData.name,
+          lastName: profileData.lastName || '',
+          firstName: profileData.firstName || '',
+          middleName: profileData.middleName || '',
+          tradeName: profileData.tradeName || '',
+          substreet: profileData.substreet || '',
+          street: profileData.street || '',
+          barangay: profileData.barangay || '',
+          district: profileData.district || '',
+          city: profileData.city || '',
+          zipCode: profileData.zipCode || '',
+          rdoCode: profileData.rdoCode || '',
+          accountingType: profileData.accountingType || 'Calendar',
+          fiscalMonthEnd: profileData.fiscalMonthEnd || 12,
+          tinLibrary: existing?.tinLibrary || { customers: [], suppliers: [] },
+          sales: existing?.sales || [],
+          purchases: existing?.purchases || [],
+          expenses: existing?.expenses || [],
+          folders: existing?.folders || [
+            { id: 'folder_revenue', name: 'Revenue', isDefault: true, type: 'revenue' },
+            { id: 'folder_expense', name: 'Expense', isDefault: true, type: 'expense' }
+          ],
+          files: existing?.files || [],
+          payableInvoices: existing?.payableInvoices || [],
+          withholdingTaxEntries: existing?.withholdingTaxEntries || [],
+          taxDeadlines: existing?.taxDeadlines || []
+        } as unknown as Client;
+
+        const clientRef = doc(db, 'clients', 'client_owner');
+        await setDoc(clientRef, {
+          ...matchingClient,
+          userId: user.uid,
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+
+        setClients(prev => {
+          const next = {
+            ...prev,
+            client_owner: matchingClient
+          };
+          localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(next));
+          return next;
+        });
+        
+        if (!currentClientId) {
+          setCurrentClientId('client_owner');
+        }
+
         showToast('Business Profile updated');
       } catch (error) {
         handleFirestoreError(error, OperationType.UPDATE, `business_profiles/${user.uid}`);
       }
     } else {
-      setBusinessProfile(profileData);
       localStorage.setItem('capo_business_profile_react', JSON.stringify(profileData));
+      
+      const existing = clients['client_owner'];
+      const matchingClient: Client = {
+        id: 'client_owner',
+        name: profileData.name,
+        tin: profileData.tin || '',
+        taxpayerClassification: profileData.taxpayerClassification || '',
+        registeredName: profileData.registeredName || profileData.name,
+        lastName: profileData.lastName || '',
+        firstName: profileData.firstName || '',
+        middleName: profileData.middleName || '',
+        tradeName: profileData.tradeName || '',
+        substreet: profileData.substreet || '',
+        street: profileData.street || '',
+        barangay: profileData.barangay || '',
+        district: profileData.district || '',
+        city: profileData.city || '',
+        zipCode: profileData.zipCode || '',
+        rdoCode: profileData.rdoCode || '',
+        accountingType: profileData.accountingType || 'Calendar',
+        fiscalMonthEnd: profileData.fiscalMonthEnd || 12,
+        tinLibrary: existing?.tinLibrary || { customers: [], suppliers: [] },
+        sales: existing?.sales || [],
+        purchases: existing?.purchases || [],
+        expenses: existing?.expenses || [],
+        folders: existing?.folders || [
+          { id: 'folder_revenue', name: 'Revenue', isDefault: true, type: 'revenue' },
+          { id: 'folder_expense', name: 'Expense', isDefault: true, type: 'expense' }
+        ],
+        files: existing?.files || [],
+        payableInvoices: existing?.payableInvoices || [],
+        withholdingTaxEntries: existing?.withholdingTaxEntries || [],
+        taxDeadlines: existing?.taxDeadlines || []
+      } as unknown as Client;
+
+      setClients(prev => {
+        const next = {
+          ...prev,
+          client_owner: matchingClient
+        };
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(next));
+        return next;
+      });
+      setCurrentClientId('client_owner');
       showToast('Business Profile updated');
     }
   };
