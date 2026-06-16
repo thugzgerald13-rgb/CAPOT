@@ -1187,20 +1187,88 @@ export function BIRFormsModal() {
             {activeFormType === '0619-E' && (
               <div className="border-[2px] border-black p-4 text-black bg-white max-w-4xl mx-auto space-y-4 print:border-0 print:p-0">
                 {/* Form Header */}
-                <div className="flex items-center border-b border-black pb-3">
-                  <div className="border border-black px-3 py-1 font-mono text-center shrink-0 mr-4 font-black">
-                    <span className="text-[10px] block font-semibold uppercase leading-none">BIR Form No.</span>
-                    <span className="text-xl leading-none">0619-E</span>
+                <div className="flex items-center border-b-[2px] border-black pb-3">
+                  <div className="border-[2px] border-black px-3 py-1 font-mono text-center shrink-0 mr-4 font-black">
+                    <span className="text-[10px] block font-semibold uppercase leading-none text-left">BIR Form No.</span>
+                    <span className="text-3xl font-black leading-none tracking-tighter">0619-E</span>
+                    <span className="text-[9px] block font-normal mt-0.5 leading-none">January 2018</span>
+                    <span className="text-[9px] block font-semibold leading-none border-t border-black mt-1 pt-0.5">Page 1</span>
                   </div>
-                  <div className="flex-1 text-center font-bold font-serif leading-tight">
-                    <div className="text-[10px] uppercase tracking-wide">Republika ng Pilipinas</div>
-                    <div className="text-[11px] uppercase tracking-wide">Kagawaran ng Pananalapi</div>
-                    <div className="text-[12px] uppercase">Kawanihan ng Rentas Internas</div>
-                    <h1 className="text-sm uppercase font-black tracking-tighter mt-1">Monthly Remittance Form of Creditable Income Taxes Withheld (Expanded)</h1>
+                  <div className="flex-1 text-center font-bold tracking-tight leading-tight">
+                    <div className="flex justify-center items-center gap-2">
+                      <span className="text-[10px] uppercase font-black tracking-wide border-r border-black pr-2">Republika ng Pilipinas</span>
+                      <span className="text-[10px] uppercase font-bold text-slate-700">Kagawaran ng Pananalapi</span>
+                    </div>
+                    <div className="text-[12px] uppercase font-black">Kawanihan ng Rentas Internas</div>
+                    <h1 className="text-sm uppercase font-black tracking-tighter mt-1 leading-snug">
+                      Monthly Remittance Form <br />
+                      of Creditable Income Taxes Withheld (Expanded)
+                    </h1>
+                    <div className="text-[8px] font-normal italic mt-1 text-slate-500">
+                      Enter all required information in CAPITAL LETTERS using BLACK ink. Mark all applicable boxes with an "X".
+                    </div>
                   </div>
                   <div className="shrink-0 text-[10px] font-bold text-right pl-4">
-                    <div>Amended: <span className="underline">No</span></div>
-                    <div>Period: <span className="underline font-black">{selectedMonth}/{selectedYear}</span></div>
+                    <div className="border border-black p-1 text-center bg-slate-100 font-mono text-[9px] mb-1">
+                      0619-E 01/18 P1
+                    </div>
+                    <div className="text-[10px]">
+                      <div>Amended: <span className="underline font-bold">{parseFloat(manual0619EPrevRemitted) > 0 ? 'Yes' : 'No'}</span></div>
+                      <div>Period: <span className="underline font-black">{selectedMonth < 10 ? '0' + selectedMonth : selectedMonth}/{selectedYear}</span></div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 6 Top Info Boxes */}
+                <div className="grid grid-cols-1 md:grid-cols-6 border border-black text-[10px] bg-white">
+                  <div className="border-r border-b md:border-b-0 border-black p-1">
+                    <span className="font-bold block text-[8px] text-slate-500 uppercase leading-none">1 For the Month of</span>
+                    <div className="font-mono text-center text-xs font-black mt-1">
+                      {selectedMonth < 10 ? '0' + selectedMonth : selectedMonth}/{selectedYear}
+                    </div>
+                  </div>
+                  <div className="border-r border-b md:border-b-0 border-black p-1">
+                    <span className="font-bold block text-[8px] text-slate-500 uppercase leading-none">2 Due Date</span>
+                    <div className="font-mono text-center text-[10px] font-black mt-1">
+                      {(() => {
+                        const dueDate = new Date(selectedYear, selectedMonth, 10);
+                        return dueDate.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
+                      })()}
+                    </div>
+                  </div>
+                  <div className="border-r border-b md:border-b-0 border-black p-1">
+                    <span className="font-bold block text-[8px] text-slate-500 uppercase leading-none mb-0.5">3 Amended Form?</span>
+                    <div className="flex justify-center gap-2 font-semibold mt-1">
+                      <label className="flex items-center gap-1 cursor-pointer">
+                        <input type="checkbox" checked={parseFloat(manual0619EPrevRemitted) > 0} disabled className="rounded border-gray-300 text-black focus:ring-0 w-3 h-3" /> Yes
+                      </label>
+                      <label className="flex items-center gap-1 cursor-pointer">
+                        <input type="checkbox" checked={!(parseFloat(manual0619EPrevRemitted) > 0)} disabled className="rounded border-gray-300 text-black focus:ring-0 w-3 h-3" /> No
+                      </label>
+                    </div>
+                  </div>
+                  <div className="border-r border-b md:border-b-0 border-black p-1">
+                    <span className="font-bold block text-[8px] text-slate-500 uppercase leading-none mb-0.5">4 Taxes Withheld?</span>
+                    <div className="flex justify-center gap-2 font-semibold mt-1">
+                      <label className="flex items-center gap-1 cursor-pointer">
+                        <input type="checkbox" checked={active0619EAmount > 0} disabled className="rounded border-gray-300 text-black focus:ring-0 w-3 h-3" /> Yes
+                      </label>
+                      <label className="flex items-center gap-1 cursor-pointer">
+                        <input type="checkbox" checked={active0619EAmount === 0} disabled className="rounded border-gray-300 text-black focus:ring-0 w-3 h-3" /> No
+                      </label>
+                    </div>
+                  </div>
+                  <div className="border-r border-black p-1 text-center">
+                    <span className="font-bold block text-[8px] text-slate-500 uppercase leading-none text-left">5 ATC</span>
+                    <div className="font-mono text-center text-[11px] font-black bg-slate-100 py-0.5 rounded border border-slate-300 uppercase mt-0.5 max-w-[80px] mx-auto text-blue-900">
+                      WME10
+                    </div>
+                  </div>
+                  <div className="p-1 text-center">
+                    <span className="font-bold block text-[8px] text-slate-500 uppercase leading-none text-left">6 Tax Type Code</span>
+                    <div className="font-mono text-center text-[11px] font-black bg-slate-100 py-0.5 rounded border border-slate-300 uppercase mt-0.5 max-w-[60px] mx-auto text-blue-900">
+                      WE
+                    </div>
                   </div>
                 </div>
 
@@ -1209,18 +1277,45 @@ export function BIRFormsModal() {
                   <div className="bg-yellow-50 outline outline-[1px] outline-black text-[11px] font-black uppercase px-2 py-0.5 tracking-wide mb-1 leading-none select-none">
                     Part I: Background Information
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 border border-black p-2 bg-slate-50 text-[11px] font-bold gap-3">
-                    <div>
-                      <span className="text-[9px] block text-slate-500">1 Taxpayer Identification Number (TIN)</span>
-                      <span className="font-mono text-xs">{formattedTin(currentClient?.tin)}</span>
+                  <div className="grid grid-cols-1 md:grid-cols-4 border border-black p-2 bg-slate-50 text-[11px] font-bold gap-2.5">
+                    <div className="md:col-span-3">
+                      <span className="text-[9px] block text-slate-500 uppercase tracking-tight">7 Taxpayer Identification Number (TIN)</span>
+                      <span className="font-mono text-sm tracking-widest">{formattedTin(currentClient?.tin)}</span>
                     </div>
                     <div>
-                      <span className="text-[9px] block text-slate-500">2 RDO Code</span>
-                      <span>{currentClient?.rdoCode || '043B'}</span>
+                      <span className="text-[9px] block text-slate-500 uppercase tracking-tight">8 RDO Code</span>
+                      <span className="font-mono text-xs">{currentClient?.rdoCode || '043B'}</span>
+                    </div>
+                    <div className="md:col-span-4 border-t border-slate-200 pt-1.5">
+                      <span className="text-[9px] block text-slate-500 uppercase tracking-tight">9 Withholding Agent's Registered Name (Last Name, First Name, Middle Name for Individual OR Registered Name for Non-Individual)</span>
+                      <span className="uppercase text-xs font-black block mt-0.5">{currentClient?.registeredName || currentClient?.name}</span>
+                    </div>
+                    <div className="md:col-span-3 border-t border-slate-200 pt-1.5">
+                      <span className="text-[9px] block text-slate-500 uppercase tracking-tight">10 Registered Address (Indicate complete physical corporate or residential setup address)</span>
+                      <span className="uppercase text-xs block mt-0.5">{currentClient?.address || 'Metro Manila, Philippines'}</span>
+                    </div>
+                    <div className="border-t border-slate-200 pt-1.5">
+                      <span className="text-[9px] block text-slate-500 uppercase tracking-tight">10A ZIP Code</span>
+                      <span className="font-mono text-xs block mt-0.5">{currentClient?.zipCode || '1000'}</span>
                     </div>
                     <div className="md:col-span-2 border-t border-slate-200 pt-1.5">
-                      <span className="text-[9px] block text-slate-500">3 Withholding Agent's Registered Legal Name</span>
-                      <span className="uppercase text-xs">{currentClient?.registeredName || currentClient?.name}</span>
+                      <span className="text-[9px] block text-slate-500 uppercase tracking-tight">11 Contact Number</span>
+                      <span className="font-mono text-xs block mt-0.5">{currentClient?.phone || '—'}</span>
+                    </div>
+                    <div className="border-t border-slate-200 pt-1.5 text-center">
+                      <span className="text-[9px] block text-slate-500 uppercase tracking-tight text-left">12 Category of Withholding Agent</span>
+                      <div className="flex justify-start gap-4 mt-1 font-semibold text-[10px]">
+                        <label className="flex items-center gap-1 cursor-pointer">
+                          <input type="checkbox" checked={currentClient?.category === 'private' || !currentClient?.category} readOnly className="rounded border-gray-300 text-black focus:ring-0 w-3 h-3" /> Private
+                        </label>
+                        <label className="flex items-center gap-1 cursor-pointer">
+                          <input type="checkbox" checked={currentClient?.category === 'government'} readOnly className="rounded border-gray-300 text-black focus:ring-0 w-3 h-3" /> Government
+                        </label>
+                      </div>
+                    </div>
+                    <div className="border-t border-slate-200 pt-1.5">
+                      <span className="text-[9px] block text-slate-500 uppercase tracking-tight">13 Registered Email Address</span>
+                      <span className="text-xs block mt-0.5 font-normal font-mono normal-case">{currentClient?.email || '—'}</span>
                     </div>
                   </div>
                 </div>
@@ -1256,7 +1351,7 @@ export function BIRFormsModal() {
                       </tr>
                       <tr className="border-b border-black">
                         <td className="border-r border-black p-1 text-center font-mono text-[10px]">17</td>
-                        <td className="border-r border-black p-1 font-semibold">Add Penalties:</td>
+                        <td className="border-r border-black p-1 font-semibold text-rose-950">Add Penalties:</td>
                         <td className="p-1 text-right font-mono text-rose-600">
                           <div className="text-[10px] space-y-0.5">
                             <div>Surcharge: ₱{active0619ESurcharge.toLocaleString(undefined, {minimumFractionDigits: 2})}</div>
@@ -1268,7 +1363,7 @@ export function BIRFormsModal() {
                       <tr className="border-b border-black bg-slate-50">
                         <td className="border-r border-black p-1 text-center font-mono text-[10px]">17D</td>
                         <td className="border-r border-black p-1 uppercase">Total Penalties (Surcharge + Interest + Compromise)</td>
-                        <td className="p-1 text-right font-mono">₱{active0619ETotalPenalties.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                        <td className="p-1 text-right font-mono text-rose-600">₱{active0619ETotalPenalties.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
                       </tr>
                       <tr className="bg-amber-100">
                         <td className="border-r border-black p-1.5 text-center font-mono text-[10px]">18</td>
@@ -1277,6 +1372,90 @@ export function BIRFormsModal() {
                       </tr>
                     </tbody>
                   </table>
+                </div>
+
+                {/* Section Part III: Details of Payment */}
+                <div>
+                  <div className="bg-yellow-50 outline outline-[1px] outline-black text-[11px] font-black uppercase px-2 py-0.5 tracking-wide mb-1 select-none">
+                    Part III: Details of Payment
+                  </div>
+                  <table className="w-full text-[10px] border border-black border-collapse">
+                    <thead>
+                      <tr className="bg-slate-100 font-bold border-b border-black text-[9px] uppercase">
+                        <th className="border-r border-black p-1 text-center w-12">Item</th>
+                        <th className="border-r border-black p-1 text-left w-28">Particulars</th>
+                        <th className="border-r border-black p-1 text-left w-36">Drawee Bank/Agency</th>
+                        <th className="border-r border-black p-1 text-left w-28">Number</th>
+                        <th className="border-r border-black p-1 text-center w-24">Date (MM/DD/YYYY)</th>
+                        <th className="p-1 text-right w-28">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody className="font-bold">
+                      <tr className="border-b border-black">
+                        <td className="border-r border-black p-1 text-center font-mono">19</td>
+                        <td className="border-r border-black p-1 font-semibold">Cash/Bank Debit Memo</td>
+                        <td className="border-r border-black p-1 font-mono text-slate-400">/ / / / / / / / / /</td>
+                        <td className="border-r border-black p-1 font-mono text-slate-400">/ / / / / / / /</td>
+                        <td className="border-r border-black p-1 text-center font-mono text-slate-400">/ / / / / /</td>
+                        <td className="p-1 text-right font-mono">₱0.00</td>
+                      </tr>
+                      <tr className="border-b border-black">
+                        <td className="border-r border-black p-1 text-center font-mono">20</td>
+                        <td className="border-r border-black p-1 font-semibold">Check</td>
+                        <td className="border-r border-black p-1 font-mono text-slate-400">/ / / / / / / / / /</td>
+                        <td className="border-r border-black p-1 font-mono text-slate-400">/ / / / / / / /</td>
+                        <td className="border-r border-black p-1 text-center font-mono text-slate-400">/ / / / / /</td>
+                        <td className="p-1 text-right font-mono">₱0.00</td>
+                      </tr>
+                      <tr className="border-b border-black">
+                        <td className="border-r border-black p-1 text-center font-mono">21</td>
+                        <td className="border-r border-black p-1 font-semibold">Tax Debit Memo</td>
+                        <td className="border-r border-black p-1 font-mono text-slate-400">/ / / / / / / / / /</td>
+                        <td className="border-r border-black p-1 font-mono text-slate-400">/ / / / / / / /</td>
+                        <td className="border-r border-black p-1 text-center font-mono text-slate-400">/ / / / / /</td>
+                        <td className="p-1 text-right font-mono">₱0.00</td>
+                      </tr>
+                      <tr className="border-b border-black">
+                        <td className="border-r border-black p-1 text-center font-mono">22</td>
+                        <td className="border-r border-black p-1 font-semibold">Others (specify)</td>
+                        <td className="border-r border-black p-1 font-mono text-slate-400 font-normal">Electronic Remittance (eFPS)</td>
+                        <td className="border-r border-black p-1 font-mono text-emerald-800 font-semibold">ONLINEPROC-EFPS-0921</td>
+                        <td className="border-r border-black p-1 text-center font-mono">{new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}</td>
+                        <td className="p-1 text-right font-mono text-emerald-900">₱{active0619ETotalDue.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Perjury declaration and signatures */}
+                <div className="border border-black bg-slate-50 p-2 text-[8px] leading-tight font-sans">
+                  <p>
+                    I/We declare under the penalties of perjury that this remittance form has been made in good faith, verified by me/us, and to the best of my/our knowledge and belief, is true and correct, pursuant to the provisions of the National Internal Revenue Code, as amended, and the regulations issued under authority thereof. Further, I/we give my/our consent to the processing of my/our information as contemplated under the *Data Privacy Act of 2012 (R.A. No. 10173) for legitimate and lawful purposes.
+                  </p>
+                  <div className="grid grid-cols-2 gap-4 mt-2 pt-1 border-t border-slate-200">
+                    <div className="text-center">
+                      <div className="h-6 border-b border-black max-w-[240px] mx-auto"></div>
+                      <span className="block mt-1 uppercase font-bold text-slate-600">Signature over Printed Name of Taxpayer/Authorized Representative/Tax Agent</span>
+                      <span className="block text-slate-400 font-mono text-[7px]">(Indicate Title/Designation and TIN)</span>
+                    </div>
+                    <div className="text-center">
+                      <div className="h-6 border-b border-black max-w-[240px] mx-auto"></div>
+                      <span className="block mt-1 uppercase font-bold text-slate-600">Signature over Printed Name of President/Vice President/Authorized Representative</span>
+                      <span className="block text-slate-400 font-mono text-[7px]">(Indicate Title/Designation and TIN)</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Machine Validation and Stamp */}
+                <div className="grid grid-cols-2 gap-4 border border-black p-2 bg-slate-50 text-[8px] font-bold h-16">
+                  <div className="border-r border-black pr-2">
+                    <span className="block text-slate-500 uppercase tracking-tight mb-0.5 leading-none">Machine Validation/Revenue Official Receipt Details (if not filed with an Authorized Agent Bank)</span>
+                    <div className="border-b border-dashed border-slate-200 w-full mt-4"></div>
+                  </div>
+                  <div className="pl-2">
+                    <span className="block text-slate-500 uppercase tracking-tight mb-0.5 leading-none">Stamp of Receiving Office/AAB and Date of Receipt (RO's Signature/Bank Teller's Initial)</span>
+                    <div className="border-b border-dashed border-slate-200 w-full mt-4"></div>
+                  </div>
                 </div>
 
                 <div className="flex justify-between items-center text-[10px] font-bold text-slate-500 pt-2 border-t border-black">
