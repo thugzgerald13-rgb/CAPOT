@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { BookOpen, Plus, Trash2, RefreshCcw, Edit2, ClipboardList, Check, X } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { useAccounting } from '../../context/AccountingContext';
@@ -59,7 +59,32 @@ export function resequenceAccounts(
   accountsList: CoaAccount[],
   coaFormat: 'numeric' | 'alphanumeric'
 ): CoaAccount[] {
-  return [...accountsList].sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
+  const baseSorted = [...accountsList].sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
+  
+  const arranged: CoaAccount[] = [];
+  const visited = new Set<string>();
+  
+  const addAccountAndChildren = (account: CoaAccount) => {
+    if (visited.has(account.id)) return;
+    visited.add(account.id);
+    arranged.push(account);
+    
+    // Find direct children
+    const children = baseSorted.filter(a => a.parentId === account.id);
+    children.forEach(addAccountAndChildren);
+  };
+  
+  const parentIdsList = baseSorted.map(p => p.id);
+  const mainAccounts = baseSorted.filter(a => !a.parentId || !parentIdsList.includes(a.parentId));
+  mainAccounts.forEach(addAccountAndChildren);
+  
+  baseSorted.forEach(a => {
+    if (!visited.has(a.id)) {
+      arranged.push(a);
+    }
+  });
+  
+  return arranged;
 }
 
 export function ChartOfAccountsModal() {
@@ -72,6 +97,7 @@ export function ChartOfAccountsModal() {
   const [newType, setNewType] = useState('Asset');
   const [newSubType, setNewSubType] = useState('Current Assets');
   const [newNormalSide, setNewNormalSide] = useState<'debit' | 'credit'>('debit');
+  const [newParentId, setNewParentId] = useState('');
 
   const [showPresets, setShowPresets] = useState(false);
   const presetsRef = useRef<HTMLDivElement>(null);
@@ -82,6 +108,7 @@ export function ChartOfAccountsModal() {
   const [editType, setEditType] = useState('Asset');
   const [editSubType, setEditSubType] = useState('');
   const [editNormalSide, setEditNormalSide] = useState<'debit' | 'credit'>('debit');
+  const [editParentId, setEditParentId] = useState('');
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -100,6 +127,7 @@ export function ChartOfAccountsModal() {
     setNewNormalSide(getNormalSide(newType));
     const subTypes = SUBTYPES_BY_TYPE[newType] || [];
     setNewSubType(subTypes[0] || '');
+    setNewParentId('');
   }, [newType]);
 
   // Adjust normal side and default sub-type automatically when type changes in editing form
@@ -119,6 +147,27 @@ export function ChartOfAccountsModal() {
   if (accounts.length === 0) {
     accounts = currentClient.coaFormat === 'alphanumeric' ? [...DEFAULT_ACCOUNTS_ALPHA] : [...DEFAULT_ACCOUNTS];
   }
+
+  const parentCandidates = useMemo(() => {
+    return accounts.filter(a => a.type === newType);
+  }, [accounts, newType]);
+
+  const editParentCandidates = useMemo(() => {
+    if (!editingId) return [];
+    
+    // Find all descendants of current edited account to prevent circular links
+    const getDescendants = (id: string): string[] => {
+      const children = accounts.filter(a => a.parentId === id);
+      return [...children.map(c => c.id), ...children.flatMap(c => getDescendants(c.id))];
+    };
+    
+    const excludedIds = [editingId, ...getDescendants(editingId)];
+    
+    return accounts.filter(a => 
+      a.type === editType && 
+      !excludedIds.includes(a.id)
+    );
+  }, [accounts, editType, editingId]);
 
   const filteredAccounts = typeFilter === 'All'
     ? accounts
@@ -160,7 +209,8 @@ export function ChartOfAccountsModal() {
       name: newName, 
       type: newType, 
       subType: newSubType || undefined,
-      normalSide: newNormalSide 
+      normalSide: newNormalSide,
+      parentId: newParentId || undefined
     }];
     handleSaveAccounts(updatedAccounts);
     setIsAdding(false);
@@ -168,11 +218,19 @@ export function ChartOfAccountsModal() {
     setNewName('');
     setNewType('Asset');
     setNewNormalSide('debit');
+    setNewParentId('');
   };
 
   const handleDelete = (id: string) => {
-    if (confirm("Are you sure you want to delete this account?")) {
-      const updatedAccounts = accounts.filter(a => a.id !== id);
+    const hasChildren = accounts.some(a => a.parentId === id);
+    let question = "Are you sure you want to delete this account?";
+    if (hasChildren) {
+      question = "Warning: This account has sub-accounts! Deleting this main account will make its sub-accounts top-level main accounts. Are you sure you want to proceed?";
+    }
+    if (confirm(question)) {
+      const updatedAccounts = accounts
+        .filter(a => a.id !== id)
+        .map(a => a.parentId === id ? { ...a, parentId: undefined } : a);
       handleSaveAccounts(updatedAccounts);
     }
   };
@@ -196,7 +254,13 @@ export function ChartOfAccountsModal() {
           name: editName,
           type: editType,
           subType: editSubType || undefined,
-          normalSide: editNormalSide
+          normalSide: editNormalSide,
+          parentId: editParentId || undefined
+        };
+      } else if (a.parentId === oldId) {
+        return {
+          ...a,
+          parentId: editCode
         };
       }
       return a;
@@ -204,6 +268,7 @@ export function ChartOfAccountsModal() {
 
     handleSaveAccounts(updatedAccounts);
     setEditingId(null);
+    setEditParentId('');
   };
 
   // Dynamically calculate actual real-time balances from active journals / ledger
@@ -336,6 +401,19 @@ export function ChartOfAccountsModal() {
                     {ACCOUNT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Parent Account (Optional)</label>
+                  <select
+                    value={newParentId}
+                    onChange={e => setNewParentId(e.target.value)}
+                    className="w-full form-input"
+                  >
+                    <option value="">None (Top-Level Account)</option>
+                    {parentCandidates.map(p => (
+                      <option key={p.id} value={p.id}>{p.name} ({p.id})</option>
+                    ))}
+                  </select>
+                </div>
                 {SUBTYPES_BY_TYPE[newType]?.length > 0 && (
                   <div>
                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Sub-Type</label>
@@ -458,8 +536,21 @@ export function ChartOfAccountsModal() {
                               type="text" 
                               value={editName} 
                               onChange={e => setEditName(e.target.value)} 
-                              className="w-full form-input py-1 px-2 text-xs"
+                              className="w-full form-input py-1 px-2 text-xs mb-1.5"
                             />
+                            <div className="flex items-center gap-1">
+                              <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase shrink-0">Parent:</span>
+                              <select
+                                value={editParentId}
+                                onChange={e => setEditParentId(e.target.value)}
+                                className="text-[10px] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-1.5 py-0.5 max-w-[200px] outline-none font-medium text-slate-700 dark:text-slate-300"
+                              >
+                                <option value="">None (Top-Level)</option>
+                                {editParentCandidates.map(p => (
+                                  <option key={p.id} value={p.id}>{p.name} ({p.id})</option>
+                                ))}
+                              </select>
+                            </div>
                           </td>
                           <td className="px-4 py-3">
                             <select 
@@ -513,6 +604,8 @@ export function ChartOfAccountsModal() {
                       );
                     }
 
+                    const parentAccount = account.parentId ? accounts.find(a => a.id === account.parentId) : null;
+
                     return (
                       <tr 
                         key={account.id} 
@@ -522,7 +615,19 @@ export function ChartOfAccountsModal() {
                           {account.id}
                         </td>
                         <td className="px-4 py-3.5 font-sans font-medium text-slate-850 dark:text-slate-200 text-xs sm:text-sm">
-                          {account.name}
+                          <div className="flex items-start gap-2">
+                            {account.parentId && (
+                              <span className="text-slate-400 dark:text-slate-500 font-mono text-base ml-2 select-none">↳</span>
+                            )}
+                            <div className="flex flex-col">
+                              <span>{account.name}</span>
+                              {parentAccount && (
+                                <span className="text-[10px] text-indigo-500 dark:text-indigo-400 font-bold tracking-wide mt-0.5">
+                                  Parent: {parentAccount.name} ({account.parentId})
+                                </span>
+                              )}
+                            </div>
+                          </div>
                         </td>
                         <td className="px-4 py-3.5 text-slate-600 dark:text-slate-400 text-xs sm:text-sm">
                           {account.type}
@@ -547,6 +652,7 @@ export function ChartOfAccountsModal() {
                                   setEditType(account.type);
                                   setEditSubType(account.subType || '');
                                   setEditNormalSide(account.normalSide || getNormalSide(account.type));
+                                  setEditParentId(account.parentId || '');
                                 }}
                                 className="p-1 hover:bg-blue-100 dark:hover:bg-blue-900/40 rounded text-blue-500 transition-colors"
                                 title="Edit Account"
