@@ -43,6 +43,12 @@ export interface Expense {
   description: string;
 }
 
+export interface CoaColumn {
+  id: string;
+  name: string;
+  isSystem: boolean;
+}
+
 export interface CoaAccount {
   id: string;
   name: string;
@@ -50,6 +56,7 @@ export interface CoaAccount {
   subType?: string;
   normalSide?: 'debit' | 'credit';
   parentId?: string;
+  [key: string]: any;
 }
 
 export interface Client {
@@ -80,6 +87,7 @@ export interface Client {
   purchases: Purchase[];
   expenses: Expense[];
   accounts?: CoaAccount[];
+  coaColumns?: CoaColumn[];
   crjColumns?: JournalColumn[];
   crjEntries?: JournalEntry[];
   cdjColumns?: JournalColumn[];
