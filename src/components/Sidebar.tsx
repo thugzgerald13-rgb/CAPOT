@@ -22,6 +22,7 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
   const [isExpensesOpen, setIsExpensesOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isReportsOpen, setIsReportsOpen] = useState(false);
+  const [isFormsOpen, setIsFormsOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isBooksOpen, setIsBooksOpen] = useState(false);
   const [isDatHistoryOpen, setIsDatHistoryOpen] = useState(false);
@@ -35,6 +36,7 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
         setIsExpensesOpen(false);
         setIsHistoryOpen(false);
         setIsReportsOpen(false);
+        setIsFormsOpen(false);
         setIsSettingsOpen(false);
         setIsBooksOpen(false);
         setIsDatHistoryOpen(false);
@@ -52,6 +54,7 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
     setIsBooksOpen(dropdown === 'books' ? !isBooksOpen : false);
     setIsHistoryOpen(dropdown === 'history' ? !isHistoryOpen : false);
     setIsReportsOpen(dropdown === 'reports' ? !isReportsOpen : false);
+    setIsFormsOpen(dropdown === 'forms' ? !isFormsOpen : false);
     setIsSettingsOpen(dropdown === 'settings' ? !isSettingsOpen : false);
     setIsDevOpen(dropdown === 'dev' ? !isDevOpen : false);
     if (dropdown !== 'history') {
@@ -372,6 +375,80 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
                       </button>
                     );
                   })}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* BIR Tax Forms Collapsible Dropdown */}
+          <div className="flex flex-col">
+            <button
+              onClick={() => toggleDropdown('forms')}
+              className={cn(
+                "flex items-center justify-between px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-300 rounded-xl transition-all w-full text-left group",
+                isFormsOpen ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-900/20 dark:text-indigo-400" : "hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-slate-800"
+              )}
+            >
+              <div className="flex items-center gap-3">
+                <FileText className="w-5 h-5 opacity-70 group-hover:opacity-100 transition-opacity" />
+                <span>BIR Tax Forms</span>
+              </div>
+              <ChevronDown className={cn("w-4 h-4 transition-transform duration-300", isFormsOpen ? "rotate-180" : "")} />
+            </button>
+
+            <AnimatePresence>
+              {isFormsOpen && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="overflow-hidden flex flex-col gap-1 mt-1 pl-4"
+                >
+                  <button
+                    onClick={() => {
+                      setHistoryTab('2550Q');
+                      openModal('bir-forms');
+                      setIsOpen(false);
+                    }}
+                    className="flex items-center gap-3 px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 rounded-lg hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-slate-800 dark:hover:text-indigo-400 transition-all w-full text-left"
+                  >
+                    <FileText className="w-4 h-4" />
+                    Form 2550Q (VAT)
+                  </button>
+                  <button
+                    onClick={() => {
+                      setHistoryTab('1701Q');
+                      openModal('bir-forms');
+                      setIsOpen(false);
+                    }}
+                    className="flex items-center gap-3 px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 rounded-lg hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-slate-800 dark:hover:text-indigo-400 transition-all w-full text-left"
+                  >
+                    <FileText className="w-4 h-4" />
+                    Form 1701Q (Income)
+                  </button>
+                  <button
+                    onClick={() => {
+                      setHistoryTab('2551Q');
+                      openModal('bir-forms');
+                      setIsOpen(false);
+                    }}
+                    className="flex items-center gap-3 px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 rounded-lg hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-slate-800 dark:hover:text-indigo-400 transition-all w-full text-left"
+                  >
+                    <FileText className="w-4 h-4" />
+                    Form 2551Q (Percentage)
+                  </button>
+                  <button
+                    onClick={() => {
+                      setHistoryTab('1601-C');
+                      openModal('bir-forms');
+                      setIsOpen(false);
+                    }}
+                    className="flex items-center gap-3 px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 rounded-lg hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-slate-800 dark:hover:text-indigo-400 transition-all w-full text-left"
+                  >
+                    <FileText className="w-4 h-4" />
+                    Form 1601-C (Withholding)
+                  </button>
                 </motion.div>
               )}
             </AnimatePresence>

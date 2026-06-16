@@ -20,6 +20,7 @@ import { ExtraModals } from './components/modals/ExtraModals';
 import { AdminSettingsModal } from './components/modals/AdminSettingsModal';
 import { FileManagerModal } from './components/modals/FileManagerModal';
 import { InventoryModal } from './components/modals/InventoryModal';
+import { BIRFormsModal } from './components/modals/BIRFormsModal';
 import AccountsPayableModal from './components/modals/AccountsPayableModal';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { AuthContainer } from './components/AuthContainer';
@@ -85,6 +86,7 @@ function AppLayout() {
         <ExtraModals />
         <FileManagerModal />
         <InventoryModal />
+        <BIRFormsModal />
         {activeModal === 'ap-workspace' && <AccountsPayableModal />}
       </main>
     </div>

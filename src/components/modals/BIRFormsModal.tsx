@@ -1,0 +1,932 @@
+import React, { useState, useMemo, useEffect } from 'react';
+import { Modal } from '../ui/Modal';
+import { useAccounting } from '../../context/AccountingContext';
+import { 
+  FileText, Download, Printer, Calculator, Calendar, 
+  Building2, User, MapPin, Sparkles, AlertTriangle, 
+  CheckCircle2, HelpCircle, ArrowRight, FileCheck, Coins, RefreshCw
+} from 'lucide-react';
+
+export function BIRFormsModal() {
+  const { currentClient, activeModal, openModal } = useAccounting();
+
+  // Active form choice: '2550Q' | '1701Q' | '2551Q' | '1601-C'
+  const [activeFormType, setActiveFormType] = useState<'2550Q' | '1701Q' | '2551Q' | '1601-C'>('2550Q');
+
+  // Query configurations
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+  const [selectedQuarter, setSelectedQuarter] = useState<number>(1);
+  const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1);
+
+  // Manual Overrides / Inputs
+  // 1. VAT General Form overrides (2550Q)
+  const [manualVatSales, setManualVatSales] = useState<string>('');
+  const [manualZeroSales, setManualZeroSales] = useState<string>('');
+  const [manualExemptSales, setManualExemptSales] = useState<string>('');
+  const [manualCarryOverInput, setManualCarryOverInput] = useState<string>('0');
+  const [manualWithholdingCredits, setManualWithholdingCredits] = useState<string>('0');
+
+  // 2. Income Tax Form overrides (1701Q)
+  const [is8PercentRate, setIs8PercentRate] = useState<boolean>(true); // 8% option vs graduated
+  const [manualOperatingCost, setManualOperatingCost] = useState<string>('');
+
+  // 3. Percentage Tax Form overrides (2551Q)
+  const [manualPercentageSales, setManualPercentageSales] = useState<string>('');
+
+  // 4. Compensation Withholding overrides (1601-C)
+  const [numEmployees, setNumEmployees] = useState<number>(2);
+  const [manualTotalSalaries, setManualTotalSalaries] = useState<string>('50000');
+  const [manualNonTaxableSalaries, setManualNonTaxableSalaries] = useState<string>('15000');
+
+  // Load correct form type on activeModal change if triggered from Sidebar
+  useEffect(() => {
+    if (activeModal && activeModal.startsWith('bir-')) {
+      const type = activeModal.split('-')[1]?.toUpperCase() as any;
+      if (['2550Q', '1701Q', '2551Q', '1601C'].includes(type)) {
+        setActiveFormType(type === '1601C' ? '1601-C' : type);
+      }
+    }
+  }, [activeModal]);
+
+  // Utility to determine date quarter
+  const getQuarterNum = (dateStr: string) => {
+    if (!dateStr) return 1;
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return 1;
+    const month = date.getMonth(); // 0 to 11
+    if (month < 3) return 1;
+    if (month < 6) return 2;
+    if (month < 9) return 3;
+    return 4;
+  };
+
+  const getMonthNum = (dateStr: string) => {
+    if (!dateStr) return 1;
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return 1;
+    return date.getMonth() + 1; // 1 to 12
+  };
+
+  // Compile active client statistics
+  const compiledData = useMemo(() => {
+    if (!currentClient) {
+      return {
+        salesTotal: 0,
+        purchasesTotal: 0,
+        vatPurchasesTotal: 0,
+        purchasesInputTax: 0,
+        expensesTotal: 0
+      };
+    }
+
+    // Filter Sales
+    const salesList = (currentClient.sales || []).filter(s => {
+      const d = new Date(s.date);
+      if (isNaN(d.getTime())) return false;
+      const isYear = d.getFullYear() === selectedYear;
+      if (activeFormType === '1601-C') {
+        return isYear && getMonthNum(s.date) === selectedMonth;
+      } else {
+        return isYear && getQuarterNum(s.date) === selectedQuarter;
+      }
+    });
+
+    // Filter Purchases
+    const purchasesList = (currentClient.purchases || []).filter(p => {
+      const d = new Date(p.date);
+      if (isNaN(d.getTime())) return false;
+      const isYear = d.getFullYear() === selectedYear;
+      if (activeFormType === '1601-C') {
+        return isYear && getMonthNum(p.date) === selectedMonth;
+      } else {
+        return isYear && getQuarterNum(p.date) === selectedQuarter;
+      }
+    });
+
+    // Filter Expenses
+    const expensesList = (currentClient.expenses || []).filter(e => {
+      const d = new Date(e.date);
+      if (isNaN(d.getTime())) return false;
+      const isYear = d.getFullYear() === selectedYear;
+      if (activeFormType === '1601-C') {
+        return isYear && getMonthNum(e.date) === selectedMonth;
+      } else {
+        return isYear && getQuarterNum(e.date) === selectedQuarter;
+      }
+    });
+
+    const salesTotal = salesList.reduce((sum, s) => sum + s.amount, 0);
+    const purchasesTotal = purchasesList.reduce((sum, p) => sum + p.amount, 0);
+    const vatPurchasesTotal = purchasesList
+      .filter(p => p.vatType === 'vat')
+      .reduce((sum, p) => sum + p.amount, 0);
+    const purchasesInputTax = purchasesList
+      .filter(p => p.vatType === 'vat')
+      .reduce((sum, p) => sum + (p.inputTax || p.amount * 0.12), 0);
+    const expensesTotal = expensesList.reduce((sum, e) => sum + e.amount, 0);
+
+    return {
+      salesTotal,
+      purchasesTotal,
+      vatPurchasesTotal,
+      purchasesInputTax,
+      expensesTotal
+    };
+  }, [currentClient, selectedYear, selectedQuarter, selectedMonth, activeFormType]);
+
+  // Clean values combining manual overrides and compiled values
+  const activeVatSales = manualVatSales !== '' ? parseFloat(manualVatSales) || 0 : compiledData.salesTotal;
+  const activeZeroSales = parseFloat(manualZeroSales) || 0;
+  const activeExemptSales = parseFloat(manualExemptSales) || 0;
+  const activeTotalSalesLine = activeVatSales + activeZeroSales + activeExemptSales;
+  const activeOutputTax = activeVatSales * 0.12;
+
+  const activeCarryOver = parseFloat(manualCarryOverInput) || 0;
+  const activeInputTax = compiledData.purchasesInputTax;
+  const totalAvailableInput = activeCarryOver + activeInputTax;
+  const activeWithholding = parseFloat(manualWithholdingCredits) || 0;
+
+  // Final VAT Payable
+  const vatPayableValue = Math.max(0, activeOutputTax - totalAvailableInput - activeWithholding);
+
+  // Form 1701Q calculations (Quarterly Income)
+  const grossIncome1701 = compiledData.salesTotal;
+  const operatingCost1701 = manualOperatingCost !== '' ? parseFloat(manualOperatingCost) || 0 : compiledData.expensesTotal;
+  
+  // 1701Q Tax computed
+  const taxDue1701 = useMemo(() => {
+    if (is8PercentRate) {
+      // 8% tax rate option on gross revenues over 250k
+      const taxable = Math.max(0, grossIncome1701 - 250000);
+      return taxable * 0.08;
+    } else {
+      // Graduated Income Tax Rates (simplification based on 2026 TRAIN Law Graduated Rates)
+      // Annualized/Quarterly threshold:
+      // - Under 250k: 0
+      // - 250k to 400k: 15% of excess over 250k
+      // - 400k to 800k: 22,500 + 20% of excess over 400k
+      // - 800k to 2M: 102,500 + 25% of excess over 800k
+      // - 2M to 8M: 402,500 + 30% of excess over 2M
+      // - Over 8M: 2,202,500 + 35% of excess over 8M
+      // (Quarterly amounts scaled to quarter since it is quarterly return)
+      const quarterlyNet = Math.max(0, grossIncome1701 - operatingCost1701);
+      const annualEquiv = quarterlyNet * 4;
+      let annualTax = 0;
+      if (annualEquiv <= 250000) {
+        annualTax = 0;
+      } else if (annualEquiv <= 400000) {
+        annualTax = (annualEquiv - 250000) * 0.15;
+      } else if (annualEquiv <= 800000) {
+        annualTax = 22500 + (annualEquiv - 400000) * 0.20;
+      } else if (annualEquiv <= 2000000) {
+        annualTax = 102500 + (annualEquiv - 800000) * 0.25;
+      } else if (annualEquiv <= 8000000) {
+        annualTax = 402500 + (annualEquiv - 2000000) * 0.30;
+      } else {
+        annualTax = 2202500 + (annualEquiv - 8000000) * 0.35;
+      }
+      return annualTax / 4;
+    }
+  }, [grossIncome1701, operatingCost1701, is8PercentRate]);
+
+  // Form 2551Q Percentage Tax calculations
+  const grossIncome2551Q = manualPercentageSales !== '' ? parseFloat(manualPercentageSales) || 0 : compiledData.salesTotal;
+  const percentageTaxRate = 0.03; // Standard 3% Percentage tax
+  const percentageTaxDue = grossIncome2551Q * percentageTaxRate;
+
+  // Form 1601-C Compensation Calculation
+  const totalSalaries = parseFloat(manualTotalSalaries) || 0;
+  const nonTaxableSalaries = parseFloat(manualNonTaxableSalaries) || 0;
+  const taxableCompensation = Math.max(0, totalSalaries - nonTaxableSalaries);
+  
+  // Tax withheld estimate (graduated table for payroll)
+  const compensationTaxDue = useMemo(() => {
+    if (taxableCompensation <= 0) return 0;
+    // Average monthly withholding estimate
+    const avgMonthlyComp = taxableCompensation;
+    if (avgMonthlyComp <= 20833) return 0;
+    if (avgMonthlyComp <= 33333) return (avgMonthlyComp - 20833) * 0.15;
+    if (avgMonthlyComp <= 66667) return 1875 + (avgMonthlyComp - 33333) * 0.20;
+    if (avgMonthlyComp <= 166667) return 8541.67 + (avgMonthlyComp - 66667) * 0.25;
+    if (avgMonthlyComp <= 666667) return 33541.67 + (avgMonthlyComp - 166667) * 0.30;
+    return 183541.67 + (avgMonthlyComp - 666667) * 0.35;
+  }, [taxableCompensation]);
+
+  // Format TIN
+  const formattedTin = (tinString?: string) => {
+    if (!tinString) return '—';
+    const clean = tinString.replace(/\D/g, '');
+    if (clean.length >= 9) {
+      return `${clean.slice(0, 3)}-${clean.slice(3, 6)}-${clean.slice(6, 9)}-${clean.slice(9, 12) || '000'}`;
+    }
+    return tinString;
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const yearsList = [2026, 2025, 2024, 2023];
+
+  return (
+    <Modal id="bir-forms" title="Philippine BIR Tax Declarations" icon={<FileText className="text-blue-600 w-5 h-5" />} maxWidth="max-w-6xl">
+      <div className="flex flex-col lg:flex-row gap-6 font-sans">
+        
+        {/* Left Control Sidebar */}
+        <div className="w-full lg:w-80 shrink-0 bg-slate-50 dark:bg-slate-800/40 p-5 rounded-2xl border border-slate-100 dark:border-slate-800 flex flex-col gap-5">
+          <div>
+            <h4 className="text-xs font-black uppercase tracking-wider text-slate-400 mb-3 block">Form Generation</h4>
+            <div className="flex flex-col gap-1.5">
+              {[
+                { type: '2550Q', label: 'BIR Form 2550Q', desc: 'Quarterly Value-Added Tax' },
+                { type: '1701Q', label: 'BIR Form 1701Q', desc: 'Quarterly Income Tax (Individual)' },
+                { type: '2551Q', label: 'BIR Form 2551Q', desc: 'Quarterly Percentage Tax' },
+                { type: '1601-C', label: 'BIR Form 1601-C', desc: 'Monthly Withholding on Salaries' }
+              ].map((f) => (
+                <button
+                  key={f.type}
+                  onClick={() => setActiveFormType(f.type as any)}
+                  className={`w-full p-3.5 rounded-xl text-left border transition-all ${
+                    activeFormType === f.type 
+                      ? 'bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-500/10' 
+                      : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100'
+                  }`}
+                >
+                  <span className="font-bold text-xs block">{f.label}</span>
+                  <span className={`text-[10px] block font-medium mt-0.5 ${activeFormType === f.type ? 'text-blue-100' : 'text-slate-500'}`}>{f.desc}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <hr className="border-slate-200 dark:border-slate-700" />
+
+          {/* Configuration */}
+          <div className="space-y-4">
+            <h4 className="text-xs font-black uppercase tracking-wider text-slate-400 block">Filing Period Selection</h4>
+            
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-1">Calendar Year</label>
+                <select 
+                  value={selectedYear}
+                  onChange={e => setSelectedYear(parseInt(e.target.value))}
+                  className="w-full text-xs font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2.5 rounded-xl rounded-b-xl outline-none"
+                >
+                  {yearsList.map(y => <option key={y} value={y}>{y}</option>)}
+                </select>
+              </div>
+
+              {activeFormType === '1601-C' ? (
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-1">Tax Month</label>
+                  <select 
+                    value={selectedMonth}
+                    onChange={e => setSelectedMonth(parseInt(e.target.value))}
+                    className="w-full text-xs font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2.5 rounded-xl outline-none"
+                  >
+                    {['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'].map((m, idx) => (
+                      <option key={m} value={idx + 1}>{m}</option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-1">Tax Quarter</label>
+                  <select 
+                    value={selectedQuarter}
+                    onChange={e => setSelectedQuarter(parseInt(e.target.value))}
+                    className="w-full text-xs font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2.5 rounded-xl outline-none"
+                  >
+                    <option value={1}>1st Quarter (Q1)</option>
+                    <option value={2}>2nd Quarter (Q2)</option>
+                    <option value={3}>3rd Quarter (Q3)</option>
+                    <option value={4}>4th Quarter (Q4)</option>
+                  </select>
+                </div>
+              )}
+            </div>
+            
+            {/* Real-time sync feedback banner */}
+            <div className="bg-slate-100 dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700 flex items-start gap-2">
+              <Sparkles className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
+              <p className="text-[10px] leading-relaxed text-slate-505 text-slate-600 dark:text-slate-400">
+                Values are dynamically compiled from sales and purchases. Overriding fields below compiles tax lines instantly.
+              </p>
+            </div>
+          </div>
+
+          <hr className="border-slate-200 dark:border-slate-700" />
+
+          {/* Form-specific input overrides */}
+          <div className="space-y-4">
+            <h4 className="text-xs font-black uppercase tracking-wider text-slate-400 block">Form Field Overrides</h4>
+            
+            {activeFormType === '2550Q' && (
+              <div className="space-y-3 font-medium">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 block mb-1">Vatable Sales & Receipts (₱)</label>
+                  <input 
+                    type="number" 
+                    placeholder={compiledData.salesTotal.toLocaleString()}
+                    value={manualVatSales} 
+                    onChange={e => setManualVatSales(e.target.value)}
+                    className="w-full text-xs border border-slate-200 bg-white dark:bg-slate-800 p-2 rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 block mb-1">Zero-Rated Sales & Receipts (₱)</label>
+                  <input 
+                    type="number" 
+                    placeholder="0"
+                    value={manualZeroSales} 
+                    onChange={e => setManualZeroSales(e.target.value)}
+                    className="w-full text-xs border border-slate-200 bg-white dark:bg-slate-800 p-2 rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 block mb-1">Exempt Sales & Receipts (₱)</label>
+                  <input 
+                    type="number" 
+                    placeholder="0"
+                    value={manualExemptSales} 
+                    onChange={e => setManualExemptSales(e.target.value)}
+                    className="w-full text-xs border border-slate-200 bg-white dark:bg-slate-800 p-2 rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 block mb-1">Input VAT Carry-Over (₱)</label>
+                  <input 
+                    type="number" 
+                    value={manualCarryOverInput} 
+                    onChange={e => setManualCarryOverInput(e.target.value)}
+                    className="w-full text-xs border border-slate-200 bg-white dark:bg-slate-800 p-2 rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 block mb-1">Tax Withheld Credits (2307) (₱)</label>
+                  <input 
+                    type="number" 
+                    value={manualWithholdingCredits} 
+                    onChange={e => setManualWithholdingCredits(e.target.value)}
+                    className="w-full text-xs border border-slate-200 bg-white dark:bg-slate-800 p-2 rounded-lg"
+                  />
+                </div>
+              </div>
+            )}
+
+            {activeFormType === '1701Q' && (
+              <div className="space-y-3 font-medium">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 block mb-1">Tax Calculation Scheme</label>
+                  <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
+                    <button 
+                      onClick={() => setIs8PercentRate(true)}
+                      type="button"
+                      className={`text-[9px] font-black px-1.5 py-1.5 rounded transition ${is8PercentRate ? 'bg-white shadow text-blue-600 dark:bg-slate-700 dark:text-blue-400' : 'text-slate-500 hover:text-slate-800'}`}
+                    >
+                      8% Flat Tax
+                    </button>
+                    <button 
+                      onClick={() => setIs8PercentRate(false)}
+                      type="button"
+                      className={`text-[9px] font-black px-1.5 py-1.5 rounded transition ${!is8PercentRate ? 'bg-white shadow text-blue-600 dark:bg-slate-700 dark:text-blue-400' : 'text-slate-500 hover:text-slate-800'}`}
+                    >
+                      Graduated Rates
+                    </button>
+                  </div>
+                </div>
+                {!is8PercentRate && (
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 block mb-1">Operating/General Expenses (₱)</label>
+                    <input 
+                      type="number" 
+                      placeholder={compiledData.expensesTotal.toString()}
+                      value={manualOperatingCost} 
+                      onChange={e => setManualOperatingCost(e.target.value)}
+                      className="w-full text-xs border border-slate-200 bg-white dark:bg-slate-800 p-2 rounded-lg"
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeFormType === '2551Q' && (
+              <div className="space-y-3 font-medium">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 block mb-1">Quarterly Percentage Sales (₱)</label>
+                  <input 
+                    type="number" 
+                    placeholder={compiledData.salesTotal.toString()}
+                    value={manualPercentageSales} 
+                    onChange={e => setManualPercentageSales(e.target.value)}
+                    className="w-full text-xs border border-slate-200 bg-white dark:bg-slate-800 p-2 rounded-lg"
+                  />
+                </div>
+              </div>
+            )}
+
+            {activeFormType === '1601-C' && (
+              <div className="space-y-3 font-medium">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 block mb-1">Number of Employees Paid</label>
+                  <input 
+                    type="number" 
+                    value={numEmployees}
+                    min={0}
+                    onChange={e => setNumEmployees(parseInt(e.target.value) || 0)}
+                    className="w-full text-xs border border-slate-200 bg-white dark:bg-slate-800 p-2 rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 block mb-1">Total Compensation Paid (₱)</label>
+                  <input 
+                    type="number" 
+                    value={manualTotalSalaries} 
+                    onChange={e => setManualTotalSalaries(e.target.value)}
+                    className="w-full text-xs border border-slate-200 bg-white dark:bg-slate-800 p-2 rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 block mb-1">Non-Taxable Compensations (₱)</label>
+                  <input 
+                    type="number" 
+                    value={manualNonTaxableSalaries} 
+                    onChange={e => setManualNonTaxableSalaries(e.target.value)}
+                    className="w-full text-xs border border-slate-200 bg-white dark:bg-slate-800 p-2 rounded-lg"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Actions */}
+          <div className="mt-auto space-y-2">
+            <button 
+              onClick={handlePrint}
+              className="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 shadow"
+            >
+              <Printer className="w-4 h-4" /> Print BIR Return
+            </button>
+          </div>
+        </div>
+
+        {/* Right Active BIR Form Rendering Sheet */}
+        <div className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm flex flex-col max-h-[85vh] print:max-h-full print:border-none print:shadow-none">
+          
+          <div className="p-3 bg-indigo-50/50 dark:bg-slate-800/40 border-b border-indigo-100 dark:border-slate-800 text-slate-500 text-[10px] font-bold uppercase tracking-wider flex items-center gap-2 select-none print:hidden">
+            <CheckCircle2 className="w-4 h-4 text-indigo-500" /> Complete layout validation passed. Official BIR color formatting loaded.
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6 print:overflow-visible print:p-0">
+            {/* BIR FORM NO 2550Q */}
+            {activeFormType === '2550Q' && (
+              <div className="border-[2px] border-black p-4 text-black bg-white max-w-4xl mx-auto space-y-4 print:border-0 print:p-0">
+                {/* Form Header */}
+                <div className="flex items-center border-b border-black pb-3">
+                  <div className="border border-black px-3 py-1 font-mono text-center shrink-0 mr-4 font-black">
+                    <span className="text-[10px] block font-semibold uppercase leading-none">BIR Form No.</span>
+                    <span className="text-xl leading-none">2550Q</span>
+                  </div>
+                  <div className="flex-1 text-center font-bold font-serif leading-tight">
+                    <div className="text-[10px] uppercase tracking-wide">Republika ng Pilipinas</div>
+                    <div className="text-[11px] uppercase tracking-wide">Kagawaran ng Pananalapi</div>
+                    <div className="text-[12px] uppercase">Kawanihan ng Rentas Internas</div>
+                    <h1 className="text-sm uppercase font-black tracking-tighter mt-1">Quarterly Value-Added Tax Return</h1>
+                  </div>
+                  <div className="shrink-0 text-[10px] font-bold text-right pl-4">
+                    <div>Amended: <span className="underline select-all">No</span></div>
+                    <div>Quarter: <span className="underline font-black">{selectedQuarter}</span></div>
+                    <div>Year: <span className="underline font-black">{selectedYear}</span></div>
+                  </div>
+                </div>
+
+                {/* Section Part I: Background Information */}
+                <div>
+                  <div className="bg-yellow-50 outline outline-[1px] outline-black text-[11px] font-black uppercase px-2 py-0.5 tracking-wide mb-1 leading-none select-none">
+                    Part I: Background Information
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 border border-black p-2 bg-slate-50 text-[11px] font-bold gap-3">
+                    <div>
+                      <span className="text-[9px] block text-slate-500">1 Taxpayer Identification Number (TIN)</span>
+                      <span className="font-mono text-xs">{formattedTin(currentClient?.tin)}</span>
+                    </div>
+                    <div>
+                      <span className="text-[9px] block text-slate-500">2 RDO Code</span>
+                      <span>{currentClient?.rdoCode || '043B'}</span>
+                    </div>
+                    <div>
+                      <span className="text-[9px] block text-slate-500">3 Line of Business</span>
+                      <span className="truncate">{currentClient?.tradeName || 'General Trade/Services'}</span>
+                    </div>
+                    <div className="md:col-span-3 border-t border-slate-200 pt-1.5">
+                      <span className="text-[9px] block text-slate-500">4 Taxpayer registered Legal Full Name</span>
+                      <span className="uppercase text-xs">{currentClient?.registeredName || currentClient?.name}</span>
+                    </div>
+                    <div className="md:col-span-3 border-t border-slate-200 pt-1.5">
+                      <span className="text-[9px] block text-slate-500">5 Registered Physical Address</span>
+                      <span className="uppercase text-[11px]">
+                        {[currentClient?.substreet, currentClient?.street, currentClient?.barangay, currentClient?.city, currentClient?.zipCode].filter(Boolean).join(', ') || 'Not Specified'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section Part II: Computation of Tax */}
+                <div>
+                  <div className="bg-yellow-50 outline outline-[1px] outline-black text-[11px] font-black uppercase px-2 py-0.5 tracking-wide mb-1 select-none">
+                    Part II: Computation of VAT
+                  </div>
+                  <table className="w-full text-xs border border-black border-collapse">
+                    <thead>
+                      <tr className="bg-slate-100 font-bold border-b border-black text-[10px]">
+                        <th className="border-r border-black p-1 text-center w-10">Item</th>
+                        <th className="border-r border-black p-1 text-left">Tax Details Descriptions</th>
+                        <th className="border-r border-black p-1 text-right w-36">Sales / Purchases</th>
+                        <th className="p-1 text-right w-32">VAT Rate/Output Tax</th>
+                      </tr>
+                    </thead>
+                    <tbody className="font-bold">
+                      <tr className="border-b border-black">
+                        <td className="border-r border-black p-1 text-center font-mono text-[10px]">15</td>
+                        <td className="border-r border-black p-1 font-semibold">Vatable Sales / Receipts</td>
+                        <td className="border-r border-black p-1 text-right font-mono">₱{activeVatSales.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                        <td className="p-1 text-right font-mono">12%</td>
+                      </tr>
+                      <tr className="border-b border-black">
+                        <td className="border-r border-black p-1 text-center font-mono text-[10px]">16</td>
+                        <td className="border-r border-black p-1 font-semibold text-blue-800">Output VAT Due (Line 15 * 12%)</td>
+                        <td className="border-r border-black p-1 bg-slate-50 text-right">—</td>
+                        <td className="p-1 text-right font-mono text-blue-800">₱{activeOutputTax.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                      </tr>
+                      <tr className="border-b border-black">
+                        <td className="border-r border-black p-1 text-center font-mono text-[10px]">17</td>
+                        <td className="border-r border-black p-1 font-semibold">Zero-Rated Sales / Receipts</td>
+                        <td className="border-r border-black p-1 text-right font-mono">₱{activeZeroSales.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                        <td className="p-1 text-right font-mono">₱0.00</td>
+                      </tr>
+                      <tr className="border-b border-black">
+                        <td className="border-r border-black p-1 text-center font-mono text-[10px]">18</td>
+                        <td className="border-r border-black p-1 font-semibold">Exempt Sales / Receipts</td>
+                        <td className="border-r border-black p-1 text-right font-mono">₱{activeExemptSales.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                        <td className="p-1 text-right font-mono">₱0.00</td>
+                      </tr>
+                      <tr className="border-b border-black bg-slate-50">
+                        <td className="border-r border-black p-1 text-center font-mono text-[10px]">19</td>
+                        <td className="border-r border-black p-1 uppercase">Total Sales / Receipts & Output VAT Due</td>
+                        <td className="border-r border-black p-1 text-right font-mono">₱{activeTotalSalesLine.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                        <td className="p-1 text-right font-mono text-blue-800">₱{activeOutputTax.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                      </tr>
+                      <tr className="border-b border-black">
+                        <td className="border-r border-black p-1 text-center font-mono text-[10px]">20</td>
+                        <td className="border-r border-black p-1 font-semibold">Input VAT carried over from previous period</td>
+                        <td className="border-r border-black p-1 text-right font-mono">₱{activeCarryOver.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                        <td className="p-1 text-right font-mono">—</td>
+                      </tr>
+                      <tr className="border-b border-black">
+                        <td className="border-r border-black p-1 text-center font-mono text-[10px]">21</td>
+                        <td className="border-r border-black p-1 font-semibold">Purchases of Capital Goods & Services</td>
+                        <td className="border-r border-black p-1 text-right font-mono">₱{compiledData.vatPurchasesTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                        <td className="p-1 text-right font-mono text-slate-600">₱{activeInputTax.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                      </tr>
+                      <tr className="border-b border-black bg-slate-50">
+                        <td className="border-r border-black p-1 text-center font-mono text-[10px]">22</td>
+                        <td className="border-r border-black p-1 uppercase">Total Available Input VAT (Line 20 + Line 21 Input)</td>
+                        <td className="border-r border-black p-1 text-right">—</td>
+                        <td className="p-1 text-right font-mono text-emerald-700">₱{totalAvailableInput.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                      </tr>
+                      <tr className="border-b border-black">
+                        <td className="border-r border-black p-1 text-center font-mono text-[10px]">23</td>
+                        <td className="border-r border-black p-1 font-semibold">Creditable Withholding VAT / Credits (BIR Form 2307)</td>
+                        <td className="border-r border-black p-1 text-right">—</td>
+                        <td className="p-1 text-right font-mono">₱{activeWithholding.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                      </tr>
+                      <tr className="bg-amber-100">
+                        <td className="border-r border-black p-1.5 text-center font-mono text-[10px]">24</td>
+                        <td className="border-r border-black p-1.5 font-black uppercase text-amber-900 leading-tight">Net Tax Payable / (Overpayment)</td>
+                        <td className="border-r border-black p-1.5 text-right">—</td>
+                        <td className="p-1.5 text-right font-mono text-base font-black text-amber-950">₱{vatPayableValue.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="flex justify-between items-center text-[10px] font-bold text-slate-500 pt-2 border-t border-black">
+                  <span>CAPOTBOOKS Tax Integration Engine</span>
+                  <span>Form Version: July 2018 (revised)</span>
+                </div>
+              </div>
+            )}
+
+            {/* BIR FORM NO 1701Q */}
+            {activeFormType === '1701Q' && (
+              <div className="border-[2px] border-black p-4 text-black bg-white max-w-4xl mx-auto space-y-4 print:border-0 print:p-0">
+                {/* Form Header */}
+                <div className="flex items-center border-b border-black pb-3">
+                  <div className="border border-black px-3 py-1 font-mono text-center shrink-0 mr-4 font-black">
+                    <span className="text-[10px] block font-semibold uppercase leading-none">BIR Form No.</span>
+                    <span className="text-xl leading-none">1701Q</span>
+                  </div>
+                  <div className="flex-1 text-center font-bold font-serif leading-tight">
+                    <div className="text-[10px] uppercase tracking-wide">Republika ng Pilipinas</div>
+                    <div className="text-[11px] uppercase tracking-wide">Kagawaran ng Pananalapi</div>
+                    <div className="text-[12px] uppercase">Kawanihan ng Rentas Internas</div>
+                    <h1 className="text-sm uppercase font-black tracking-tighter mt-1">Quarterly Income Tax Return</h1>
+                    <div className="text-[10px] tracking-wide font-sans font-bold">For Individuals, Sole Proprietorships and Professionals</div>
+                  </div>
+                  <div className="shrink-0 text-[10px] font-bold text-right pl-4">
+                    <div>Amended: <span className="underline">No</span></div>
+                    <div>Quarter: <span className="underline font-black">{selectedQuarter}</span></div>
+                    <div>Year: <span className="underline font-black">{selectedYear}</span></div>
+                  </div>
+                </div>
+
+                {/* Section Part I: Background Information */}
+                <div>
+                  <div className="bg-yellow-50 outline outline-[1px] outline-black text-[11px] font-black uppercase px-2 py-0.5 tracking-wide mb-1 leading-none select-none">
+                    Part I: Background Information
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 border border-black p-2 bg-slate-50 text-[11px] font-bold gap-3">
+                    <div>
+                      <span className="text-[9px] block text-slate-500">1 Taxpayer Identification Number (TIN)</span>
+                      <span className="font-mono text-xs">{formattedTin(currentClient?.tin)}</span>
+                    </div>
+                    <div>
+                      <span className="text-[9px] block text-slate-500">2 RDO Code</span>
+                      <span>{currentClient?.rdoCode || '043B'}</span>
+                    </div>
+                    <div>
+                      <span className="text-[9px] block text-slate-500">3 Tax Rate Code Category</span>
+                      <span>{is8PercentRate ? '8% flat rate IT' : 'Graduated IT Rates'}</span>
+                    </div>
+                    <div className="md:col-span-3 border-t border-slate-200 pt-1.5">
+                      <span className="text-[9px] block text-slate-500">4 Taxpayer Registered Name</span>
+                      <span className="uppercase text-xs">{currentClient?.registeredName || currentClient?.name}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Computation of Tax */}
+                <div>
+                  <div className="bg-yellow-50 outline outline-[1px] outline-black text-[11px] font-black uppercase px-2 py-0.5 tracking-wide mb-1 select-none">
+                    Part II: Tax Computation
+                  </div>
+                  <table className="w-full text-xs border border-black border-collapse">
+                    <thead>
+                      <tr className="bg-slate-100 font-bold border-b border-black text-[10px]">
+                        <th className="border-r border-black p-1 text-center w-10">Item</th>
+                        <th className="border-r border-black p-1 text-left">Income Tax Computations Details</th>
+                        <th className="p-1 text-right w-44">Tax Item Values (₱)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="font-bold">
+                      <tr className="border-b border-black">
+                        <td className="border-r border-black p-1 text-center font-mono text-[10px]">26</td>
+                        <td className="border-r border-black p-1 font-semibold">Gross Sales / Receipts (compiled from sales)</td>
+                        <td className="p-1 text-right font-mono">₱{grossIncome1701.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                      </tr>
+                      {is8PercentRate ? (
+                        <>
+                          <tr className="border-b border-black">
+                            <td className="border-r border-black p-1 text-center font-mono text-[10px]">27</td>
+                            <td className="border-r border-black p-1 font-semibold">Less: Allowable Exemption reduction (Part-time Professional/Trade)</td>
+                            <td className="p-1 text-right font-mono text-rose-600">₱(250,000.00)</td>
+                          </tr>
+                          <tr className="border-b border-black bg-slate-50">
+                            <td className="border-r border-black p-1 text-center font-mono text-[10px]">28</td>
+                            <td className="border-r border-black p-1 uppercase">Net Taxable Income (Gross Sales / Receipts - 250k)</td>
+                            <td className="p-1 text-right font-mono text-emerald-800">₱{Math.max(0, grossIncome1701 - 250000).toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                          </tr>
+                          <tr className="border-b border-black">
+                            <td className="border-r border-black p-1 text-center font-mono text-[10px]">29</td>
+                            <td className="border-r border-black p-1 font-semibold">Tax Rate Applicable</td>
+                            <td className="p-1 text-right font-mono">8% flat rate IT</td>
+                          </tr>
+                        </>
+                      ) : (
+                        <>
+                          <tr className="border-b border-black">
+                            <td className="border-r border-black p-1 text-center font-mono text-[10px]">27</td>
+                            <td className="border-r border-black p-1 font-semibold">Less: General Operating Costs (allowable deductions)</td>
+                            <td className="p-1 text-right font-mono text-rose-600">₱({operatingCost1701.toLocaleString(undefined, {minimumFractionDigits: 2})})</td>
+                          </tr>
+                          <tr className="border-b border-black bg-slate-50">
+                            <td className="border-r border-black p-1 text-center font-mono text-[10px]">28</td>
+                            <td className="border-r border-black p-1 uppercase">Net Quarterly Taxable Income</td>
+                            <td className="p-1 text-right font-mono text-emerald-800">₱{Math.max(0, grossIncome1701 - operatingCost1701).toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                          </tr>
+                          <tr className="border-b border-black">
+                            <td className="border-r border-black p-1 text-center font-mono text-[10px]">29</td>
+                            <td className="border-r border-black p-1 font-semibold">Tax Bracket Scheme</td>
+                            <td className="p-1 text-right font-mono">Graduated Rate Table</td>
+                          </tr>
+                        </>
+                      )}
+                      <tr className="bg-amber-100">
+                        <td className="border-r border-black p-1.5 text-center font-mono text-[10px]">30</td>
+                        <td className="border-r border-black p-1.5 font-black uppercase text-amber-900 leading-tight">Total Quarterly Income Tax Due</td>
+                        <td className="p-1.5 text-right font-mono text-base font-black text-amber-950">₱{taxDue1701.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="flex justify-between items-center text-[10px] font-bold text-slate-500 pt-2 border-t border-black">
+                  <span>CAPOTBOOKS Tax Integration Engine</span>
+                  <span>Form Version: January 2018 (revised)</span>
+                </div>
+              </div>
+            )}
+
+            {/* BIR FORM NO 2551Q */}
+            {activeFormType === '2551Q' && (
+              <div className="border-[2px] border-black p-4 text-black bg-white max-w-4xl mx-auto space-y-4 print:border-0 print:p-0">
+                {/* Form Header */}
+                <div className="flex items-center border-b border-black pb-3">
+                  <div className="border border-black px-3 py-1 font-mono text-center shrink-0 mr-4 font-black">
+                    <span className="text-[10px] block font-semibold uppercase leading-none">BIR Form No.</span>
+                    <span className="text-xl leading-none">2551Q</span>
+                  </div>
+                  <div className="flex-1 text-center font-bold font-serif leading-tight">
+                    <div className="text-[10px] uppercase tracking-wide">Republika ng Pilipinas</div>
+                    <div className="text-[11px] uppercase tracking-wide">Kagawaran ng Pananalapi</div>
+                    <div className="text-[12px] uppercase">Kawanihan ng Rentas Internas</div>
+                    <h1 className="text-sm uppercase font-black tracking-tighter mt-1">Quarterly Percentage Tax Return</h1>
+                    <div className="text-[10px] tracking-wide font-sans font-bold">For Non-Vat Taxpayers With Annual Gross Revenue Not Exceeding ₱3.0M</div>
+                  </div>
+                  <div className="shrink-0 text-[10px] font-bold text-right pl-4">
+                    <div>Amended: <span className="underline">No</span></div>
+                    <div>Quarter: <span className="underline font-black">{selectedQuarter}</span></div>
+                    <div>Year: <span className="underline font-black">{selectedYear}</span></div>
+                  </div>
+                </div>
+
+                {/* Section Part I: Background Information */}
+                <div>
+                  <div className="bg-yellow-50 outline outline-[1px] outline-black text-[11px] font-black uppercase px-2 py-0.5 tracking-wide mb-1 leading-none select-none">
+                    Part I: Background Information
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 border border-black p-2 bg-slate-50 text-[11px] font-bold gap-3">
+                    <div>
+                      <span className="text-[9px] block text-slate-500">1 Taxpayer Identification Number (TIN)</span>
+                      <span className="font-mono text-xs">{formattedTin(currentClient?.tin)}</span>
+                    </div>
+                    <div>
+                      <span className="text-[9px] block text-slate-500">2 RDO Code</span>
+                      <span>{currentClient?.rdoCode || '043B'}</span>
+                    </div>
+                    <div className="md:col-span-2 border-t border-slate-200 pt-1.5">
+                      <span className="text-[9px] block text-slate-500">3 Taxpayer Registered Legal Name</span>
+                      <span className="uppercase text-xs">{currentClient?.registeredName || currentClient?.name}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section Computation of Percentage Tax */}
+                <div>
+                  <div className="bg-yellow-50 outline outline-[1px] outline-black text-[11px] font-black uppercase px-2 py-0.5 tracking-wide mb-1 select-none">
+                    Part II: Percentage Tax Computation
+                  </div>
+                  <table className="w-full text-xs border border-black border-collapse">
+                    <thead>
+                      <tr className="bg-slate-100 font-bold border-b border-black text-[10px]">
+                        <th className="border-r border-black p-1 text-center w-10">ATC</th>
+                        <th className="border-r border-black p-1 text-left">Percentage Tax Category / Code Description</th>
+                        <th className="border-r border-black p-1 text-right w-40">Gross Quarterly Sales (₱)</th>
+                        <th className="border-r border-black p-1 text-center w-20">Tax Rate</th>
+                        <th className="p-1 text-right w-36">Percentage Tax Due (₱)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="font-bold">
+                      <tr className="border-b border-black">
+                        <td className="border-r border-black p-1 text-center font-mono text-[10px] uppercase">PT010</td>
+                        <td className="border-r border-black p-1 font-semibold">Persons Exempt from VAT under Sect. 109BB</td>
+                        <td className="border-r border-black p-1 text-right font-mono">₱{grossIncome2551Q.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                        <td className="border-r border-black p-1 text-center font-mono">3.00%</td>
+                        <td className="p-1 text-right font-mono">₱{percentageTaxDue.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                      </tr>
+                      <tr className="border-b border-black bg-slate-50">
+                        <td className="border-r border-black p-1 text-center font-mono text-[10px]">—</td>
+                        <td className="border-r border-black p-1 uppercase" colSpan={2}>Total Tax Remitable Due</td>
+                        <td className="border-r border-black p-1 text-right">—</td>
+                        <td className="p-1 text-right font-mono text-emerald-700">₱{percentageTaxDue.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                      </tr>
+                      <tr className="bg-amber-100">
+                        <td className="border-r border-black p-1.5 text-center font-mono">Sect 4</td>
+                        <td className="border-r border-black p-1.5 font-black uppercase text-amber-900 leading-tight" colSpan={3}>Net Percentage Tax Payable</td>
+                        <td className="p-1.5 text-right font-mono text-base font-black text-amber-950">₱{percentageTaxDue.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="flex justify-between items-center text-[10px] font-bold text-slate-500 pt-2 border-t border-black">
+                  <span>CAPOTBOOKS Tax Percentage Engine</span>
+                  <span>Form Version: January 2018 (revised)</span>
+                </div>
+              </div>
+            )}
+
+            {/* BIR FORM NO 1601-C */}
+            {activeFormType === '1601-C' && (
+              <div className="border-[2px] border-black p-4 text-black bg-white max-w-4xl mx-auto space-y-4 print:border-0 print:p-0">
+                {/* Form Header */}
+                <div className="flex items-center border-b border-black pb-3">
+                  <div className="border border-black px-3 py-1 font-mono text-center shrink-0 mr-4 font-black">
+                    <span className="text-[10px] block font-semibold uppercase leading-none">BIR Form No.</span>
+                    <span className="text-xl leading-none">1601-C</span>
+                  </div>
+                  <div className="flex-1 text-center font-bold font-serif leading-tight">
+                    <div className="text-[10px] uppercase tracking-wide">Republika ng Pilipinas</div>
+                    <div className="text-[11px] uppercase tracking-wide">Kagawaran ng Pananalapi</div>
+                    <div className="text-[12px] uppercase">Kawanihan ng Rentas Internas</div>
+                    <h1 className="text-sm uppercase font-black tracking-tighter mt-1">Monthly Remittance Return of Income Taxes Withheld on Compensation</h1>
+                  </div>
+                  <div className="shrink-0 text-[10px] font-bold text-right pl-4">
+                    <div>Amended: <span className="underline">No</span></div>
+                    <div>Period: <span className="underline font-black">{selectedMonth}/{selectedYear}</span></div>
+                  </div>
+                </div>
+
+                {/* Section Part I: Background Information */}
+                <div>
+                  <div className="bg-yellow-50 outline outline-[1px] outline-black text-[11px] font-black uppercase px-2 py-0.5 tracking-wide mb-1 leading-none select-none">
+                    Part I: Background Information
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 border border-black p-2 bg-slate-50 text-[11px] font-bold gap-3">
+                    <div>
+                      <span className="text-[9px] block text-slate-500">1 Taxpayer Identification Number (TIN)</span>
+                      <span className="font-mono text-xs">{formattedTin(currentClient?.tin)}</span>
+                    </div>
+                    <div>
+                      <span className="text-[9px] block text-slate-500">2 RDO Code</span>
+                      <span>{currentClient?.rdoCode || '043B'}</span>
+                    </div>
+                    <div>
+                      <span className="text-[9px] block text-slate-500">3 Total Employee Count</span>
+                      <span>{numEmployees} Paid Employees</span>
+                    </div>
+                    <div className="md:col-span-3 border-t border-slate-200 pt-1.5">
+                      <span className="text-[9px] block text-slate-500">4 Withholding Agent Name / Corporate Title</span>
+                      <span className="uppercase text-xs">{currentClient?.registeredName || currentClient?.name}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Computation of Withholding Taxes */}
+                <div>
+                  <div className="bg-yellow-50 outline outline-[1px] outline-black text-[11px] font-black uppercase px-2 py-0.5 tracking-wide mb-1 select-none">
+                    Part II: Computation of Taxes Withheld
+                  </div>
+                  <table className="w-full text-xs border border-black border-collapse">
+                    <thead>
+                      <tr className="bg-slate-100 font-bold border-b border-black text-[10px]">
+                        <th className="border-r border-black p-1 text-center w-10">Item</th>
+                        <th className="border-r border-black p-1 text-left">Withholding Compensation Item Accounts</th>
+                        <th className="p-1 text-right w-44">Monthly Ledger Totals (₱)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="font-bold">
+                      <tr className="border-b border-black">
+                        <td className="border-r border-black p-1 text-center font-mono text-[10px]">15</td>
+                        <td className="border-r border-black p-1 font-semibold">Gross Salaries & Compensations Paid</td>
+                        <td className="p-1 text-right font-mono">₱{totalSalaries.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                      </tr>
+                      <tr className="border-b border-black">
+                        <td className="border-r border-black p-1 text-center font-mono text-[10px]">16</td>
+                        <td className="border-r border-black p-1 font-semibold">Less: Non-Taxable Compensations (SSS, PhH, Pag-IBIG & Exempt)</td>
+                        <td className="p-1 text-right font-mono text-rose-600">₱({nonTaxableSalaries.toLocaleString(undefined, {minimumFractionDigits: 2})})</td>
+                      </tr>
+                      <tr className="border-b border-black bg-slate-50">
+                        <td className="border-r border-black p-1 text-center font-mono text-[10px]">17</td>
+                        <td className="border-r border-black p-1 uppercase">Total Taxable Compensations Paid (Line 15 - Line 16)</td>
+                        <td className="p-1 text-right font-mono text-emerald-800">₱{taxableCompensation.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                      </tr>
+                      <tr className="border-b border-black">
+                        <td className="border-r border-black p-1 text-center font-mono text-[10px]">18</td>
+                        <td className="border-r border-black p-1 font-semibold">Estimated Monthly Income Tax to be Withheld</td>
+                        <td className="p-1 text-right font-mono">Graduated PAYE tables scaling</td>
+                      </tr>
+                      <tr className="bg-amber-100">
+                        <td className="border-r border-black p-1.5 text-center font-mono text-[10px]">20</td>
+                        <td className="border-r border-black p-1.5 font-black uppercase text-amber-900 leading-tight">Total Monthly Compensation Tax Due</td>
+                        <td className="p-1.5 text-right font-mono text-base font-black text-amber-950">₱{compensationTaxDue.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="flex justify-between items-center text-[10px] font-bold text-slate-500 pt-2 border-t border-black">
+                  <span>CAPOTBOOKS Tax Compensation Engine</span>
+                  <span>Form Version: January 2018 (revised)</span>
+                </div>
+              </div>
+            )}
+            
+          </div>
+        </div>
+
+      </div>
+    </Modal>
+  );
+}

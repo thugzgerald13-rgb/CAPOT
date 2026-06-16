@@ -67,8 +67,9 @@ export function HistoryModal() {
     showToast('Income deleted');
   };
 
-  const purchases = currentDat ? (currentClient.purchases || []).filter(p => p.datMonthYear === currentDat.formatted) : [];
-  const sales = currentDat ? (currentClient.sales || []).filter(s => s.datMonthYear === currentDat.formatted) : [];
+  const targetFormatted = currentDat ? currentDat.formatted : `${MONTHS[selectedMonth - 1]} ${selectedYear}`;
+  const purchases = (currentClient.purchases || []).filter(p => p.datMonthYear === targetFormatted);
+  const sales = (currentClient.sales || []).filter(s => s.datMonthYear === targetFormatted);
 
   const filteredPurchases = purchases.filter(p => 
     p.supplierName.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -272,15 +273,42 @@ export function HistoryModal() {
         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
           {!['slp', 'sls'].includes(activeTab) ? (
             <>
-              <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row justify-between items-center gap-4 bg-slate-50/50 dark:bg-slate-800/30">
-                <h3 className="font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                  {activeTab === 'expenses' ? 'Expense Records' : activeTab === 'income' ? 'Income Records' : 'DAT File Summary'}
-                  {currentDat && (
-                    <span className="text-xs font-normal text-slate-500 bg-slate-200 dark:bg-slate-700 px-2 py-0.5 rounded-full">
-                      {currentDat.formatted}
+              <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex flex-col xl:flex-row justify-between items-stretch xl:items-center gap-4 bg-slate-50/50 dark:bg-slate-800/30">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                  <h3 className="font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2 whitespace-nowrap">
+                    {activeTab === 'expenses' ? 'Expense Records' : activeTab === 'income' ? 'Income Records' : 'DAT File Summary'}
+                    <span className="text-[10px] font-bold text-slate-500 bg-slate-200 dark:bg-slate-700 px-2 py-0.5 rounded-full">
+                      {targetFormatted}
                     </span>
-                  )}
-                </h3>
+                  </h3>
+                  
+                  <div className="flex items-center gap-1.5">
+                    <select 
+                      value={selectedMonth} 
+                      onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+                      className="text-[11px] font-bold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 min-w-[90px] text-slate-700 dark:text-slate-200"
+                    >
+                      {MONTHS.map((m, idx) => (
+                        <option key={m} value={idx + 1}>{m}</option>
+                      ))}
+                    </select>
+                    <select 
+                      value={selectedYear} 
+                      onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                      className="text-[11px] font-bold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 text-slate-700 dark:text-slate-200"
+                    >
+                      {years.map(y => (
+                        <option key={y} value={y}>{y}</option>
+                      ))}
+                    </select>
+                    <button 
+                      onClick={handleLoadPeriod}
+                      className="px-2.5 py-1.5 text-[11px] font-bold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 rounded-lg transition-colors border border-indigo-100 dark:border-slate-700"
+                    >
+                      Load
+                    </button>
+                  </div>
+                </div>
                 <div className="relative w-full sm:w-64">
                   <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
                   <input 
