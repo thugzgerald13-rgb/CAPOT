@@ -359,6 +359,15 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   }, [user, isReady]);
 
   const saveClient = async (id: string, clientData: Client) => {
+    // Optimistically update the state so the user sees results immediately
+    setClients(prev => ({
+      ...prev,
+      [id]: {
+        ...clientData,
+        userId: user ? user.uid : undefined
+      }
+    }));
+
     if (user) {
       try {
         const clientRef = doc(db, 'clients', id);
@@ -372,9 +381,7 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         handleFirestoreError(error, OperationType.UPDATE, `clients/${id}`);
       }
     } else {
-      const newClients = { ...clients, [id]: clientData };
-      setClients(newClients);
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(newClients));
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({ ...clients, [id]: clientData }));
     }
   };
 

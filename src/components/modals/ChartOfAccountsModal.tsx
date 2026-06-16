@@ -771,8 +771,8 @@ export function ChartOfAccountsModal() {
                                   <input 
                                     type="text" 
                                     value={editCode} 
-                                    disabled
-                                    className="w-full form-input py-1 px-2 text-xs font-mono bg-slate-100 dark:bg-slate-800 opacity-70 cursor-not-allowed"
+                                    onChange={e => setEditCode(e.target.value.replace(/[^0-9A-Za-z_-]/g, ''))}
+                                    className="w-full form-input py-1 px-2 text-xs font-mono"
                                   />
                                 </td>
                               );
