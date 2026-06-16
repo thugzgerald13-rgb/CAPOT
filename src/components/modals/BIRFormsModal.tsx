@@ -254,14 +254,23 @@ export function BIRFormsModal() {
 
   // Automatically initialize BIR compliance deadlines for the selected active client
   useEffect(() => {
-    if (currentClient && (!currentClient.taxDeadlines || currentClient.taxDeadlines.length === 0)) {
-      const initialDeadlines = generateStandardDeadlines(selectedYear);
-      saveClient(currentClient.id, {
-        ...currentClient,
-        taxDeadlines: initialDeadlines
-      });
+    if (currentClient) {
+      const existingDeadlines = currentClient.taxDeadlines || [];
+      const yearStr = String(selectedYear);
+      const hasDeadlinesForYear = existingDeadlines.some(d => 
+        d.dueDate.startsWith(yearStr) || d.period.includes(yearStr)
+      );
+
+      if (!hasDeadlinesForYear) {
+        const yearDeadlines = generateStandardDeadlines(selectedYear);
+        const mergedDeadlines = [...existingDeadlines, ...yearDeadlines];
+        saveClient(currentClient.id, {
+          ...currentClient,
+          taxDeadlines: mergedDeadlines
+        });
+      }
     }
-  }, [currentClient, selectedYear, saveClient]);
+  }, [currentClient?.id, selectedYear]);
 
   // Utility to determine date quarter
   const getQuarterNum = (dateStr: string) => {
@@ -615,9 +624,18 @@ export function BIRFormsModal() {
 
   // Get active list of deadlines
   const computedDeadlines = useMemo(() => {
-    const deadlinesList = currentClient?.taxDeadlines || generateStandardDeadlines(selectedYear);
+    const allDeadlines = currentClient?.taxDeadlines || [];
+    const yearStr = String(selectedYear);
     
-    return deadlinesList.map(d => {
+    // Filter to only include deadlines for the selected year
+    const deadlinesList = allDeadlines.filter(d => 
+      d.dueDate.startsWith(yearStr) || d.period.includes(yearStr)
+    );
+    
+    // Fallback to standard deadlines for the selected year if no entries exist yet
+    const activeList = deadlinesList.length > 0 ? deadlinesList : generateStandardDeadlines(selectedYear);
+    
+    return activeList.map(d => {
       const overdue = isDeadlineOverdue(d.dueDate, d.status);
       return {
         ...d,
@@ -678,7 +696,16 @@ export function BIRFormsModal() {
   // Status Change handler
   const handleUpdateDeadlineStatus = (deadlineId: string, updates: Partial<TaxDeadline>) => {
     if (!currentClient) return;
-    const existingDeadlines = currentClient.taxDeadlines || generateStandardDeadlines(selectedYear);
+    
+    let existingDeadlines = currentClient.taxDeadlines || [];
+    const exists = existingDeadlines.some(d => d.id === deadlineId);
+    
+    // If the deadline is not in the database, generate and append standard deadlines for this year first
+    if (!exists) {
+      const yearDeadlines = generateStandardDeadlines(selectedYear);
+      existingDeadlines = [...existingDeadlines, ...yearDeadlines];
+    }
+    
     const updatedDeadlines = existingDeadlines.map(d => {
       if (d.id === deadlineId) {
         return { ...d, ...updates };
@@ -2305,7 +2332,15 @@ export function BIRFormsModal() {
                                 </div>
                               ) : (
                                 !isEditing && (
-                                  <div className="flex items-center gap-2">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <button
+                                      onClick={() => {
+                                        setActiveFormType(deadline.formType as any);
+                                      }}
+                                      className="text-xs text-blue-600 dark:text-blue-400 font-bold border border-blue-200 dark:border-blue-800 rounded-xl px-4 py-2 hover:bg-blue-50/50 dark:hover:bg-blue-950/20 transition flex items-center gap-1.5"
+                                    >
+                                      <FileText className="w-3.5 h-3.5" /> View Form {deadline.formType}
+                                    </button>
                                     <button
                                       onClick={() => {
                                         setFilingDate('2026-06-16');
