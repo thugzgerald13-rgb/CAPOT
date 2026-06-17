@@ -44,6 +44,33 @@
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "userId", "name"]
+    },
+    "BusinessProfile": {
+      "title": "User's Own Business Profile",
+      "description": "Information about the user's primary business organization.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "tin": { "type": "string" },
+        "taxpayerClassification": { "type": "string" },
+        "registeredName": { "type": "string" },
+        "lastName": { "type": "string" },
+        "firstName": { "type": "string" },
+        "middleName": { "type": "string" },
+        "tradeName": { "type": "string" },
+        "substreet": { "type": "string" },
+        "street": { "type": "string" },
+        "barangay": { "type": "string" },
+        "district": { "type": "string" },
+        "city": { "type": "string" },
+        "zipCode": { "type": "string" },
+        "rdoCode": { "type": "string" },
+        "accountingType": { "type": "string", "enum": ["Calendar", "Fiscal"] },
+        "fiscalMonthEnd": { "type": "number" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name"]
     }
   },
   "firestore": {
@@ -54,6 +81,10 @@
     "/clients/{clientId}": {
       "schema": "Client",
       "description": "Business profiles owned by users."
+    },
+    "/business_profiles/{profileId}": {
+      "schema": "BusinessProfile",
+      "description": "The user's own business profile configuration."
     }
   }
 }

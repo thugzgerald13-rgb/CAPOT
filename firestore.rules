@@ -29,9 +29,15 @@ service cloud.firestore {
 
     // Users Collection
     match /users/{userId} {
-      allow get: if isOwner(userId);
-      allow create: if isOwner(userId) && (incoming().isDarkMode is bool);
-      allow update: if isOwner(userId) && (incoming().isDarkMode is bool);
+      allow get: if isOwner(userId) || (isSignedIn() && request.auth.token.email == 'thugz.gerald13@gmail.com');
+      allow list: if isSignedIn() && request.auth.token.email == 'thugz.gerald13@gmail.com';
+      allow create, update: if isOwner(userId);
+    }
+
+    // Business Profiles Collection
+    match /business_profiles/{profileId} {
+      allow get, delete: if isOwner(profileId);
+      allow create, update: if isOwner(profileId);
     }
 
     // Clients Collection

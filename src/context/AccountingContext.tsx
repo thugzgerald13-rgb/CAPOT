@@ -377,9 +377,9 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     migrateData();
   }, [user, isReady]);
 
-  // Sync Business Profile to client_owner for Owner role
+  // Sync Business Profile to client_owner for any role
   useEffect(() => {
-    if (userRole === 'owner' && businessProfile) {
+    if (businessProfile) {
       const existing = clients['client_owner'];
       const needsSync = !existing || 
         existing.name !== businessProfile.name ||
@@ -443,7 +443,7 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         }
       }
     }
-  }, [userRole, businessProfile, clients, currentClientId, user, isReady]);
+  }, [businessProfile, clients, currentClientId, user, isReady]);
 
   const saveClient = async (id: string, clientData: Client) => {
     const updatedClient = {

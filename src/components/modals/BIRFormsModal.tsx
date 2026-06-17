@@ -6,7 +6,7 @@ import {
   Building2, User, MapPin, Sparkles, AlertTriangle, 
   CheckCircle2, HelpCircle, ArrowRight, FileCheck, Coins, RefreshCw, AlertCircle
 } from 'lucide-react';
-import { TaxDeadline } from '../../types';
+import { TaxDeadline, Client } from '../../types';
 
 // Standard BIR filing deadlines generator for Philippines 2026/2025
 export function generateStandardDeadlines(year: number): TaxDeadline[] {
@@ -182,7 +182,7 @@ export function generateStandardDeadlines(year: number): TaxDeadline[] {
 }
 
 export function BIRFormsModal() {
-  const { currentClient, activeModal, openModal, historyTab, saveClient } = useAccounting();
+  const { currentClient, currentClientId, setCurrentClientId, clients, businessProfile, activeModal, openModal, historyTab, saveClient } = useAccounting();
 
   // Active form choice: '2550Q' | '1701Q' | '2551Q' | '1601-C' | '0619-E' | '1601-EQ' | 'tracker'
   const [activeFormType, setActiveFormType] = useState<'2550Q' | '1701Q' | '2551Q' | '1601-C' | '0619-E' | '1601-EQ' | 'tracker'>('tracker');
@@ -727,6 +727,40 @@ export function BIRFormsModal() {
         
         {/* Left Control Sidebar */}
         <div className="w-full lg:w-80 shrink-0 bg-slate-50 dark:bg-slate-800/40 p-5 rounded-2xl border border-slate-100 dark:border-slate-800 flex flex-col gap-5">
+          {/* Active Taxpayer Dropdown */}
+          <div className="space-y-2">
+            <h4 className="text-xs font-black uppercase tracking-wider text-slate-400 block mb-1">Active Entity / Profile</h4>
+            <div className="relative">
+              <select
+                value={currentClientId || ''}
+                onChange={e => setCurrentClientId(e.target.value)}
+                className="w-full text-xs font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2.5 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20"
+              >
+                {/* Own business option */}
+                {businessProfile ? (
+                  <option value="client_owner">🏢 Own Business: {businessProfile.name}</option>
+                ) : (
+                  <option value="client_owner">🏢 Own Business (Unconfigured)</option>
+                )}
+                
+                {/* List other clients if available */}
+                {clients && (Object.values(clients) as Client[])
+                  .filter((c: Client) => c.id !== 'client_owner')
+                  .map((client: Client) => (
+                    <option key={client.id} value={client.id}>
+                      👤 Client: {client.registeredName || client.name}
+                    </option>
+                  ))
+                }
+              </select>
+            </div>
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
+              Data, transactions, and declarations will automatically sync with this selected profile.
+            </p>
+          </div>
+
+          <hr className="border-slate-200 dark:border-slate-700" />
+
           <div>
             <h4 className="text-xs font-black uppercase tracking-wider text-slate-400 mb-3 block">Form Generation</h4>
             <div className="flex flex-col gap-1.5">
