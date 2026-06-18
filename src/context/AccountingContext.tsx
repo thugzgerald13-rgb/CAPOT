@@ -212,6 +212,29 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       try {
         setBusinessProfile(JSON.parse(savedBiz));
       } catch (e) {}
+    } else {
+      const defaultBiz: BusinessProfile = {
+        id: 'client_owner',
+        name: 'My Business Organization',
+        tin: '000-000-000-000',
+        taxpayerClassification: 'Individual',
+        registeredName: 'My Business Organization',
+        lastName: '',
+        firstName: '',
+        middleName: '',
+        tradeName: 'General Trade/Services',
+        substreet: '',
+        street: 'Main Street',
+        barangay: 'Barangay 1',
+        district: 'District 1',
+        city: 'Metro Manila',
+        zipCode: '1000',
+        rdoCode: '043B',
+        accountingType: 'Calendar',
+        fiscalMonthEnd: 12
+      };
+      setBusinessProfile(defaultBiz);
+      localStorage.setItem('capo_business_profile_react', JSON.stringify(defaultBiz));
     }
   }, []);
 
@@ -317,6 +340,34 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     const unsubscribeBiz = onSnapshot(bizRef, (docSnap) => {
       if (docSnap.exists()) {
         setBusinessProfile(docSnap.data() as BusinessProfile);
+      } else {
+        const defaultBiz: BusinessProfile = {
+          id: user.uid,
+          name: user.displayName || user.email?.split('@')[0] || 'My Business Organization',
+          tin: '000-000-000-000',
+          taxpayerClassification: 'Individual',
+          registeredName: user.displayName || user.email?.split('@')[0] || 'My Business Organization',
+          lastName: '',
+          firstName: '',
+          middleName: '',
+          tradeName: 'General Trade/Services',
+          substreet: '',
+          street: 'Main Street',
+          barangay: 'Barangay 1',
+          district: 'District 1',
+          city: 'Metro Manila',
+          zipCode: '1000',
+          rdoCode: '043B',
+          accountingType: 'Calendar',
+          fiscalMonthEnd: 12
+        };
+        setBusinessProfile(defaultBiz);
+        setDoc(bizRef, {
+          ...defaultBiz,
+          updatedAt: serverTimestamp()
+        }, { merge: true }).catch(err => {
+          console.error("Auto-syncing default business_profile doc failed:", err);
+        });
       }
     }, (error) => {
       console.error("Business profile sync error:", error);

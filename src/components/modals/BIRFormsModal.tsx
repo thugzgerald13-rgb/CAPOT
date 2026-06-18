@@ -252,6 +252,13 @@ export function BIRFormsModal() {
     }
   }, [activeModal, historyTab]);
 
+  // Automatically select 'client_owner' if no active client is selected
+  useEffect(() => {
+    if ((activeModal === 'bir-forms' || activeModal?.startsWith('bir-')) && !currentClientId) {
+      setCurrentClientId('client_owner');
+    }
+  }, [activeModal, currentClientId, setCurrentClientId]);
+
   // Automatically initialize BIR compliance deadlines for the selected active client
   useEffect(() => {
     if (currentClient) {
