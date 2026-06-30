@@ -388,7 +388,9 @@ export function ExtraModals() {
             </div>
             
              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-              {Object.values(clients).map((client: Client) => (
+              {Object.values(clients)
+                .filter((client: Client) => client.id !== 'client_owner')
+                .map((client: Client) => (
                 <div
                   key={client.id}
                   className={`p-4 rounded-xl border text-left flex flex-col gap-2 transition-all ${currentClientId === client.id ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 shadow-md ring-2 ring-blue-500/20' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-blue-400'}`}

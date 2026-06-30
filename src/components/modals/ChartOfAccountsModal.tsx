@@ -858,6 +858,129 @@ export function ChartOfAccountsModal() {
           </div>
         )}
 
+        {editingId !== null && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl w-full max-w-md shadow-2xl border border-slate-200 dark:border-slate-700">
+              <div className="flex justify-between items-center mb-5">
+                <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">
+                  Edit Account Details
+                </h3>
+                <button 
+                  onClick={() => setEditingId(null)}
+                  className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg text-slate-400"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <div className="flex flex-col gap-4 mb-6 max-h-[50vh] overflow-y-auto pr-1">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Account Code</label>
+                  <input 
+                    type="text" 
+                    value={editCode} 
+                    onChange={e => setEditCode(e.target.value.replace(/[^0-9A-Za-z_-]/g, ''))} 
+                    className="w-full form-input font-mono"
+                    placeholder="e.g. 1000 or COH-1000"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Account Name</label>
+                  <input 
+                    type="text" 
+                    value={editName} 
+                    onChange={e => setEditName(e.target.value)} 
+                    className="w-full form-input"
+                    placeholder="e.g. Cash in Bank"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Account Type</label>
+                  <select 
+                    value={editType} 
+                    onChange={e => setEditType(e.target.value)} 
+                    className="w-full form-input"
+                  >
+                    {ACCOUNT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Parent Account (Optional)</label>
+                  <select
+                    value={editParentId}
+                    onChange={e => setEditParentId(e.target.value)}
+                    className="w-full form-input"
+                  >
+                    <option value="">None (Top-Level Account)</option>
+                    {editParentCandidates.map(p => (
+                      <option key={p.id} value={p.id}>{p.name} ({p.id})</option>
+                    ))}
+                  </select>
+                </div>
+
+                {coaColumns.some(col => col.id === 'subType') && SUBTYPES_BY_TYPE[editType]?.length > 0 && (
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Sub-Type</label>
+                    <select 
+                      value={editSubType} 
+                      onChange={e => setEditSubType(e.target.value)} 
+                      className="w-full form-input"
+                    >
+                      {SUBTYPES_BY_TYPE[editType].map(st => <option key={st} value={st}>{st}</option>)}
+                    </select>
+                  </div>
+                )}
+
+                {coaColumns.some(col => col.id === 'normalSide') && (
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Normal Entry</label>
+                    <select 
+                      value={editNormalSide} 
+                      onChange={e => setEditNormalSide(e.target.value as 'debit' | 'credit')} 
+                      className="w-full form-input capitalize"
+                    >
+                      <option value="debit">debit</option>
+                      <option value="credit">credit</option>
+                    </select>
+                  </div>
+                )}
+
+                {/* Dynamically Render Custom Columns / Categories */}
+                {coaColumns.filter(col => !col.isSystem && col.id !== 'subType' && col.id !== 'normalSide').map(col => (
+                  <div key={col.id}>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">{col.name}</label>
+                    <input 
+                      type="text" 
+                      value={editCustomValues[col.id] || ''} 
+                      onChange={e => setEditCustomValues({
+                        ...editCustomValues,
+                        [col.id]: e.target.value
+                      })} 
+                      placeholder={`Enter ${col.name}`}
+                      className="w-full form-input text-xs"
+                    />
+                  </div>
+                ))}
+              </div>
+              
+              <div className="flex gap-3 justify-end pt-4 border-t border-slate-100 dark:border-slate-700">
+                <button 
+                  onClick={() => setEditingId(null)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 font-bold rounded-xl text-xs transition-colors"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={() => handleSaveEdit(editingId)}
+                  className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl text-xs transition-colors shadow-sm"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Swapping Active Banner */}
         {swappingId && (
           <div className="flex justify-between items-center bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 p-4 rounded-xl mb-4 text-xs font-semibold text-indigo-800 dark:text-indigo-200 shadow-sm animate-pulse">
@@ -943,129 +1066,7 @@ export function ChartOfAccountsModal() {
                   </tr>
                 ) : (
                   filteredAccounts.map(account => {
-                    const isEditing = editingId === account.id;
                     const balanceValue = getAccountBalance(account);
-
-                    if (isEditing) {
-                      return (
-                        <tr key={account.id} className="bg-blue-50/50 dark:bg-slate-800/30">
-                          {coaColumns.map(col => {
-                            if (col.id === 'id') {
-                              return (
-                                <td key={col.id} className="px-4 py-3">
-                                  <input 
-                                    type="text" 
-                                    value={editCode} 
-                                    onChange={e => setEditCode(e.target.value.replace(/[^0-9A-Za-z_-]/g, ''))}
-                                    className="w-full form-input py-1 px-2 text-xs font-mono"
-                                  />
-                                </td>
-                              );
-                            }
-                            if (col.id === 'name') {
-                              return (
-                                <td key={col.id} className="px-4 py-3">
-                                  <input 
-                                    type="text" 
-                                    value={editName} 
-                                    onChange={e => setEditName(e.target.value)} 
-                                    className="w-full form-input py-1 px-2 text-xs mb-1.5"
-                                  />
-                                  <div className="flex items-center gap-1">
-                                    <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase shrink-0">Parent:</span>
-                                    <select
-                                      value={editParentId}
-                                      onChange={e => setEditParentId(e.target.value)}
-                                      className="text-[10px] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-1.5 py-0.5 max-w-[200px] outline-none font-medium text-slate-700 dark:text-slate-300"
-                                    >
-                                      <option value="">None (Top-Level)</option>
-                                      {editParentCandidates.map(p => (
-                                        <option key={p.id} value={p.id}>{p.name} ({p.id})</option>
-                                      ))}
-                                    </select>
-                                  </div>
-                                </td>
-                              );
-                            }
-                            if (col.id === 'type') {
-                              return (
-                                <td key={col.id} className="px-4 py-3">
-                                  <select 
-                                    value={editType} 
-                                    onChange={e => setEditType(e.target.value)} 
-                                    className="w-full form-input py-1 px-1 text-xs"
-                                  >
-                                    {ACCOUNT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                                  </select>
-                                </td>
-                              );
-                            }
-                            if (col.id === 'subType') {
-                              return (
-                                <td key={col.id} className="px-4 py-3">
-                                  {SUBTYPES_BY_TYPE[editType]?.length > 0 ? (
-                                    <select 
-                                      value={editSubType} 
-                                      onChange={e => setEditSubType(e.target.value)} 
-                                      className="w-full form-input py-1 px-1 text-xs"
-                                    >
-                                      {SUBTYPES_BY_TYPE[editType].map(st => <option key={st} value={st}>{st}</option>)}
-                                    </select>
-                                  ) : (
-                                    <span className="text-xs text-slate-400 dark:text-slate-500 italic">None</span>
-                                  )}
-                                </td>
-                              );
-                            }
-                            if (col.id === 'normalSide') {
-                              return (
-                                <td key={col.id} className="px-4 py-3">
-                                  <select 
-                                    value={editNormalSide} 
-                                    onChange={e => setEditNormalSide(e.target.value as 'debit' | 'credit')} 
-                                    className="w-full form-input py-1 px-1 text-xs capitalize"
-                                  >
-                                    <option value="debit">debit</option>
-                                    <option value="credit">credit</option>
-                                  </select>
-                                </td>
-                              );
-                            }
-                            // Custom editable categories
-                            return (
-                              <td key={col.id} className="px-4 py-3">
-                                <input 
-                                  type="text" 
-                                  value={editCustomValues[col.id] || ''} 
-                                  onChange={e => setEditCustomValues({
-                                    ...editCustomValues,
-                                    [col.id]: e.target.value
-                                  })} 
-                                  className="w-full form-input py-1 px-2 text-xs"
-                                  placeholder={`Enter ${col.name}`}
-                                />
-                              </td>
-                            );
-                          })}
-                          <td className="px-4 py-3 text-right flex items-center justify-end gap-1.5 pt-4">
-                            <button 
-                              onClick={() => handleSaveEdit(account.id)}
-                              className="p-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition-colors"
-                              title="Save changes"
-                            >
-                              <Check className="w-3.5 h-3.5" />
-                            </button>
-                            <button 
-                              onClick={() => setEditingId(null)}
-                              className="p-1.5 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-300"
-                              title="Cancel"
-                            >
-                              <X className="w-3.5 h-3.5" />
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    }
 
                     const parentAccount = account.parentId ? accounts.find(a => a.id === account.parentId) : null;
 
