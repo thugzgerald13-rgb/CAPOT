@@ -182,7 +182,20 @@ export function generateStandardDeadlines(year: number): TaxDeadline[] {
 }
 
 export function BIRFormsModal() {
-  const { currentClient, currentClientId, setCurrentClientId, clients, businessProfile, activeModal, openModal, historyTab, saveClient } = useAccounting();
+  const { currentClient, currentClientId, setCurrentClientId, clients, businessProfile, activeModal, openModal, historyTab, saveClient, currentDat } = useAccounting();
+
+  // Dynamically determine today's simulated date
+  const getSimulatedToday = () => {
+    if (currentDat) {
+      const mm = String(currentDat.month).padStart(2, '0');
+      return `${currentDat.year}-${mm}-16`;
+    }
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
 
   // Active form choice: '2550Q' | '1701Q' | '2551Q' | '1601-C' | '0619-E' | '1601-EQ' | 'tracker'
   const [activeFormType, setActiveFormType] = useState<'2550Q' | '1701Q' | '2551Q' | '1601-C' | '0619-E' | '1601-EQ' | 'tracker'>('tracker');
@@ -198,10 +211,15 @@ export function BIRFormsModal() {
 
   // Filing logging detail states
   const [editingDeadlineId, setEditingDeadlineId] = useState<string | null>(null);
-  const [filingDate, setFilingDate] = useState<string>('2026-06-16');
+  const [filingDate, setFilingDate] = useState<string>(getSimulatedToday());
   const [filingAmount, setFilingAmount] = useState<string>('');
   const [filingRef, setFilingRef] = useState<string>('');
   const [filingNotes, setFilingNotes] = useState<string>('');
+
+  // Sync default filing date with simulated today when currentDat changes
+  useEffect(() => {
+    setFilingDate(getSimulatedToday());
+  }, [currentDat]);
 
   // Manual Overrides / Inputs
   // 1. VAT General Form overrides (2550Q)
@@ -559,7 +577,7 @@ export function BIRFormsModal() {
   // Overdue status check
   const isDeadlineOverdue = (dueDateStr: string, status: string) => {
     if (status === 'Filed') return false;
-    const today = new Date('2026-06-16'); // Today's simulated date
+    const today = new Date(getSimulatedToday());
     const due = new Date(dueDateStr);
     return due < today;
   };
@@ -2088,7 +2106,7 @@ export function BIRFormsModal() {
                       <div className="text-[10px] uppercase font-black tracking-widest text-emerald-200">Compliance Adherence Rate</div>
                       <div className="text-3xl font-black mt-1 text-white">{trackerMetrics.complianceRate}%</div>
                       <div className="w-full bg-white/20 h-1.5 rounded-full mt-2 overflow-hidden">
-                        <div className="bg-emerald-355 bg-emerald-300 h-full transition-all duration-500" style={{ width: `${trackerMetrics.complianceRate}%` }}></div>
+                        <div className="bg-emerald-500 h-full transition-all duration-500" style={{ width: `${trackerMetrics.complianceRate}%` }}></div>
                       </div>
                       <div className="text-[10px] text-emerald-100 font-bold mt-1.5">{trackerMetrics.completed} of {trackerMetrics.total} filings successfully logged</div>
                     </div>
@@ -2127,7 +2145,7 @@ export function BIRFormsModal() {
 
                   {/* Metric Card 3: Overdue Filings */}
                   <div className="bg-white dark:bg-slate-800/40 p-5 rounded-2xl border border-slate-100 dark:border-slate-800/80 flex items-center gap-4 shadow-sm">
-                    <div className={`p-3 rounded-xl ${trackerMetrics.overdue > 0 ? 'bg-rose-50 dark:bg-rose-950/20 text-rose-600 dark:text-rose-455 animate-pulse' : 'bg-slate-50 dark:bg-slate-800 text-slate-400'}`}>
+                    <div className={`p-3 rounded-xl ${trackerMetrics.overdue > 0 ? 'bg-rose-50 dark:bg-rose-950/20 text-rose-600 dark:text-rose-400 animate-pulse' : 'bg-slate-50 dark:bg-slate-800 text-slate-400'}`}>
                       <AlertCircle className="w-6 h-6" />
                     </div>
                     <div>
@@ -2145,7 +2163,7 @@ export function BIRFormsModal() {
                   <div className="flex items-center justify-between">
                     <div>
                       <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-wider">BIR Filing Deadlines Schedule</h3>
-                      <p className="text-[10px] text-slate-555 mt-0.5">Showing matching schedule items based on active criteria</p>
+                      <p className="text-[10px] text-slate-500 mt-0.5">Showing matching schedule items based on active criteria</p>
                     </div>
                     <span className="text-xs bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-200 px-3 py-1 rounded-xl font-bold">
                       {filteredDeadlines.length} Filings Listed
@@ -2154,11 +2172,11 @@ export function BIRFormsModal() {
 
                   {filteredDeadlines.length === 0 ? (
                     <div className="text-center p-12 py-16 bg-slate-50 dark:bg-slate-900/40 border border-dashed border-slate-200 dark:border-slate-850 rounded-2xl">
-                      <div className="mx-auto w-12 h-12 rounded-full bg-slate-150/40 dark:bg-slate-800 flex items-center justify-center text-slate-400 mb-3">
+                      <div className="mx-auto w-12 h-12 rounded-full bg-slate-100/40 dark:bg-slate-800 flex items-center justify-center text-slate-400 mb-3">
                         <Calendar className="w-5 h-5" />
                       </div>
-                      <p className="text-xs font-bold text-slate-755 dark:text-slate-300">No BIR Deadlines Match Your Filter</p>
-                      <p className="text-[10px] text-slate-555 mt-1">Try adjusting the search query or status filter in the sidebar configurations.</p>
+                      <p className="text-xs font-bold text-slate-700 dark:text-slate-300">No BIR Deadlines Match Your Filter</p>
+                      <p className="text-[10px] text-slate-500 mt-1">Try adjusting the search query or status filter in the sidebar configurations.</p>
                     </div>
                   ) : (
                     <div className="space-y-4">
@@ -2174,7 +2192,7 @@ export function BIRFormsModal() {
                                 ? 'bg-white dark:bg-slate-900/10 border-slate-200/65 dark:border-slate-800/65 shadow-sm opacity-95'
                                 : deadline.status === 'Overdue'
                                   ? 'bg-rose-50/15 dark:bg-rose-950/5 border-rose-300 dark:border-rose-900/45 shadow-sm'
-                                  : 'bg-white dark:bg-slate-900/20 border-slate-205 dark:border-slate-805 shadow-sm'
+                                  : 'bg-white dark:bg-slate-900/20 border-slate-200 dark:border-slate-800 shadow-sm'
                             }`}
                           >
                             <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
@@ -2317,7 +2335,7 @@ export function BIRFormsModal() {
                                 <div className="flex items-center gap-2 justify-end">
                                   <button
                                     onClick={() => setEditingDeadlineId(null)}
-                                    className="px-4 py-2 border border-slate-250 dark:border-slate-750 text-slate-650 dark:text-slate-350 text-xs font-bold hover:bg-slate-100 rounded-xl transition"
+                                    className="px-4 py-2 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition"
                                   >
                                     Cancel
                                   </button>
@@ -2346,7 +2364,7 @@ export function BIRFormsModal() {
                                 <div className="flex items-center gap-2">
                                   <button
                                     onClick={() => {
-                                      setFilingDate(deadline.dateFiled || '2026-06-16');
+                                      setFilingDate(deadline.dateFiled || getSimulatedToday());
                                       setFilingAmount(deadline.amountDue?.toString() || '');
                                       setFilingRef(deadline.referenceNo || '');
                                       setFilingNotes(deadline.notes || '');
@@ -2384,7 +2402,7 @@ export function BIRFormsModal() {
                                     </button>
                                     <button
                                       onClick={() => {
-                                        setFilingDate('2026-06-16');
+                                        setFilingDate(getSimulatedToday());
                                         setFilingAmount(recEstimate.toString());
                                         setFilingRef('');
                                         setFilingNotes('Filed successfully in compliance with BIR schedule.');
@@ -2398,7 +2416,7 @@ export function BIRFormsModal() {
                                       onClick={() => {
                                         handleUpdateDeadlineStatus(deadline.id, {
                                           status: 'Filed',
-                                          dateFiled: '2026-06-16',
+                                          dateFiled: getSimulatedToday(),
                                           amountDue: recEstimate,
                                           referenceNo: `eFPS-${Math.floor(Math.random() * 900000 + 100000)}`,
                                           notes: `Auto-recorded inline based on dynamic compiler compilation.`
