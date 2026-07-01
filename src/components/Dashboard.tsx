@@ -56,9 +56,9 @@ export function Dashboard() {
         transition={{ delay: 0.3 }}
         className="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col gap-2 relative overflow-hidden"
       >
-        <div className="absolute -right-4 -top-4 w-24 h-24 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center opacity-50 blur-xl"></div>
+        <div className={`absolute -right-4 -top-4 w-24 h-24 rounded-full flex items-center justify-center opacity-50 blur-xl ${grossProfit >= 0 ? 'bg-emerald-100 dark:bg-emerald-900/30' : 'bg-rose-100 dark:bg-rose-900/30'}`}></div>
         <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 font-semibold text-xs tracking-wider uppercase mb-1">
-          <DollarSign className="w-4 h-4 text-blue-500" /> Gross Profit
+          <DollarSign className={`w-4 h-4 ${grossProfit >= 0 ? 'text-emerald-500' : 'text-rose-500'}`} /> {grossProfit >= 0 ? 'Profit' : 'Loss'}
         </div>
         <div className="text-3xl font-extrabold text-slate-900 dark:text-white">
           {formatCurrency(grossProfit)}
