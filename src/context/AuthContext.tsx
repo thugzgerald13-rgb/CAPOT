@@ -27,7 +27,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRoleState] = useState<string | null>(null);
 
-  // Hardcode the developer's email as superuser for now (mirrors prior Firebase logic)
+  // Hardcode the developer's email as superuser for now
   const DEVELOPER_EMAIL = 'thugz.gerald13@gmail.com';
   const isAdmin = user?.email === DEVELOPER_EMAIL;
 
