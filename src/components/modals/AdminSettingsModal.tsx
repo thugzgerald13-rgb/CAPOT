@@ -3,8 +3,7 @@ import { ShieldAlert, Download, Users, RefreshCw, Mail, Calendar } from 'lucide-
 import { Modal } from '../ui/Modal';
 import { useAccounting } from '../../context/AccountingContext';
 import { useAuth } from '../../context/AuthContext';
-import { db } from '../../lib/firebase';
-import { collection, getDocs, query, orderBy } from 'firebase/firestore';
+import { supabase } from '../../lib/supabase';
 
 interface UserProfile {
   uid: string;
@@ -24,9 +23,19 @@ export function AdminSettingsModal() {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const q = query(collection(db, 'users'), orderBy('updatedAt', 'desc'));
-      const snapshot = await getDocs(q);
-      const userList = snapshot.docs.map(doc => doc.data() as UserProfile);
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, email, display_name, user_role, last_login, updated_at')
+        .order('updated_at', { ascending: false });
+      if (error) throw error;
+      const userList = (data || []).map((row) => ({
+        uid: row.id,
+        email: row.email,
+        displayName: row.display_name,
+        userRole: row.user_role,
+        lastLogin: row.last_login,
+        updatedAt: row.updated_at,
+      })) as UserProfile[];
       setUsers(userList);
     } catch (err) {
       console.error("Error fetching users:", err);
@@ -160,7 +169,7 @@ export function AdminSettingsModal() {
               {currentClient ? currentClient.id : 'No client selected'}
             </p>
             <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
-              Data structure is currently stored in LocalStorage but will soon migrate to Firestore under `/clients/${currentClient?.id || 'CLIENT_ID'}`.
+              Data is synced to Supabase Postgres under `clients` (row id = `${currentClient?.id || 'CLIENT_ID'}`), with LocalStorage as an offline fallback.
             </p>
           </div>
 
@@ -172,11 +181,11 @@ export function AdminSettingsModal() {
             </div>
             <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 mt-2">
               <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></span>
-              Firebase Auth Active
+              Supabase Auth Active
             </div>
             <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 mt-2">
-              <span className="w-2 h-2 rounded-full bg-slate-400"></span>
-              Firestore Migration Pending
+              <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></span>
+              Supabase Postgres Sync Active
             </div>
           </div>
         </div>

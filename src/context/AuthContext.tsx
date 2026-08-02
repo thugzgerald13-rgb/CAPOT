@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User, onAuthStateChanged, signOut as firebaseSignOut } from 'firebase/auth';
-import { auth, db } from '../lib/firebase';
-import { doc, setDoc, serverTimestamp, getDoc } from 'firebase/firestore';
+import type { User } from '@supabase/supabase-js';
+import { supabase } from '../lib/supabase';
 
 interface AuthContextType {
   user: User | null;
@@ -33,72 +32,84 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const isAdmin = user?.email === DEVELOPER_EMAIL;
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (usr) => {
-      setUser(usr);
-      if (usr) {
-        // We wrap the sync in a way that it doesn't block the UI loading if Firestore hangs
-        const syncUser = async () => {
-          try {
-            const userRef = doc(db, 'users', usr.uid);
-            const savedRole = localStorage.getItem(`user_role_${usr.uid}`);
-            
-            // Move sync logic to background or use a timeout if it blocks
-            // Note: setDoc in Firestore can hang if connection is bad and no offline persistence is enabled
-            await setDoc(userRef, {
-              uid: usr.uid,
-              email: usr.email,
-              displayName: usr.displayName,
-              photoURL: usr.photoURL,
-              lastLogin: serverTimestamp(),
-              updatedAt: serverTimestamp(),
-              ...(savedRole ? { userRole: savedRole } : {})
-            }, { merge: true });
+    const syncUser = async (usr: User) => {
+      try {
+        const savedRole = localStorage.getItem(`user_role_${usr.id}`);
 
-            const userDoc = await getDoc(userRef);
-            const firestoreRole = userDoc.data()?.userRole;
-            if (firestoreRole) {
-              setUserRoleState(firestoreRole);
-              localStorage.setItem(`user_role_${usr.uid}`, firestoreRole);
-            } else {
-              setUserRoleState(savedRole);
-            }
-          } catch (error) {
-            console.error("Auth sync error:", error);
-            const savedRole = localStorage.getItem(`user_role_${usr.uid}`);
-            setUserRoleState(savedRole);
-          }
-        };
+        // Upsert the profile row; doesn't block the UI if this is slow
+        await supabase.from('profiles').upsert(
+          {
+            id: usr.id,
+            email: usr.email,
+            display_name: usr.user_metadata?.full_name ?? usr.user_metadata?.name ?? null,
+            photo_url: usr.user_metadata?.avatar_url ?? null,
+            last_login: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            ...(savedRole ? { user_role: savedRole } : {}),
+          },
+          { onConflict: 'id' }
+        );
 
-        // Run sync but don't strictly await it before clearing the loading state 
-        // to prevent being stuck on loading screen if Firestore hangs
-        syncUser();
+        const { data } = await supabase.from('profiles').select('user_role').eq('id', usr.id).single();
+        const dbRole = data?.user_role;
+        if (dbRole) {
+          setUserRoleState(dbRole);
+          localStorage.setItem(`user_role_${usr.id}`, dbRole);
+        } else {
+          setUserRoleState(savedRole);
+        }
+      } catch (error) {
+        console.error('Auth sync error:', error);
+        const savedRole = localStorage.getItem(`user_role_${usr.id}`);
+        setUserRoleState(savedRole);
+      }
+    };
+
+    // Load whatever session exists on first mount
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        syncUser(session.user);
+      }
+      setLoading(false);
+    });
+
+    // Keep in sync with sign-in / sign-out / token refresh events
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        syncUser(session.user);
       } else {
         setUserRoleState(null);
       }
       setLoading(false);
     });
-    return unsubscribe;
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const setUserRole = async (role: string | null) => {
     if (user) {
       try {
-        const userRef = doc(db, 'users', user.uid);
         if (role) {
-          localStorage.setItem(`user_role_${user.uid}`, role);
-          await setDoc(userRef, { userRole: role, updatedAt: serverTimestamp() }, { merge: true });
+          localStorage.setItem(`user_role_${user.id}`, role);
+          await supabase
+            .from('profiles')
+            .upsert({ id: user.id, user_role: role, updated_at: new Date().toISOString() }, { onConflict: 'id' });
         } else {
-          localStorage.removeItem(`user_role_${user.uid}`);
+          localStorage.removeItem(`user_role_${user.id}`);
         }
       } catch (error) {
-        console.error("Set role error:", error);
+        console.error('Set role error:', error);
       }
     }
     setUserRoleState(role);
   };
 
   const signOut = async () => {
-    await firebaseSignOut(auth);
+    await supabase.auth.signOut();
   };
 
   return (

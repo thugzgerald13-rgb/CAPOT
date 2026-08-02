@@ -15,6 +15,13 @@ View your app in AI Studio: https://ai.studio/apps/52f2e039-a5f2-44bd-8c31-450a6
 
 1. Install dependencies:
    `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
+2. Copy `.env.example` to `.env.local` and set:
+   - `GEMINI_API_KEY` — your Gemini API key
+   - `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` — from your Supabase project (Project Settings > API)
+3. In your Supabase project, enable the **Google** provider under Authentication > Providers if you want Google sign-in to work
+4. Run the app:
    `npm run dev`
+
+## Backend
+
+Auth and data storage run on [Supabase](https://supabase.com) (Postgres + Auth + Realtime). Schema lives in three tables: `profiles`, `clients`, and `business_profiles`, each protected by Row Level Security so users can only read/write their own rows.

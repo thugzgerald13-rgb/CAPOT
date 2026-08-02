@@ -1,21 +1,9 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Client, BusinessProfile, DatSelection } from '../types';
-import { db, auth } from '../lib/firebase';
-import { 
-  collection, 
-  query, 
-  where, 
-  onSnapshot, 
-  doc, 
-  setDoc, 
-  serverTimestamp, 
-  writeBatch,
-  getDocs,
-  getDoc,
-  deleteDoc
-} from 'firebase/firestore';
+import { supabase } from '../lib/supabase';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 import { useAuth } from './AuthContext';
-import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
+import { handleSupabaseError, OperationType } from '../lib/supabaseUtils';
 
 interface AccountingContextType {
   clients: Record<string, Client>;
@@ -31,14 +19,14 @@ interface AccountingContextType {
   isSyncing: boolean;
   syncError: string | null;
   syncData: () => Promise<void>;
-  
+
   setDarkMode: (value: boolean) => void;
   openModal: (modal: string | null) => void;
   setPendingModal: (modal: string | null) => void;
   setHistoryTab: (tab: string) => void;
   setCurrentClientId: (id: string) => void;
   setCurrentDat: (dat: DatSelection | null) => void;
-  
+
   saveClient: (id: string, clientData: Client) => Promise<void>;
   addClient: (name: string) => Promise<void>;
   deleteClient: (id: string) => Promise<void>;
@@ -54,6 +42,61 @@ const AccountingContext = createContext<AccountingContextType | undefined>(undef
 const LOCAL_STORAGE_KEY = 'capo_accounting_v14_react';
 const OLD_STORAGE_KEY = 'capo_accounting_v13_react';
 
+const defaultBusinessProfile = (name: string): BusinessProfile => ({
+  id: 'client_owner',
+  name,
+  tin: '000-000-000-000',
+  taxpayerClassification: 'Individual',
+  registeredName: name,
+  lastName: '',
+  firstName: '',
+  middleName: '',
+  tradeName: 'General Trade/Services',
+  substreet: '',
+  street: 'Main Street',
+  barangay: 'Barangay 1',
+  district: 'District 1',
+  city: 'Metro Manila',
+  zipCode: '1000',
+  rdoCode: '043B',
+  accountingType: 'Calendar',
+  fiscalMonthEnd: 12,
+});
+
+const buildMatchingClient = (profileData: BusinessProfile, existing: Client | undefined): Client =>
+  ({
+    id: 'client_owner',
+    name: profileData.name,
+    tin: profileData.tin || '',
+    taxpayerClassification: profileData.taxpayerClassification || '',
+    registeredName: profileData.registeredName || profileData.name,
+    lastName: profileData.lastName || '',
+    firstName: profileData.firstName || '',
+    middleName: profileData.middleName || '',
+    tradeName: profileData.tradeName || '',
+    substreet: profileData.substreet || '',
+    street: profileData.street || '',
+    barangay: profileData.barangay || '',
+    district: profileData.district || '',
+    city: profileData.city || '',
+    zipCode: profileData.zipCode || '',
+    rdoCode: profileData.rdoCode || '',
+    accountingType: profileData.accountingType || 'Calendar',
+    fiscalMonthEnd: profileData.fiscalMonthEnd || 12,
+    tinLibrary: existing?.tinLibrary || { customers: [], suppliers: [] },
+    sales: existing?.sales || [],
+    purchases: existing?.purchases || [],
+    expenses: existing?.expenses || [],
+    folders: existing?.folders || [
+      { id: 'folder_revenue', name: 'Revenue', isDefault: true, type: 'revenue' },
+      { id: 'folder_expense', name: 'Expense', isDefault: true, type: 'expense' },
+    ],
+    files: existing?.files || [],
+    payableInvoices: existing?.payableInvoices || [],
+    withholdingTaxEntries: existing?.withholdingTaxEntries || [],
+    taxDeadlines: existing?.taxDeadlines || [],
+  }) as unknown as Client;
+
 export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, userRole } = useAuth();
   const [clients, setClients] = useState<Record<string, Client>>({});
@@ -65,7 +108,7 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [currentDat, setCurrentDat] = useState<DatSelection | null>(null);
   const [historyTab, setHistoryTab] = useState('expenses');
   const [toastMsg, setToastMsg] = useState<string | null>(null);
-  
+
   // Device Adaptations state
   const [activeDevice, setActiveDevice] = useState<'mobile' | 'tablet' | 'desktop'>('desktop');
 
@@ -92,50 +135,42 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const syncData = async () => {
     if (!user || !isReady) return;
     setIsSyncing(true);
-    
+
     const keysToMigrate = [LOCAL_STORAGE_KEY, OLD_STORAGE_KEY];
     let totalMigrated = 0;
-    
+
     try {
       for (const key of keysToMigrate) {
         const saved = localStorage.getItem(key);
         if (!saved) continue;
-        
+
         const localData = JSON.parse(saved) as Record<string, Client>;
         const localIds = Object.keys(localData);
         if (localIds.length === 0) continue;
 
         console.log(`Manual sync: migrating ${key}...`);
-        const batch = writeBatch(db);
-        let count = 0;
+        const rows = localIds.map((id) => ({
+          id,
+          user_id: user.id,
+          data: localData[id],
+          updated_at: new Date().toISOString(),
+        }));
 
-        for (const id of localIds) {
-          const client = localData[id];
-          const clientRef = doc(db, 'clients', id);
-          
-          batch.set(clientRef, {
-            ...client,
-            userId: user.uid,
-            updatedAt: serverTimestamp()
-          }, { merge: true });
-          count++;
-        }
-        
-        if (count > 0) {
-          await batch.commit();
-          totalMigrated += count;
-          localStorage.removeItem(key);
-        }
+        const { error } = await supabase.from('clients').upsert(rows, { onConflict: 'id' });
+        if (error) throw error;
+
+        totalMigrated += rows.length;
+        localStorage.removeItem(key);
       }
-      
+
       if (totalMigrated > 0) {
         showToast(`Successfully synced ${totalMigrated} items to cloud`);
       } else {
-        showToast("Cloud sync complete (no new local changes found)");
+        showToast('Cloud sync complete (no new local changes found)');
       }
     } catch (e) {
-      console.error("Manual sync failed", e);
-      showToast("Sync failed. Check console for details.");
+      console.error('Manual sync failed', e);
+      showToast('Sync failed. Check console for details.');
     } finally {
       setIsSyncing(false);
     }
@@ -163,10 +198,12 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     if (user && isReady) {
       const syncPref = async () => {
         try {
-          const userRef = doc(db, 'users', user.uid);
-          await setDoc(userRef, { isDarkMode, updatedAt: serverTimestamp() }, { merge: true });
+          const { error } = await supabase
+            .from('profiles')
+            .upsert({ id: user.id, is_dark_mode: isDarkMode, updated_at: new Date().toISOString() }, { onConflict: 'id' });
+          if (error) throw error;
         } catch (e) {
-          console.error("Failed to sync theme pref", e);
+          console.error('Failed to sync theme pref', e);
         }
       };
       syncPref();
@@ -178,16 +215,17 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     const loadCloudPrefs = async () => {
       if (user && isReady) {
         try {
-          const userRef = doc(db, 'users', user.uid);
-          const docSnap = await getDoc(userRef);
-          if (docSnap.exists()) {
-            const data = docSnap.data();
-            if (typeof data.isDarkMode === 'boolean') {
-              setDarkMode(data.isDarkMode);
-            }
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('is_dark_mode')
+            .eq('id', user.id)
+            .maybeSingle();
+          if (error) throw error;
+          if (data && typeof data.is_dark_mode === 'boolean') {
+            setDarkMode(data.is_dark_mode);
           }
         } catch (e) {
-          console.error("Failed to load theme pref", e);
+          console.error('Failed to load theme pref', e);
         }
       }
     };
@@ -204,7 +242,7 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         const keys = Object.keys(parsed);
         if (keys.length > 0) setCurrentClientId(keys[0]);
       } catch (e) {
-        console.error("Local storage parse error on startup", e);
+        console.error('Local storage parse error on startup', e);
       }
     }
     const savedBiz = localStorage.getItem('capo_business_profile_react');
@@ -213,170 +251,183 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         setBusinessProfile(JSON.parse(savedBiz));
       } catch (e) {}
     } else {
-      const defaultBiz: BusinessProfile = {
-        id: 'client_owner',
-        name: 'My Business Organization',
-        tin: '000-000-000-000',
-        taxpayerClassification: 'Individual',
-        registeredName: 'My Business Organization',
-        lastName: '',
-        firstName: '',
-        middleName: '',
-        tradeName: 'General Trade/Services',
-        substreet: '',
-        street: 'Main Street',
-        barangay: 'Barangay 1',
-        district: 'District 1',
-        city: 'Metro Manila',
-        zipCode: '1000',
-        rdoCode: '043B',
-        accountingType: 'Calendar',
-        fiscalMonthEnd: 12
-      };
+      const defaultBiz = defaultBusinessProfile('My Business Organization');
       setBusinessProfile(defaultBiz);
       localStorage.setItem('capo_business_profile_react', JSON.stringify(defaultBiz));
     }
   }, []);
 
-  // Real-time Firestore Sync & Local Fallback
+  // Real-time Supabase Sync & Local Fallback
   useEffect(() => {
     if (!user) {
       setIsReady(true);
       return;
     }
 
-    // When logged in, listen to Firestore
     setIsSyncing(true);
     setSyncError(null);
-    
+
     let isTimedOut = false;
+    let clientsChannel: RealtimeChannel | null = null;
+    let bizChannel: RealtimeChannel | null = null;
+
     const timeout = setTimeout(() => {
       if (!isReady) {
         isTimedOut = true;
-        setSyncError("Connection timeout. Firestore is taking too long to respond. This usually happens if Firestore is not enabled in your Firebase console or if your internet is slow.");
+        setSyncError(
+          'Connection timeout. Supabase is taking too long to respond. This usually happens if your project is paused or your internet is slow.'
+        );
         setIsSyncing(false);
       }
-    }, 12000); // reduced to 12s for better UX
+    }, 12000);
 
-    const q = query(collection(db, 'clients'), where('userId', '==', user.uid));
-    
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      if (isTimedOut) return;
-      clearTimeout(timeout);
-      const cloudClients: Record<string, Client> = {};
-      snapshot.forEach((docSnap) => {
-        cloudClients[docSnap.id] = docSnap.data() as Client;
-      });
-      
-      // Merge logic: If we have local clients or local chart of accounts changes,
-      // preserve them and ensure local storage has the ultimate backup copy.
-      setClients(prev => {
+    const mergeCloudClients = (cloudClients: Record<string, Client>) => {
+      setClients((prev) => {
         const merged = { ...cloudClients };
-        
-        // Merge from local storage
+
         const keysToCheck = [LOCAL_STORAGE_KEY, OLD_STORAGE_KEY];
-        keysToCheck.forEach(key => {
+        keysToCheck.forEach((key) => {
           const saved = localStorage.getItem(key);
           if (saved) {
             try {
               const localData = JSON.parse(saved) as Record<string, Client>;
-              Object.keys(localData).forEach(id => {
+              Object.keys(localData).forEach((id) => {
                 const localClient = localData[id];
                 if (!merged[id]) {
                   console.log(`Merging local record ${id} from ${key}`);
                   merged[id] = localClient;
                 } else {
-                  // If both cloud and local exist, check if local has custom accounts that cloud lacks
                   const cloudClient = merged[id];
-                  if (localClient.accounts && localClient.accounts.length > 0 && (!cloudClient.accounts || cloudClient.accounts.length === 0)) {
+                  if (
+                    localClient.accounts &&
+                    localClient.accounts.length > 0 &&
+                    (!cloudClient.accounts || cloudClient.accounts.length === 0)
+                  ) {
                     console.log(`Merging local chart of accounts for client ${id}`);
                     merged[id] = {
                       ...cloudClient,
                       accounts: localClient.accounts,
-                      coaFormat: localClient.coaFormat || cloudClient.coaFormat
+                      coaFormat: localClient.coaFormat || cloudClient.coaFormat,
                     };
                   }
                 }
               });
-            } catch(e) {}
+            } catch (e) {}
           }
         });
-        
-        // Always synchronously update local storage with the final state
+
         localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(merged));
         return merged;
       });
-      
-      // Select first client if none selected
-      setClients(currentMerged => {
+
+      setClients((currentMerged) => {
         if (Object.keys(currentMerged).length > 0 && !currentClientId) {
           setCurrentClientId(Object.keys(currentMerged)[0]);
         }
         return currentMerged;
       });
-      
-      setIsSyncing(false);
-      setIsReady(true);
-      setSyncError(null);
-    }, (error) => {
-      clearTimeout(timeout);
-      if (isTimedOut) return;
-      
-      console.error("Sync error:", error);
-      let msg = error instanceof Error ? error.message : String(error);
-      
-      if (msg.includes('permission-denied')) {
-        msg = "Permission denied. Please ensure your Firestore Security Rules are deployed and you are authorized.";
-      } else if (msg.includes('unavailable')) {
-        msg = "Service unavailable. Check your internet connection.";
-      }
-      
-      setSyncError(msg);
-      setIsSyncing(false);
-      setIsReady(true); // Allow skipping to local mode
-    });
+    };
 
-    const bizRef = doc(db, 'business_profiles', user.uid);
-    const unsubscribeBiz = onSnapshot(bizRef, (docSnap) => {
-      if (docSnap.exists()) {
-        setBusinessProfile(docSnap.data() as BusinessProfile);
-      } else {
-        const defaultBiz: BusinessProfile = {
-          id: user.uid,
-          name: user.displayName || user.email?.split('@')[0] || 'My Business Organization',
-          tin: '000-000-000-000',
-          taxpayerClassification: 'Individual',
-          registeredName: user.displayName || user.email?.split('@')[0] || 'My Business Organization',
-          lastName: '',
-          firstName: '',
-          middleName: '',
-          tradeName: 'General Trade/Services',
-          substreet: '',
-          street: 'Main Street',
-          barangay: 'Barangay 1',
-          district: 'District 1',
-          city: 'Metro Manila',
-          zipCode: '1000',
-          rdoCode: '043B',
-          accountingType: 'Calendar',
-          fiscalMonthEnd: 12
-        };
-        setBusinessProfile(defaultBiz);
-        setDoc(bizRef, {
-          ...defaultBiz,
-          updatedAt: serverTimestamp()
-        }, { merge: true }).catch(err => {
-          console.error("Auto-syncing default business_profile doc failed:", err);
+    const initClients = async () => {
+      try {
+        const { data, error } = await supabase.from('clients').select('id, data').eq('user_id', user.id);
+        if (isTimedOut) return;
+        if (error) throw error;
+
+        clearTimeout(timeout);
+        const cloudClients: Record<string, Client> = {};
+        (data || []).forEach((row) => {
+          cloudClients[row.id] = row.data as Client;
         });
+        mergeCloudClients(cloudClients);
+        setIsSyncing(false);
+        setIsReady(true);
+        setSyncError(null);
+
+        // Subscribe to realtime changes so multiple devices stay in sync (replaces onSnapshot)
+        clientsChannel = supabase
+          .channel(`clients-${user.id}`)
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'clients', filter: `user_id=eq.${user.id}` },
+            (payload) => {
+              setClients((prev) => {
+                const next = { ...prev };
+                if (payload.eventType === 'DELETE') {
+                  delete next[(payload.old as any).id];
+                } else {
+                  const row = payload.new as { id: string; data: Client };
+                  next[row.id] = row.data;
+                }
+                localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(next));
+                return next;
+              });
+            }
+          )
+          .subscribe();
+      } catch (error) {
+        clearTimeout(timeout);
+        if (isTimedOut) return;
+
+        console.error('Sync error:', error);
+        let msg = error instanceof Error ? error.message : String(error);
+
+        if (msg.toLowerCase().includes('permission') || msg.toLowerCase().includes('rls')) {
+          msg = 'Permission denied. Please ensure your Supabase Row Level Security policies are deployed and you are authorized.';
+        } else if (msg.toLowerCase().includes('fetch')) {
+          msg = 'Service unavailable. Check your internet connection.';
+        }
+
+        setSyncError(msg);
+        setIsSyncing(false);
+        setIsReady(true); // Allow skipping to local mode
       }
-    }, (error) => {
-      console.error("Business profile sync error:", error);
-    });
+    };
+
+    const initBizProfile = async () => {
+      const { data, error } = await supabase
+        .from('business_profiles')
+        .select('data')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (!error && data) {
+        setBusinessProfile(data.data as BusinessProfile);
+      } else {
+        const defaultBiz = defaultBusinessProfile(
+          (user.user_metadata?.full_name as string) || user.email?.split('@')[0] || 'My Business Organization'
+        );
+        defaultBiz.id = user.id;
+        setBusinessProfile(defaultBiz);
+        await supabase
+          .from('business_profiles')
+          .upsert({ user_id: user.id, data: defaultBiz, updated_at: new Date().toISOString() }, { onConflict: 'user_id' })
+          .then(({ error: upsertErr }) => {
+            if (upsertErr) console.error('Auto-syncing default business_profile doc failed:', upsertErr);
+          });
+      }
+
+      bizChannel = supabase
+        .channel(`biz-profile-${user.id}`)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'business_profiles', filter: `user_id=eq.${user.id}` },
+          (payload) => {
+            if (payload.eventType !== 'DELETE') {
+              setBusinessProfile((payload.new as any).data as BusinessProfile);
+            }
+          }
+        )
+        .subscribe();
+    };
+
+    initClients();
+    initBizProfile();
 
     return () => {
       clearTimeout(timeout);
-      unsubscribe();
-      unsubscribeBiz();
+      clientsChannel?.unsubscribe();
+      bizChannel?.unsubscribe();
     };
   }, [user]);
 
@@ -384,41 +435,32 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   useEffect(() => {
     const migrateData = async () => {
       if (!user || !isReady) return;
-      
+
       const keysToMigrate = [LOCAL_STORAGE_KEY, OLD_STORAGE_KEY];
-      
+
       for (const key of keysToMigrate) {
         const saved = localStorage.getItem(key);
         if (!saved) continue;
-        
+
         try {
           const localData = JSON.parse(saved) as Record<string, Client>;
           const localIds = Object.keys(localData);
           if (localIds.length === 0) continue;
 
           console.log(`Checking for local data in ${key} to migrate...`);
-          const batch = writeBatch(db);
-          let count = 0;
+          const rows = localIds.map((id) => ({
+            id,
+            user_id: user.id,
+            data: localData[id],
+            updated_at: new Date().toISOString(),
+          }));
 
-          for (const id of localIds) {
-            const client = localData[id];
-            const clientRef = doc(db, 'clients', id);
-            
-            // To be safe and respect user's local work, we upsert
-            batch.set(clientRef, {
-              ...client,
-              userId: user.uid,
-              updatedAt: serverTimestamp()
-            }, { merge: true });
-            count++;
-          }
-          
-          if (count > 0) {
-            await batch.commit();
-            console.log(`Successfully migrated ${count} records from ${key} to cloud.`);
-            showToast(`Synced ${count} items to cloud`);
-            localStorage.removeItem(key);
-          }
+          const { error } = await supabase.from('clients').upsert(rows, { onConflict: 'id' });
+          if (error) throw error;
+
+          console.log(`Successfully migrated ${rows.length} records from ${key} to cloud.`);
+          showToast(`Synced ${rows.length} items to cloud`);
+          localStorage.removeItem(key);
         } catch (e) {
           console.error(`Migration failed for ${key}`, e);
         }
@@ -432,65 +474,38 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   useEffect(() => {
     if (businessProfile) {
       const existing = clients['client_owner'];
-      const needsSync = !existing || 
+      const needsSync =
+        !existing ||
         existing.name !== businessProfile.name ||
         existing.tin !== businessProfile.tin ||
         existing.registeredName !== (businessProfile.registeredName || businessProfile.name);
-        
-      if (needsSync) {
-        const matchingClient: Client = {
-          id: 'client_owner',
-          name: businessProfile.name,
-          tin: businessProfile.tin || '',
-          taxpayerClassification: businessProfile.taxpayerClassification || '',
-          registeredName: businessProfile.registeredName || businessProfile.name,
-          lastName: businessProfile.lastName || '',
-          firstName: businessProfile.firstName || '',
-          middleName: businessProfile.middleName || '',
-          tradeName: businessProfile.tradeName || '',
-          substreet: businessProfile.substreet || '',
-          street: businessProfile.street || '',
-          barangay: businessProfile.barangay || '',
-          district: businessProfile.district || '',
-          city: businessProfile.city || '',
-          zipCode: businessProfile.zipCode || '',
-          rdoCode: businessProfile.rdoCode || '',
-          accountingType: businessProfile.accountingType || 'Calendar',
-          fiscalMonthEnd: businessProfile.fiscalMonthEnd || 12,
-          tinLibrary: existing?.tinLibrary || { customers: [], suppliers: [] },
-          sales: existing?.sales || [],
-          purchases: existing?.purchases || [],
-          expenses: existing?.expenses || [],
-          folders: existing?.folders || [
-            { id: 'folder_revenue', name: 'Revenue', isDefault: true, type: 'revenue' },
-            { id: 'folder_expense', name: 'Expense', isDefault: true, type: 'expense' }
-          ],
-          files: existing?.files || [],
-          payableInvoices: existing?.payableInvoices || [],
-          withholdingTaxEntries: existing?.withholdingTaxEntries || [],
-          taxDeadlines: existing?.taxDeadlines || []
-        } as unknown as Client;
 
-        setClients(prev => {
+      if (needsSync) {
+        const matchingClient = buildMatchingClient(businessProfile, existing);
+
+        setClients((prev) => {
           const next = {
             ...prev,
-            client_owner: matchingClient
+            client_owner: matchingClient,
           };
           localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(next));
           return next;
         });
-        
+
         if (!currentClientId) {
           setCurrentClientId('client_owner');
         }
 
         if (user && isReady) {
-          const clientRef = doc(db, 'clients', 'client_owner');
-          setDoc(clientRef, {
-            ...matchingClient,
-            userId: user.uid,
-            updatedAt: serverTimestamp()
-          }, { merge: true }).catch(err => console.error("Auto-syncing client_owner failed:", err));
+          supabase
+            .from('clients')
+            .upsert(
+              { id: 'client_owner', user_id: user.id, data: matchingClient, updated_at: new Date().toISOString() },
+              { onConflict: 'id' }
+            )
+            .then(({ error }) => {
+              if (error) console.error('Auto-syncing client_owner failed:', error);
+            });
         }
       }
     }
@@ -499,13 +514,13 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const saveClient = async (id: string, clientData: Client) => {
     const updatedClient = {
       ...clientData,
-      userId: user ? user.uid : undefined
+      userId: user ? user.id : undefined,
     };
 
-    setClients(prev => {
+    setClients((prev) => {
       const next = {
         ...prev,
-        [id]: updatedClient
+        [id]: updatedClient,
       };
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(next));
       return next;
@@ -513,15 +528,16 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
     if (user) {
       try {
-        const clientRef = doc(db, 'clients', id);
-        await setDoc(clientRef, {
-          ...clientData,
-          userId: user.uid,
-          updatedAt: serverTimestamp()
-        }, { merge: true });
+        const { error } = await supabase
+          .from('clients')
+          .upsert(
+            { id, user_id: user.id, data: clientData, updated_at: new Date().toISOString() },
+            { onConflict: 'id' }
+          );
+        if (error) throw error;
         showToast('Profile updated');
       } catch (error) {
-        handleFirestoreError(error, OperationType.UPDATE, `clients/${id}`);
+        await handleSupabaseError(error, OperationType.UPDATE, `clients/${id}`);
       }
     } else {
       showToast('Profile updated');
@@ -540,18 +556,18 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       expenses: [],
       folders: [
         { id: 'folder_revenue', name: 'Revenue', isDefault: true, type: 'revenue' },
-        { id: 'folder_expense', name: 'Expense', isDefault: true, type: 'expense' }
+        { id: 'folder_expense', name: 'Expense', isDefault: true, type: 'expense' },
       ],
-      files: []
+      files: [],
     } as Client;
 
-    setClients(prev => {
+    setClients((prev) => {
       const next = {
         ...prev,
         [newId]: {
           ...newClient,
-          userId: user ? user.uid : undefined
-        }
+          userId: user ? user.id : undefined,
+        },
       };
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(next));
       return next;
@@ -560,15 +576,13 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
     if (user) {
       try {
-        const clientRef = doc(db, 'clients', newId);
-        await setDoc(clientRef, {
-          ...newClient,
-          userId: user.uid,
-          updatedAt: serverTimestamp()
-        });
+        const { error } = await supabase
+          .from('clients')
+          .insert({ id: newId, user_id: user.id, data: newClient, updated_at: new Date().toISOString() });
+        if (error) throw error;
         showToast('Client added');
       } catch (error) {
-        handleFirestoreError(error, OperationType.CREATE, `clients/${newId}`);
+        await handleSupabaseError(error, OperationType.CREATE, `clients/${newId}`);
       }
     } else {
       showToast('Client added');
@@ -577,7 +591,7 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   const deleteClient = async (id: string) => {
     const keys = [LOCAL_STORAGE_KEY, OLD_STORAGE_KEY];
-    keys.forEach(key => {
+    keys.forEach((key) => {
       const saved = localStorage.getItem(key);
       if (saved) {
         try {
@@ -590,7 +604,7 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       }
     });
 
-    setClients(prev => {
+    setClients((prev) => {
       const updated = { ...prev };
       delete updated[id];
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updated));
@@ -598,8 +612,8 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     });
 
     if (currentClientId === id) {
-      setClients(currentMerged => {
-        const remainingIds = Object.keys(currentMerged).filter(cid => cid !== id);
+      setClients((currentMerged) => {
+        const remainingIds = Object.keys(currentMerged).filter((cid) => cid !== id);
         setCurrentClientId(remainingIds.length > 0 ? remainingIds[0] : null);
         return currentMerged;
       });
@@ -607,11 +621,11 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
     if (user) {
       try {
-        const clientRef = doc(db, 'clients', id);
-        await deleteDoc(clientRef);
+        const { error } = await supabase.from('clients').delete().eq('id', id);
+        if (error) throw error;
         showToast('Client profile deleted');
       } catch (error) {
-        handleFirestoreError(error, OperationType.DELETE, `clients/${id}`);
+        await handleSupabaseError(error, OperationType.DELETE, `clients/${id}`);
       }
     } else {
       showToast('Client profile deleted');
@@ -622,113 +636,52 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setBusinessProfile(profileData);
     if (user) {
       try {
-        const bizRef = doc(db, 'business_profiles', user.uid);
-        await setDoc(bizRef, {
-          ...profileData,
-          id: user.uid,
-          updatedAt: serverTimestamp()
-        }, { merge: true });
-        
-        // Also update matching clients 'client_owner' immediately to unlock hasClients and currentClient
+        const { error } = await supabase
+          .from('business_profiles')
+          .upsert(
+            { user_id: user.id, data: { ...profileData, id: user.id }, updated_at: new Date().toISOString() },
+            { onConflict: 'user_id' }
+          );
+        if (error) throw error;
+
+        // Also update matching client 'client_owner' immediately to unlock hasClients and currentClient
         const existing = clients['client_owner'];
-        const matchingClient: Client = {
-          id: 'client_owner',
-          name: profileData.name,
-          tin: profileData.tin || '',
-          taxpayerClassification: profileData.taxpayerClassification || '',
-          registeredName: profileData.registeredName || profileData.name,
-          lastName: profileData.lastName || '',
-          firstName: profileData.firstName || '',
-          middleName: profileData.middleName || '',
-          tradeName: profileData.tradeName || '',
-          substreet: profileData.substreet || '',
-          street: profileData.street || '',
-          barangay: profileData.barangay || '',
-          district: profileData.district || '',
-          city: profileData.city || '',
-          zipCode: profileData.zipCode || '',
-          rdoCode: profileData.rdoCode || '',
-          accountingType: profileData.accountingType || 'Calendar',
-          fiscalMonthEnd: profileData.fiscalMonthEnd || 12,
-          tinLibrary: existing?.tinLibrary || { customers: [], suppliers: [] },
-          sales: existing?.sales || [],
-          purchases: existing?.purchases || [],
-          expenses: existing?.expenses || [],
-          folders: existing?.folders || [
-            { id: 'folder_revenue', name: 'Revenue', isDefault: true, type: 'revenue' },
-            { id: 'folder_expense', name: 'Expense', isDefault: true, type: 'expense' }
-          ],
-          files: existing?.files || [],
-          payableInvoices: existing?.payableInvoices || [],
-          withholdingTaxEntries: existing?.withholdingTaxEntries || [],
-          taxDeadlines: existing?.taxDeadlines || []
-        } as unknown as Client;
+        const matchingClient = buildMatchingClient(profileData, existing);
 
-        const clientRef = doc(db, 'clients', 'client_owner');
-        await setDoc(clientRef, {
-          ...matchingClient,
-          userId: user.uid,
-          updatedAt: serverTimestamp()
-        }, { merge: true });
+        await supabase
+          .from('clients')
+          .upsert(
+            { id: 'client_owner', user_id: user.id, data: matchingClient, updated_at: new Date().toISOString() },
+            { onConflict: 'id' }
+          );
 
-        setClients(prev => {
+        setClients((prev) => {
           const next = {
             ...prev,
-            client_owner: matchingClient
+            client_owner: matchingClient,
           };
           localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(next));
           return next;
         });
-        
+
         if (!currentClientId) {
           setCurrentClientId('client_owner');
         }
 
         showToast('Business Profile updated');
       } catch (error) {
-        handleFirestoreError(error, OperationType.UPDATE, `business_profiles/${user.uid}`);
+        await handleSupabaseError(error, OperationType.UPDATE, `business_profiles/${user.id}`);
       }
     } else {
       localStorage.setItem('capo_business_profile_react', JSON.stringify(profileData));
-      
-      const existing = clients['client_owner'];
-      const matchingClient: Client = {
-        id: 'client_owner',
-        name: profileData.name,
-        tin: profileData.tin || '',
-        taxpayerClassification: profileData.taxpayerClassification || '',
-        registeredName: profileData.registeredName || profileData.name,
-        lastName: profileData.lastName || '',
-        firstName: profileData.firstName || '',
-        middleName: profileData.middleName || '',
-        tradeName: profileData.tradeName || '',
-        substreet: profileData.substreet || '',
-        street: profileData.street || '',
-        barangay: profileData.barangay || '',
-        district: profileData.district || '',
-        city: profileData.city || '',
-        zipCode: profileData.zipCode || '',
-        rdoCode: profileData.rdoCode || '',
-        accountingType: profileData.accountingType || 'Calendar',
-        fiscalMonthEnd: profileData.fiscalMonthEnd || 12,
-        tinLibrary: existing?.tinLibrary || { customers: [], suppliers: [] },
-        sales: existing?.sales || [],
-        purchases: existing?.purchases || [],
-        expenses: existing?.expenses || [],
-        folders: existing?.folders || [
-          { id: 'folder_revenue', name: 'Revenue', isDefault: true, type: 'revenue' },
-          { id: 'folder_expense', name: 'Expense', isDefault: true, type: 'expense' }
-        ],
-        files: existing?.files || [],
-        payableInvoices: existing?.payableInvoices || [],
-        withholdingTaxEntries: existing?.withholdingTaxEntries || [],
-        taxDeadlines: existing?.taxDeadlines || []
-      } as unknown as Client;
 
-      setClients(prev => {
+      const existing = clients['client_owner'];
+      const matchingClient = buildMatchingClient(profileData, existing);
+
+      setClients((prev) => {
         const next = {
           ...prev,
-          client_owner: matchingClient
+          client_owner: matchingClient,
         };
         localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(next));
         return next;
@@ -757,19 +710,17 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
             </svg>
           </div>
           <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-2">Sync Connection Failed</h2>
-          <p className="text-slate-500 dark:text-slate-400 mb-8 leading-relaxed text-sm">
-            {syncError}
-          </p>
+          <p className="text-slate-500 dark:text-slate-400 mb-8 leading-relaxed text-sm">{syncError}</p>
           <div className="flex flex-col gap-3">
-            <button 
+            <button
               onClick={() => window.location.reload()}
               className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-bold shadow-lg shadow-blue-500/30 transition-all flex items-center justify-center gap-2"
             >
               <span>Retry Connection</span>
             </button>
-            <button 
+            <button
               onClick={async () => {
-                await auth.signOut();
+                await supabase.auth.signOut();
                 localStorage.clear();
                 window.location.reload();
               }}
@@ -777,7 +728,7 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
             >
               Reset and Sign Out
             </button>
-            <button 
+            <button
               onClick={() => setSyncError(null)}
               className="w-full py-2 text-slate-400 hover:text-slate-500 text-xs font-medium transition-all"
             >
@@ -805,8 +756,8 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
               We're connecting to the cloud to ensure your records are up to date.
             </p>
           </div>
-          
-          <button 
+
+          <button
             onClick={() => setIsReady(true)}
             className="mt-4 px-6 py-2 text-slate-400 hover:text-blue-500 text-xs font-semibold uppercase tracking-widest transition-colors"
           >
@@ -846,7 +797,7 @@ export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         deleteClient,
         saveBusinessProfile,
         showToast,
-        activeDevice
+        activeDevice,
       }}
     >
       {children}

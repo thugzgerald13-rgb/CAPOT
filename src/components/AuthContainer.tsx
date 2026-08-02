@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, AuthError } from 'firebase/auth';
-import { auth } from '../lib/firebase';
+import { supabase } from '../lib/supabase';
 import { motion } from 'motion/react';
 import { LogIn, UserPlus } from 'lucide-react';
 
@@ -10,17 +9,22 @@ export function AuthContainer() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [info, setInfo] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setInfo('');
     setLoading(true);
 
     try {
       if (isLogin) {
-        await signInWithEmailAndPassword(auth, email, password);
+        const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+        if (signInError) throw signInError;
       } else {
-        await createUserWithEmailAndPassword(auth, email, password);
+        const { error: signUpError } = await supabase.auth.signUp({ email, password });
+        if (signUpError) throw signUpError;
+        setInfo('Check your email to confirm your account before signing in.');
       }
     } catch (err) {
       if (err instanceof Error) {
@@ -35,17 +39,16 @@ export function AuthContainer() {
 
   const handleGoogleSignIn = async () => {
     setError('');
-    const provider = new GoogleAuthProvider();
     setLoading(true);
     try {
-      await signInWithPopup(auth, provider);
+      const { error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: window.location.origin },
+      });
+      if (oauthError) throw oauthError;
     } catch (err) {
       if (err instanceof Error) {
-        if (err.message.includes('auth/unauthorized-domain')) {
-          setError('This domain is not authorized. Please add "' + window.location.hostname + '" to your Firebase Console > Authentication > Settings > Authorized domains.');
-        } else {
-          setError(err.message);
-        }
+        setError(err.message);
       } else {
         setError('An unexpected error occurred.');
       }
@@ -56,7 +59,7 @@ export function AuthContainer() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900 p-4">
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="max-w-md w-full bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 p-8"
@@ -76,19 +79,20 @@ export function AuthContainer() {
         {error && (
           <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-xl text-sm text-red-600 dark:text-red-400">
             {error}
-            {(error.includes('auth/configuration-not-found') || error.includes('auth/operation-not-allowed')) && (
-              <p className="mt-2 text-xs font-bold">
-                Note: Email/Password authentication must be enabled in the Firebase Console (Authentication &gt; Sign-in method).
-              </p>
-            )}
+          </div>
+        )}
+
+        {info && (
+          <div className="mb-6 p-4 bg-cyan-50 dark:bg-cyan-900/30 border border-cyan-200 dark:border-cyan-800 rounded-xl text-sm text-cyan-700 dark:text-cyan-400">
+            {info}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-bold text-slate-600 dark:text-slate-400 mb-1">Email</label>
-            <input 
-              type="email" 
+            <input
+              type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-cyan-500"
@@ -98,8 +102,8 @@ export function AuthContainer() {
           </div>
           <div>
             <label className="block text-sm font-bold text-slate-600 dark:text-slate-400 mb-1">Password</label>
-            <input 
-              type="password" 
+            <input
+              type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-cyan-500"
@@ -108,7 +112,7 @@ export function AuthContainer() {
               minLength={6}
             />
           </div>
-          <button 
+          <button
             type="submit"
             disabled={loading}
             className="w-full py-3 px-4 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl font-bold transition-colors disabled:opacity-50"
@@ -124,7 +128,7 @@ export function AuthContainer() {
         </div>
 
         <div className="mt-6">
-          <button 
+          <button
             onClick={handleGoogleSignIn}
             disabled={loading}
             className="w-full relative py-3 px-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl font-bold text-slate-700 dark:text-slate-300 transition-colors disabled:opacity-50"
@@ -141,13 +145,13 @@ export function AuthContainer() {
 
         <div className="mt-8 text-center text-sm">
           <span className="text-slate-500">
-            {isLogin ? "Don't have an account? " : "Already have an account? "}
+            {isLogin ? "Don't have an account? " : 'Already have an account? '}
           </span>
-          <button 
+          <button
             onClick={() => setIsLogin(!isLogin)}
             className="text-cyan-600 font-bold hover:underline"
           >
-            {isLogin ? "Create one" : "Sign in"}
+            {isLogin ? 'Create one' : 'Sign in'}
           </button>
         </div>
       </motion.div>

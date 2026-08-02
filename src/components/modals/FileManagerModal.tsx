@@ -126,7 +126,7 @@ export function FileManagerModal() {
     let sizeError = false;
 
     Array.from(fileList).forEach(file => {
-      // Guide to keep files under 1MB for Firestore / localStorage efficiency
+      // Guide to keep files under 1MB for Postgres JSONB / localStorage efficiency
       if (file.size > 800 * 1024) {
         sizeError = true;
       } else {
