@@ -76,6 +76,9 @@ export interface Client {
   city?: string;
   zipCode?: string;
   rdoCode?: string;
+  phone?: string;
+  email?: string;
+  category?: 'private' | 'government';
   accountingType?: 'Calendar' | 'Fiscal';
   fiscalMonthEnd?: number;
   coaFormat?: 'numeric' | 'alphanumeric';
@@ -191,6 +194,9 @@ export interface BusinessProfile {
   city?: string;
   zipCode?: string;
   rdoCode?: string;
+  phone?: string;
+  email?: string;
+  category?: 'private' | 'government';
   accountingType?: 'Calendar' | 'Fiscal';
   fiscalMonthEnd?: number;
 }

@@ -200,10 +200,23 @@ export function BIRFormsModal() {
   // Active form choice: '2550Q' | '1701Q' | '2551Q' | '1601-C' | '0619-E' | '1601-EQ' | 'tracker'
   const [activeFormType, setActiveFormType] = useState<'2550Q' | '1701Q' | '2551Q' | '1601-C' | '0619-E' | '1601-EQ' | 'tracker'>('tracker');
 
-  // Query configurations
-  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
-  const [selectedQuarter, setSelectedQuarter] = useState<number>(1);
-  const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1);
+  // Query configurations — default to the app's simulated "as of" date (currentDat) when set,
+  // falling back to the real device date otherwise. This must match getSimulatedToday() above,
+  // or forms silently pull the wrong period's transactions.
+  const effectiveYear = currentDat ? currentDat.year : new Date().getFullYear();
+  const effectiveMonth = currentDat ? currentDat.month : new Date().getMonth() + 1;
+  const [selectedYear, setSelectedYear] = useState<number>(effectiveYear);
+  const [selectedQuarter, setSelectedQuarter] = useState<number>(Math.ceil(effectiveMonth / 3));
+  const [selectedMonth, setSelectedMonth] = useState<number>(effectiveMonth);
+
+  // Keep the period selectors in sync whenever the simulated DAT date changes
+  useEffect(() => {
+    const yr = currentDat ? currentDat.year : new Date().getFullYear();
+    const mo = currentDat ? currentDat.month : new Date().getMonth() + 1;
+    setSelectedYear(yr);
+    setSelectedMonth(mo);
+    setSelectedQuarter(Math.ceil(mo / 3));
+  }, [currentDat]);
 
   // Tracker Filter/Search state variables
   const [trackerFilter, setTrackerFilter] = useState<'All' | 'Pending' | 'Filed' | 'Overdue'>('All');
@@ -1773,7 +1786,9 @@ export function BIRFormsModal() {
                     </div>
                     <div className="md:col-span-3 border-t border-slate-200 pt-1.5">
                       <span className="text-[9px] block text-slate-500 uppercase tracking-tight">10 Registered Address (Indicate complete physical corporate or residential setup address)</span>
-                      <span className="uppercase text-xs block mt-0.5">{currentClient?.address || 'Metro Manila, Philippines'}</span>
+                      <span className="uppercase text-xs block mt-0.5">
+                        {[currentClient?.substreet, currentClient?.street, currentClient?.barangay, currentClient?.district, currentClient?.city].filter(Boolean).join(', ') || 'Not Specified'}
+                      </span>
                     </div>
                     <div className="border-t border-slate-200 pt-1.5">
                       <span className="text-[9px] block text-slate-500 uppercase tracking-tight">10A ZIP Code</span>
@@ -1787,7 +1802,7 @@ export function BIRFormsModal() {
                       <span className="text-[9px] block text-slate-500 uppercase tracking-tight text-left">12 Category of Withholding Agent</span>
                       <div className="flex justify-start gap-4 mt-1 font-semibold text-[10px]">
                         <label className="flex items-center gap-1 cursor-pointer">
-                          <input type="checkbox" checked={currentClient?.category === 'private' || !currentClient?.category} readOnly className="rounded border-gray-300 text-black focus:ring-0 w-3 h-3" /> Private
+                          <input type="checkbox" checked={(currentClient?.category || 'private') === 'private'} readOnly className="rounded border-gray-300 text-black focus:ring-0 w-3 h-3" /> Private
                         </label>
                         <label className="flex items-center gap-1 cursor-pointer">
                           <input type="checkbox" checked={currentClient?.category === 'government'} readOnly className="rounded border-gray-300 text-black focus:ring-0 w-3 h-3" /> Government
