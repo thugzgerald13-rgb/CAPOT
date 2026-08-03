@@ -299,6 +299,49 @@ export function ExtraModals() {
               </div>
 
               <div className="grid grid-cols-12 gap-4 items-end mb-6">
+                <div className="col-span-4">
+                  <label className="form-label">Contact Number:</label>
+                  <input
+                    type="text"
+                    value={editingClient.phone || ''}
+                    onChange={e => setEditingClient({...editingClient, phone: e.target.value})}
+                    className="form-input border-slate-400 dark:border-slate-600"
+                  />
+                </div>
+                <div className="col-span-5">
+                  <label className="form-label">Registered Email Address:</label>
+                  <input
+                    type="email"
+                    value={editingClient.email || ''}
+                    onChange={e => setEditingClient({...editingClient, email: e.target.value})}
+                    className="form-input border-slate-400 dark:border-slate-600"
+                  />
+                </div>
+                <div className="col-span-3 flex items-center gap-4 py-3">
+                  <label className="flex items-center gap-2 cursor-pointer group">
+                    <input
+                      type="radio"
+                      className="w-4 h-4"
+                      name="clientCategory"
+                      checked={(editingClient.category || 'private') === 'private'}
+                      onChange={() => setEditingClient({...editingClient, category: 'private'})}
+                    />
+                    <span className="text-xs font-bold uppercase tracking-tight">Private</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer group">
+                    <input
+                      type="radio"
+                      className="w-4 h-4"
+                      name="clientCategory"
+                      checked={editingClient.category === 'government'}
+                      onChange={() => setEditingClient({...editingClient, category: 'government'})}
+                    />
+                    <span className="text-xs font-bold uppercase tracking-tight">Government</span>
+                  </label>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-12 gap-4 items-end mb-6">
                 <div className="col-span-3">
                   <label className="form-label">RDO Code:</label>
                   <select 
@@ -643,6 +686,49 @@ export function ExtraModals() {
                     />
                     <span className="text-[10px] text-slate-500 mt-1 uppercase font-bold text-center">Zip Code</span>
                   </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-12 gap-4 items-end mb-6">
+                <div className="col-span-4">
+                  <label className="form-label">Contact Number:</label>
+                  <input
+                    type="text"
+                    value={editingBusiness.phone || ''}
+                    onChange={e => setEditingBusiness({...editingBusiness, phone: e.target.value})}
+                    className="form-input border-slate-400 dark:border-slate-600"
+                  />
+                </div>
+                <div className="col-span-5">
+                  <label className="form-label">Registered Email Address:</label>
+                  <input
+                    type="email"
+                    value={editingBusiness.email || ''}
+                    onChange={e => setEditingBusiness({...editingBusiness, email: e.target.value})}
+                    className="form-input border-slate-400 dark:border-slate-600"
+                  />
+                </div>
+                <div className="col-span-3 flex items-center gap-4 py-3">
+                  <label className="flex items-center gap-2 cursor-pointer group">
+                    <input
+                      type="radio"
+                      className="w-4 h-4"
+                      name="businessCategory"
+                      checked={(editingBusiness.category || 'private') === 'private'}
+                      onChange={() => setEditingBusiness({...editingBusiness, category: 'private'})}
+                    />
+                    <span className="text-xs font-bold uppercase tracking-tight">Private</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer group">
+                    <input
+                      type="radio"
+                      className="w-4 h-4"
+                      name="businessCategory"
+                      checked={editingBusiness.category === 'government'}
+                      onChange={() => setEditingBusiness({...editingBusiness, category: 'government'})}
+                    />
+                    <span className="text-xs font-bold uppercase tracking-tight">Government</span>
+                  </label>
                 </div>
               </div>
 
