@@ -123,10 +123,13 @@ export interface TaxDeadline {
   title: string;
   period: string;
   dueDate: string;
-  status: 'Pending' | 'Filed' | 'Overdue';
+  status: 'Pending' | 'Processing' | 'Filed' | 'Paid' | 'Overdue';
+  taxStatus?: 'With Payable' | 'W/O Payable';
   amountDue?: number;
   dateFiled?: string;
+  datePaid?: string;
   referenceNo?: string;
+  confirmationNo?: string;
   notes?: string;
 }
 

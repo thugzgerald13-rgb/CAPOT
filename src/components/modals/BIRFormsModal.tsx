@@ -7,6 +7,7 @@ import {
   CheckCircle2, HelpCircle, ArrowRight, FileCheck, Coins, RefreshCw, AlertCircle
 } from 'lucide-react';
 import { TaxDeadline, Client } from '../../types';
+import { adjustDeadlineForWeekend, getComplianceStatusInfo, complianceFormsDirectory } from '../../lib/complianceUtils';
 
 // Standard BIR filing deadlines generator for Philippines 2026/2025
 export function generateStandardDeadlines(year: number): TaxDeadline[] {
@@ -178,7 +179,7 @@ export function generateStandardDeadlines(year: number): TaxDeadline[] {
     });
   });
 
-  return deadlines;
+  return deadlines.map(d => ({ ...d, dueDate: adjustDeadlineForWeekend(d.dueDate) }));
 }
 
 export function BIRFormsModal() {
@@ -219,7 +220,7 @@ export function BIRFormsModal() {
   }, [currentDat]);
 
   // Tracker Filter/Search state variables
-  const [trackerFilter, setTrackerFilter] = useState<'All' | 'Pending' | 'Filed' | 'Overdue'>('All');
+  const [trackerFilter, setTrackerFilter] = useState<'All' | 'Pending' | 'Processing' | 'Filed' | 'Paid' | 'Overdue'>('All');
   const [trackerSearch, setTrackerSearch] = useState<string>('');
 
   // Filing logging detail states
@@ -227,7 +228,11 @@ export function BIRFormsModal() {
   const [filingDate, setFilingDate] = useState<string>(getSimulatedToday());
   const [filingAmount, setFilingAmount] = useState<string>('');
   const [filingRef, setFilingRef] = useState<string>('');
+  const [filingConfirmationNo, setFilingConfirmationNo] = useState<string>('');
+  const [filingTaxStatus, setFilingTaxStatus] = useState<'With Payable' | 'W/O Payable'>('With Payable');
+  const [filingDatePaid, setFilingDatePaid] = useState<string>('');
   const [filingNotes, setFilingNotes] = useState<string>('');
+  const [showFormsDirectory, setShowFormsDirectory] = useState<boolean>(false);
 
   // Sync default filing date with simulated today when currentDat changes
   useEffect(() => {
@@ -589,7 +594,7 @@ export function BIRFormsModal() {
 
   // Overdue status check
   const isDeadlineOverdue = (dueDateStr: string, status: string) => {
-    if (status === 'Filed') return false;
+    if (status === 'Filed' || status === 'Paid') return false;
     const today = new Date(getSimulatedToday());
     const due = new Date(dueDateStr);
     return due < today;
@@ -677,7 +682,7 @@ export function BIRFormsModal() {
       const overdue = isDeadlineOverdue(d.dueDate, d.status);
       return {
         ...d,
-        status: (d.status === 'Pending' && overdue ? 'Overdue' : d.status) as 'Pending' | 'Filed' | 'Overdue'
+        status: ((d.status === 'Pending' || d.status === 'Processing') && overdue ? 'Overdue' : d.status) as 'Pending' | 'Processing' | 'Filed' | 'Paid' | 'Overdue'
       };
     });
   }, [currentClient, selectedYear]);
@@ -697,7 +702,9 @@ export function BIRFormsModal() {
       // 2. Status filter
       if (trackerFilter === 'All') return true;
       if (trackerFilter === 'Pending') return d.status === 'Pending';
+      if (trackerFilter === 'Processing') return d.status === 'Processing';
       if (trackerFilter === 'Filed') return d.status === 'Filed';
+      if (trackerFilter === 'Paid') return d.status === 'Paid';
       if (trackerFilter === 'Overdue') return d.status === 'Overdue';
       return true;
     }).sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
@@ -706,23 +713,27 @@ export function BIRFormsModal() {
   // Deadlines compliance metrics
   const trackerMetrics = useMemo(() => {
     const total = computedDeadlines.length;
-    const completed = computedDeadlines.filter(d => d.status === 'Filed').length;
+    const completed = computedDeadlines.filter(d => d.status === 'Filed' || d.status === 'Paid').length;
+    const paid = computedDeadlines.filter(d => d.status === 'Paid').length;
+    const processing = computedDeadlines.filter(d => d.status === 'Processing').length;
     const pending = computedDeadlines.filter(d => d.status === 'Pending').length;
     const overdue = computedDeadlines.filter(d => d.status === 'Overdue').length;
     
     const complianceRate = total > 0 ? Math.round((completed / total) * 100) : 100;
     
     const taxesRemitted = computedDeadlines
-      .filter(d => d.status === 'Filed')
+      .filter(d => d.status === 'Filed' || d.status === 'Paid')
       .reduce((sum, d) => sum + (d.amountDue || 0), 0);
 
     const estimatedPending = computedDeadlines
-      .filter(d => d.status !== 'Filed')
+      .filter(d => d.status !== 'Filed' && d.status !== 'Paid')
       .reduce((sum, d) => sum + getDraftTaxEstimate(d.formType, d.period), 0);
 
     return {
       total,
       completed,
+      paid,
+      processing,
       pending,
       overdue,
       complianceRate,
@@ -911,10 +922,19 @@ export function BIRFormsModal() {
                   >
                     <option value="All">All Statuses</option>
                     <option value="Pending">🕒 Pending</option>
+                    <option value="Processing">🔄 Processing</option>
                     <option value="Filed">✅ Filed</option>
+                    <option value="Paid">💰 Paid</option>
                     <option value="Overdue">⚠️ Overdue</option>
                   </select>
                 </div>
+
+                <button
+                  onClick={() => setShowFormsDirectory(v => !v)}
+                  className="w-full text-xs font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 p-2.5 rounded-xl transition flex items-center justify-center gap-1.5"
+                >
+                  <FileText className="w-3.5 h-3.5" /> {showFormsDirectory ? 'Hide' : 'Show'} Compliance Forms Directory
+                </button>
               </div>
             )}
             
@@ -2173,6 +2193,38 @@ export function BIRFormsModal() {
                   </div>
                 </div>
 
+                {/* Compliance Forms Directory (reference library) */}
+                {showFormsDirectory && (
+                  <div className="bg-white dark:bg-slate-900/20 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-wider">Compliance Forms Directory</h3>
+                      <span className="text-[10px] text-slate-500 font-bold">{complianceFormsDirectory.length} filings referenced</span>
+                    </div>
+                    <div className="overflow-x-auto -mx-1">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="text-left text-[9px] uppercase tracking-widest text-slate-400 border-b border-slate-100 dark:border-slate-800">
+                            <th className="py-2 px-1 font-black">Code</th>
+                            <th className="py-2 px-1 font-black">Description</th>
+                            <th className="py-2 px-1 font-black">Frequency</th>
+                            <th className="py-2 px-1 font-black">Deadline Rule</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {complianceFormsDirectory.map(ref => (
+                            <tr key={ref.code} className="border-b border-slate-50 dark:border-slate-800/50 last:border-0">
+                              <td className="py-2 px-1 font-mono font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap">{ref.code}</td>
+                              <td className="py-2 px-1 text-slate-600 dark:text-slate-400">{ref.description}</td>
+                              <td className="py-2 px-1 text-slate-500 whitespace-nowrap">{ref.frequency}</td>
+                              <td className="py-2 px-1 text-slate-500">{ref.deadlineRule}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
                 {/* Deadlines Schedule Section */}
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
@@ -2198,12 +2250,14 @@ export function BIRFormsModal() {
                       {filteredDeadlines.map((deadline) => {
                         const recEstimate = getDraftTaxEstimate(deadline.formType, deadline.period);
                         const isEditing = editingDeadlineId === deadline.id;
+                        const statusInfo = getComplianceStatusInfo(deadline, new Date(getSimulatedToday()));
+                        const isCompleted = deadline.status === 'Filed' || deadline.status === 'Paid';
 
                         return (
                           <div
                             key={deadline.id}
                             className={`p-5 rounded-2xl border transition-all ${
-                              deadline.status === 'Filed'
+                              isCompleted
                                 ? 'bg-white dark:bg-slate-900/10 border-slate-200/65 dark:border-slate-800/65 shadow-sm opacity-95'
                                 : deadline.status === 'Overdue'
                                   ? 'bg-rose-50/15 dark:bg-rose-950/5 border-rose-300 dark:border-rose-900/45 shadow-sm'
@@ -2214,11 +2268,13 @@ export function BIRFormsModal() {
                               {/* Left details */}
                               <div className="flex items-start gap-4">
                                 <div className={`p-3 rounded-xl shrink-0 ${
-                                  deadline.status === 'Filed'
+                                  isCompleted
                                     ? 'bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400'
                                     : deadline.status === 'Overdue'
                                       ? 'bg-rose-50 dark:bg-rose-950/25 text-rose-600 dark:text-rose-400'
-                                      : 'bg-indigo-50 dark:bg-indigo-950/20 text-indigo-600 dark:text-indigo-400'
+                                      : deadline.status === 'Processing'
+                                        ? 'bg-blue-50 dark:bg-blue-950/20 text-blue-600 dark:text-blue-400'
+                                        : 'bg-indigo-50 dark:bg-indigo-950/20 text-indigo-600 dark:text-indigo-400'
                                 }`}>
                                   <FileText className="w-6 h-6" />
                                 </div>
@@ -2230,14 +2286,8 @@ export function BIRFormsModal() {
                                     <span className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded-md text-[10px] font-bold">
                                       {deadline.period}
                                     </span>
-                                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
-                                      deadline.status === 'Filed'
-                                        ? 'bg-emerald-100 text-emerald-850 dark:bg-emerald-950/45 dark:text-emerald-300'
-                                        : deadline.status === 'Overdue'
-                                          ? 'bg-rose-100 text-rose-850 dark:bg-rose-950/55 dark:text-rose-350'
-                                          : 'bg-amber-100 text-amber-850 dark:bg-amber-950/45 dark:text-amber-300'
-                                    }`}>
-                                      {deadline.status === 'Filed' ? '✅ Filed' : deadline.status === 'Overdue' ? '⚠️ Overdue' : '🕒 Pending'}
+                                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${statusInfo.color}`}>
+                                      {statusInfo.label}
                                     </span>
                                   </div>
                                   <div className="flex items-center gap-4 text-slate-500 text-[10px] font-semibold">
@@ -2254,40 +2304,60 @@ export function BIRFormsModal() {
                               {/* Right details / Actions preview */}
                               <div className="md:text-right flex flex-col items-start md:items-end gap-1 shrink-0">
                                 <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                                  {deadline.status === 'Filed' ? 'Amount Remitted' : 'Estimated Tax Liability'}
+                                  {isCompleted ? 'Amount Remitted' : 'Estimated Tax Liability'}
                                 </div>
                                 <div className={`text-base font-black ${
-                                  deadline.status === 'Filed' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-800 dark:text-slate-300'
+                                  isCompleted ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-800 dark:text-slate-300'
                                 }`}>
-                                  ₱{(deadline.status === 'Filed' ? (deadline.amountDue || 0) : recEstimate).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                  ₱{(isCompleted ? (deadline.amountDue || 0) : recEstimate).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                 </div>
                                 <div className="text-[9px] text-slate-400 font-bold">
-                                  {deadline.status === 'Filed' ? 'Official receipt documented' : 'Suggested from current ledgers'}
+                                  {isCompleted ? 'Official receipt documented' : 'Suggested from current ledgers'}
                                 </div>
                               </div>
                             </div>
 
                             {/* Divider if filed block or edit form is active */}
-                            {(deadline.status === 'Filed' || isEditing) && (
+                            {(isCompleted || isEditing) && (
                               <hr className="my-4 border-slate-100 dark:border-slate-800/80" />
                             )}
 
-                            {/* Render documented metadata if file is ALREADY Filed */}
-                            {deadline.status === 'Filed' && !isEditing && (
+                            {/* Render documented metadata if file is ALREADY Filed/Paid */}
+                            {isCompleted && !isEditing && (
                               <div className="bg-slate-50 dark:bg-slate-900/40 p-4 rounded-xl border border-slate-100 dark:border-slate-800/40 text-xs font-semibold text-slate-650 dark:text-slate-300 grid grid-cols-2 sm:grid-cols-4 gap-4">
                                 <div>
-                                  <span className="text-[9px] font-black tracking-widest text-slate-400 block uppercase">Date Logged</span>
+                                  <span className="text-[9px] font-black tracking-widest text-slate-400 block uppercase">Date Filed</span>
                                   <span className="font-bold text-slate-800 dark:text-slate-200">
                                     {deadline.dateFiled ? new Date(deadline.dateFiled).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
                                   </span>
                                 </div>
                                 <div>
-                                  <span className="text-[9px] font-black tracking-widest text-slate-400 block uppercase">Filing Reference No.</span>
+                                  <span className="text-[9px] font-black tracking-widest text-slate-400 block uppercase">Reference No.</span>
                                   <span className="font-mono font-bold text-slate-850 dark:text-slate-200">
                                     {deadline.referenceNo || '—'}
                                   </span>
                                 </div>
-                                <div className="sm:col-span-2">
+                                <div>
+                                  <span className="text-[9px] font-black tracking-widest text-slate-400 block uppercase">Confirmation No.</span>
+                                  <span className="font-mono font-bold text-slate-850 dark:text-slate-200">
+                                    {deadline.confirmationNo || '—'}
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="text-[9px] font-black tracking-widest text-slate-400 block uppercase">Tax Status</span>
+                                  <span className="font-bold text-slate-800 dark:text-slate-200">
+                                    {deadline.taxStatus || 'With Payable'}
+                                  </span>
+                                </div>
+                                {deadline.taxStatus !== 'W/O Payable' && (
+                                  <div>
+                                    <span className="text-[9px] font-black tracking-widest text-slate-400 block uppercase">Date Paid</span>
+                                    <span className="font-bold text-slate-800 dark:text-slate-200">
+                                      {deadline.datePaid ? new Date(deadline.datePaid).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : 'Unpaid'}
+                                    </span>
+                                  </div>
+                                )}
+                                <div className="col-span-2 sm:col-span-4">
                                   <span className="text-[9px] font-black tracking-widest text-slate-400 block uppercase">Notes / Comments</span>
                                   <span className="text-slate-700 dark:text-slate-300 italic font-medium">
                                     "{deadline.notes || 'No filing notes added.'}"
@@ -2324,16 +2394,51 @@ export function BIRFormsModal() {
                                       className="w-full text-xs font-bold border border-slate-200 dark:border-slate-850 bg-white dark:bg-slate-900 p-2.5 rounded-xl outline-none font-mono"
                                     />
                                   </div>
-                                  <div className="sm:col-span-2">
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-1">Reference No. (eFPS Receipt or Bank Ref)</span>
+                                  <div>
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-1">Reference No.</label>
                                     <input
                                       type="text"
                                       value={filingRef}
                                       onChange={e => setFilingRef(e.target.value)}
-                                      placeholder="eFPS receipt reference, bank confirmation ID..."
+                                      placeholder="eFPS receipt / bank ref..."
                                       className="w-full text-xs font-bold border border-slate-200 dark:border-slate-850 bg-white dark:bg-slate-900 p-2.5 rounded-xl outline-none shadow-inner"
                                     />
                                   </div>
+                                  <div>
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-1">Confirmation No.</label>
+                                    <input
+                                      type="text"
+                                      value={filingConfirmationNo}
+                                      onChange={e => setFilingConfirmationNo(e.target.value)}
+                                      placeholder="eFPS confirmation #..."
+                                      className="w-full text-xs font-bold border border-slate-200 dark:border-slate-850 bg-white dark:bg-slate-900 p-2.5 rounded-xl outline-none shadow-inner"
+                                    />
+                                  </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                                  <div>
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-1">Tax Status</label>
+                                    <select
+                                      value={filingTaxStatus}
+                                      onChange={e => setFilingTaxStatus(e.target.value as 'With Payable' | 'W/O Payable')}
+                                      className="w-full text-xs font-bold border border-slate-200 dark:border-slate-850 bg-white dark:bg-slate-900 p-2.5 rounded-xl outline-none"
+                                    >
+                                      <option value="With Payable">With Payable</option>
+                                      <option value="W/O Payable">W/O Payable</option>
+                                    </select>
+                                  </div>
+                                  {filingTaxStatus === 'With Payable' && (
+                                    <div className="sm:col-span-2">
+                                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-1">Date Paid (optional, if already settled)</label>
+                                      <input
+                                        type="date"
+                                        value={filingDatePaid}
+                                        onChange={e => setFilingDatePaid(e.target.value)}
+                                        className="w-full text-xs font-bold border border-slate-200 dark:border-slate-850 bg-white dark:bg-slate-900 p-2.5 rounded-xl outline-none"
+                                      />
+                                    </div>
+                                  )}
                                 </div>
 
                                 <div>
@@ -2357,10 +2462,13 @@ export function BIRFormsModal() {
                                   <button
                                     onClick={() => {
                                       handleUpdateDeadlineStatus(deadline.id, {
-                                        status: 'Filed',
+                                        status: filingDatePaid ? 'Paid' : 'Filed',
                                         dateFiled: filingDate,
                                         amountDue: parseFloat(filingAmount) || 0,
                                         referenceNo: filingRef,
+                                        confirmationNo: filingConfirmationNo,
+                                        taxStatus: filingTaxStatus,
+                                        datePaid: filingTaxStatus === 'With Payable' ? (filingDatePaid || undefined) : undefined,
                                         notes: filingNotes
                                       });
                                       setEditingDeadlineId(null);
@@ -2374,14 +2482,30 @@ export function BIRFormsModal() {
                             )}
 
                             {/* Trigger buttons */}
-                            <div className="flex items-center gap-2 justify-end mt-4">
-                              {deadline.status === 'Filed' ? (
-                                <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 justify-end mt-4 flex-wrap">
+                              {isCompleted ? (
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  {deadline.status === 'Filed' && deadline.taxStatus !== 'W/O Payable' && (
+                                    <button
+                                      onClick={() => {
+                                        handleUpdateDeadlineStatus(deadline.id, {
+                                          status: 'Paid',
+                                          datePaid: getSimulatedToday()
+                                        });
+                                      }}
+                                      className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl px-4 py-2 shadow-sm shadow-emerald-500/10 transition"
+                                    >
+                                      Mark as Paid
+                                    </button>
+                                  )}
                                   <button
                                     onClick={() => {
                                       setFilingDate(deadline.dateFiled || getSimulatedToday());
                                       setFilingAmount(deadline.amountDue?.toString() || '');
                                       setFilingRef(deadline.referenceNo || '');
+                                      setFilingConfirmationNo(deadline.confirmationNo || '');
+                                      setFilingTaxStatus(deadline.taxStatus || 'With Payable');
+                                      setFilingDatePaid(deadline.datePaid || '');
                                       setFilingNotes(deadline.notes || '');
                                       setEditingDeadlineId(deadline.id);
                                     }}
@@ -2396,6 +2520,8 @@ export function BIRFormsModal() {
                                         dateFiled: undefined,
                                         amountDue: undefined,
                                         referenceNo: undefined,
+                                        confirmationNo: undefined,
+                                        datePaid: undefined,
                                         notes: undefined
                                       });
                                     }}
@@ -2415,11 +2541,24 @@ export function BIRFormsModal() {
                                     >
                                       <FileText className="w-3.5 h-3.5" /> View Form {deadline.formType}
                                     </button>
+                                    {deadline.status !== 'Processing' && (
+                                      <button
+                                        onClick={() => {
+                                          handleUpdateDeadlineStatus(deadline.id, { status: 'Processing' });
+                                        }}
+                                        className="text-xs text-blue-700 dark:text-blue-400 font-bold border border-blue-200 dark:border-blue-800 rounded-xl px-4 py-2 hover:bg-blue-50/50 dark:hover:bg-blue-950/20 transition"
+                                      >
+                                        Start Processing
+                                      </button>
+                                    )}
                                     <button
                                       onClick={() => {
                                         setFilingDate(getSimulatedToday());
                                         setFilingAmount(recEstimate.toString());
                                         setFilingRef('');
+                                        setFilingConfirmationNo('');
+                                        setFilingTaxStatus('With Payable');
+                                        setFilingDatePaid('');
                                         setFilingNotes('Filed successfully in compliance with BIR schedule.');
                                         setEditingDeadlineId(deadline.id);
                                       }}
@@ -2434,6 +2573,7 @@ export function BIRFormsModal() {
                                           dateFiled: getSimulatedToday(),
                                           amountDue: recEstimate,
                                           referenceNo: `eFPS-${Math.floor(Math.random() * 900000 + 100000)}`,
+                                          taxStatus: 'With Payable',
                                           notes: `Auto-recorded inline based on dynamic compiler compilation.`
                                         });
                                       }}
