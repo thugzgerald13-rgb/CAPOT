@@ -15,6 +15,7 @@ interface AccountingContextType {
   pendingModal: string | null;
   currentDat: DatSelection | null;
   historyTab: string;
+  birFormTab: string;
   toastMsg: string | null;
   isSyncing: boolean;
   syncError: string | null;
@@ -24,6 +25,7 @@ interface AccountingContextType {
   openModal: (modal: string | null) => void;
   setPendingModal: (modal: string | null) => void;
   setHistoryTab: (tab: string) => void;
+  setBirFormTab: (tab: string) => void;
   setCurrentClientId: (id: string) => void;
   setCurrentDat: (dat: DatSelection | null) => void;
 
@@ -38,6 +40,9 @@ interface AccountingContextType {
 }
 
 const AccountingContext = createContext<AccountingContextType | undefined>(undefined);
+
+const LOCAL_STORAGE_KEY = 'capo_accounting_v14_react';
+const OLD_STORAGE_KEY = 'capo_accounting_v13_react';
 
 const defaultBusinessProfile = (name: string): BusinessProfile => ({
   id: 'client_owner',
@@ -103,7 +108,7 @@ type AccountingProviderProps = {
 
 export function AccountingProvider({
     children,
-}: AccountingProviderProps) { = ({ children }) => {
+}: AccountingProviderProps) {
   const { user, userRole } = useAuth();
   const [clients, setClients] = useState<Record<string, Client>>({});
   const [currentClientId, setCurrentClientId] = useState<string | null>(null);
@@ -113,6 +118,7 @@ export function AccountingProvider({
   const [pendingModal, setPendingModal] = useState<string | null>(null);
   const [currentDat, setCurrentDat] = useState<DatSelection | null>(null);
   const [historyTab, setHistoryTab] = useState('expenses');
+  const [birFormTab, setBirFormTab] = useState('tracker');
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
   // Device Adaptations state
@@ -788,6 +794,7 @@ export function AccountingProvider({
         pendingModal,
         currentDat,
         historyTab,
+        birFormTab,
         toastMsg,
         isSyncing,
         syncError,
@@ -796,6 +803,7 @@ export function AccountingProvider({
         openModal,
         setPendingModal,
         setHistoryTab,
+        setBirFormTab,
         setCurrentClientId,
         setCurrentDat,
         saveClient,

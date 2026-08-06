@@ -17,7 +17,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
-  const { openModal, currentDat, setCurrentDat, setHistoryTab, setPendingModal, syncData, isSyncing } = useAccounting();
+  const { openModal, currentDat, setCurrentDat, setHistoryTab, setBirFormTab, setPendingModal, syncData, isSyncing } = useAccounting();
   const { user, isAdmin, userRole, signOut } = useAuth();
   const [isExpensesOpen, setIsExpensesOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
@@ -407,7 +407,7 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
               >
                 <button
                   onClick={() => {
-                    setHistoryTab('tracker');
+                    setBirFormTab('tracker');
                     openModal('bir-forms');
                     setIsOpen(false);
                   }}
@@ -418,7 +418,7 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
                 </button>
                 <button
                   onClick={() => {
-                    setHistoryTab('2550Q');
+                    setBirFormTab('2550Q');
                     openModal('bir-forms');
                     setIsOpen(false);
                   }}
@@ -429,7 +429,7 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
                   </button>
                   <button
                     onClick={() => {
-                      setHistoryTab('1701Q');
+                      setBirFormTab('1701Q');
                       openModal('bir-forms');
                       setIsOpen(false);
                     }}
@@ -440,7 +440,7 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
                   </button>
                   <button
                     onClick={() => {
-                      setHistoryTab('2551Q');
+                      setBirFormTab('2551Q');
                       openModal('bir-forms');
                       setIsOpen(false);
                     }}
@@ -451,7 +451,7 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
                   </button>
                   <button
                     onClick={() => {
-                      setHistoryTab('1601-C');
+                      setBirFormTab('1601-C');
                       openModal('bir-forms');
                       setIsOpen(false);
                     }}
@@ -462,7 +462,7 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
                   </button>
                   <button
                     onClick={() => {
-                      setHistoryTab('0619-E');
+                      setBirFormTab('0619-E');
                       openModal('bir-forms');
                       setIsOpen(false);
                     }}
@@ -473,7 +473,7 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
                   </button>
                   <button
                     onClick={() => {
-                      setHistoryTab('1601-EQ');
+                      setBirFormTab('1601-EQ');
                       openModal('bir-forms');
                       setIsOpen(false);
                     }}

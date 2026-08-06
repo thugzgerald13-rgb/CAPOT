@@ -28,7 +28,7 @@ type AuthProviderProps = {
 
 export function AuthProvider({
     children,
-}: AuthProviderProps) { = ({ children }) => {
+}: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRoleState] = useState<string | null>(null);

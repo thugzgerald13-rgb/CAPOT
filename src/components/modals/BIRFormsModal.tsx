@@ -183,7 +183,7 @@ export function generateStandardDeadlines(year: number): TaxDeadline[] {
 }
 
 export function BIRFormsModal() {
-  const { currentClient, currentClientId, setCurrentClientId, clients, businessProfile, activeModal, openModal, historyTab, saveClient, currentDat } = useAccounting();
+  const { currentClient, currentClientId, setCurrentClientId, clients, businessProfile, activeModal, openModal, birFormTab, saveClient, currentDat } = useAccounting();
 
   // Dynamically determine today's simulated date
   const getSimulatedToday = () => {
@@ -276,17 +276,17 @@ export function BIRFormsModal() {
   const [manual1601EQInterest, setManual1601EQInterest] = useState<string>('0');
   const [manual1601EQCompromise, setManual1601EQCompromise] = useState<string>('0');
 
-  // Load correct form type on activeModal or historyTab change if triggered from Sidebar
+  // Load correct form type on activeModal or birFormTab change if triggered from Sidebar
   useEffect(() => {
-    if (historyTab && ['2550Q', '1701Q', '2551Q', '1601-C', '0619-E', '1601-EQ', 'tracker'].includes(historyTab)) {
-      setActiveFormType(historyTab as any);
+    if (birFormTab && ['2550Q', '1701Q', '2551Q', '1601-C', '0619-E', '1601-EQ', 'tracker'].includes(birFormTab)) {
+      setActiveFormType(birFormTab as any);
     } else if (activeModal && activeModal.startsWith('bir-')) {
       const type = activeModal.split('-')[1]?.toUpperCase() as any;
       if (['2550Q', '1701Q', '2551Q', '1601C', '0619E', '1601EQ', 'TRACKER'].includes(type)) {
         setActiveFormType(type === '1601C' ? '1601-C' : type === '0619E' ? '0619-E' : type === '1601EQ' ? '1601-EQ' : type === 'TRACKER' ? 'tracker' : type);
       }
     }
-  }, [activeModal, historyTab]);
+  }, [activeModal, birFormTab]);
 
   // Automatically select 'client_owner' if no active client is selected
   useEffect(() => {
