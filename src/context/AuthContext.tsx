@@ -34,7 +34,8 @@ export function AuthProvider({
   const [userRole, setUserRoleState] = useState<string | null>(null);
 
   // Hardcode the developer's email as superuser for now
-  const DEVELOPER_EMAIL = 'thugz.gerald13@gmail.com';
+  const DEVELOPER_EMAIL =
+    import.meta.env.VITE_ADMIN_EMAIL;
   const isAdmin = user?.email === DEVELOPER_EMAIL;
 
   useEffect(() => {
