@@ -39,9 +39,6 @@ interface AccountingContextType {
 
 const AccountingContext = createContext<AccountingContextType | undefined>(undefined);
 
-const LOCAL_STORAGE_KEY = 'capo_accounting_v14_react';
-const OLD_STORAGE_KEY = 'capo_accounting_v13_react';
-
 const defaultBusinessProfile = (name: string): BusinessProfile => ({
   id: 'client_owner',
   name,
@@ -100,7 +97,13 @@ const buildMatchingClient = (profileData: BusinessProfile, existing: Client | un
     taxDeadlines: existing?.taxDeadlines || [],
   }) as unknown as Client;
 
-export const AccountingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+type AccountingProviderProps = {
+    children: React.ReactNode;
+};
+
+export function AccountingProvider({
+    children,
+}: AccountingProviderProps) { = ({ children }) => {
   const { user, userRole } = useAuth();
   const [clients, setClients] = useState<Record<string, Client>>({});
   const [currentClientId, setCurrentClientId] = useState<string | null>(null);
