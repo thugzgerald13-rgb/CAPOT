@@ -84,7 +84,6 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
     { id: 'coa', label: 'Chart of Accounts', icon: BookOpen },
     { id: 'sales', label: 'Income', icon: Receipt },
     { id: 'files', label: 'Upload Files', icon: FolderUp },
-    { id: 'ap-workspace', label: 'AP & Disbursements', icon: Banknote },
     { id: 'inventory', label: 'Inventory', icon: Boxes },
   ];
 
@@ -380,7 +379,7 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
             </AnimatePresence>
           </div>
 
-          {/* BIR Tax Forms Collapsible Dropdown */}
+          {/* Compliance Collapsible Dropdown */}
           <div className="flex flex-col">
             <button
               onClick={() => toggleDropdown('forms')}
@@ -391,7 +390,7 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
             >
               <div className="flex items-center gap-3">
                 <FileText className="w-5 h-5 opacity-70 group-hover:opacity-100 transition-opacity" />
-                <span>BIR Tax Forms</span>
+                <span>Compliance</span>
               </div>
               <ChevronDown className={cn("w-4 h-4 transition-transform duration-300", isFormsOpen ? "rotate-180" : "")} />
             </button>
