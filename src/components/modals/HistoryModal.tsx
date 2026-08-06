@@ -45,7 +45,7 @@ export function HistoryModal() {
     sls: { label: 'Summary List of Sales (SLS)', icon: FolderClock, color: 'text-indigo-600', bg: 'bg-indigo-50' }
   };
 
-  const activeConfig = TabConfig[activeTab];
+  const activeConfig = TabConfig[activeTab] || TabConfig.expenses;
 
   const handleDeleteExpense = (id: number) => {
     if (!currentClientId) return;
