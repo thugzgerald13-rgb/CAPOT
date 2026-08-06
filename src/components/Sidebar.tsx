@@ -19,8 +19,7 @@ interface SidebarProps {
 export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
   const { openModal, currentDat, setCurrentDat, setHistoryTab, setBirFormTab, setPendingModal, syncData, isSyncing } = useAccounting();
   const { user, isAdmin, userRole, signOut } = useAuth();
-  const [isExpensesOpen, setIsExpensesOpen] = useState(false);
-  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [isTransactionsOpen, setIsTransactionsOpen] = useState(false);
   const [isReportsOpen, setIsReportsOpen] = useState(false);
   const [isFormsOpen, setIsFormsOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -33,8 +32,7 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (sidebarRef.current && !sidebarRef.current.contains(event.target as Node)) {
-        setIsExpensesOpen(false);
-        setIsHistoryOpen(false);
+        setIsTransactionsOpen(false);
         setIsReportsOpen(false);
         setIsFormsOpen(false);
         setIsSettingsOpen(false);
@@ -50,14 +48,13 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
   }, []);
 
   const toggleDropdown = (dropdown: string) => {
-    setIsExpensesOpen(dropdown === 'expenses' ? !isExpensesOpen : false);
+    setIsTransactionsOpen(dropdown === 'transactions' ? !isTransactionsOpen : false);
     setIsBooksOpen(dropdown === 'books' ? !isBooksOpen : false);
-    setIsHistoryOpen(dropdown === 'history' ? !isHistoryOpen : false);
     setIsReportsOpen(dropdown === 'reports' ? !isReportsOpen : false);
     setIsFormsOpen(dropdown === 'forms' ? !isFormsOpen : false);
     setIsSettingsOpen(dropdown === 'settings' ? !isSettingsOpen : false);
     setIsDevOpen(dropdown === 'dev' ? !isDevOpen : false);
-    if (dropdown !== 'history') {
+    if (dropdown !== 'transactions') {
       setIsDatHistoryOpen(false);
     }
   };
@@ -82,7 +79,6 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
 
   const navItems = [
     { id: 'coa', label: 'Chart of Accounts', icon: BookOpen },
-    { id: 'sales', label: 'Income', icon: Receipt },
     { id: 'files', label: 'Upload Files', icon: FolderUp },
     { id: 'inventory', label: 'Inventory', icon: Boxes },
   ];
@@ -147,58 +143,6 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
             );
           })}
 
-          {/* Expenses Collapsible Dropdown */}
-          <div className="flex flex-col">
-            <button
-              onClick={() => toggleDropdown('expenses')}
-              className={cn(
-                "flex items-center justify-between px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-300 rounded-xl transition-all w-full text-left group",
-                isExpensesOpen ? "bg-rose-50 text-rose-700 dark:bg-rose-900/20 dark:text-rose-400" : "hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-slate-800"
-              )}
-            >
-              <div className="flex items-center gap-3">
-                <ShoppingCart className="w-5 h-5 opacity-70 group-hover:opacity-100 transition-opacity" />
-                <span>Expenses</span>
-              </div>
-              <ChevronDown className={cn("w-4 h-4 transition-transform duration-300", isExpensesOpen ? "rotate-180" : "")} />
-            </button>
-
-            <AnimatePresence>
-              {isExpensesOpen && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="overflow-hidden flex flex-col gap-1 mt-1 pl-4"
-                >
-                  <button
-                    onClick={() => {
-                        setPendingModal('purchases');
-                        openModal('dat');
-                        setIsOpen(false);
-                    }}
-                    className="flex items-center gap-3 px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 rounded-lg hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-slate-800 dark:hover:text-rose-400 transition-all w-full text-left"
-                  >
-                    <FolderClock className="w-4 h-4" />
-                    DAT Entry
-                  </button>
-                  <button
-                    onClick={() => {
-                        setCurrentDat(null);
-                        openModal('purchases');
-                        setIsOpen(false);
-                    }}
-                    className="flex items-center gap-3 px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 rounded-lg hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-slate-800 dark:hover:text-rose-400 transition-all w-full text-left"
-                  >
-                    <ShoppingCart className="w-4 h-4" />
-                    Normal Entry
-                  </button>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-
           {/* Books Collapsible Dropdown */}
           <div className="flex flex-col">
             <button
@@ -242,24 +186,24 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
             </AnimatePresence>
           </div>
 
-          {/* History Collapsible Dropdown */}
+          {/* Transactions Collapsible Dropdown (Income + Expenses + Transaction History, merged) */}
           <div className="flex flex-col">
             <button
-              onClick={() => toggleDropdown('history')}
+              onClick={() => toggleDropdown('transactions')}
               className={cn(
                 "flex items-center justify-between px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-300 rounded-xl transition-all w-full text-left group",
-                isHistoryOpen ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-900/20 dark:text-indigo-400" : "hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-slate-800"
+                isTransactionsOpen ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-900/20 dark:text-indigo-400" : "hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-slate-800"
               )}
             >
               <div className="flex items-center gap-3">
                 <History className="w-5 h-5 opacity-70 group-hover:opacity-100 transition-opacity" />
-                <span>Transaction History</span>
+                <span>Transactions</span>
               </div>
-              <ChevronDown className={cn("w-4 h-4 transition-transform duration-300", isHistoryOpen ? "rotate-180" : "")} />
+              <ChevronDown className={cn("w-4 h-4 transition-transform duration-300", isTransactionsOpen ? "rotate-180" : "")} />
             </button>
 
             <AnimatePresence>
-              {isHistoryOpen && (
+              {isTransactionsOpen && (
                 <motion.div
                   initial={{ height: 0, opacity: 0 }}
                   animate={{ height: 'auto', opacity: 1 }}
@@ -267,6 +211,41 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
                   transition={{ duration: 0.2 }}
                   className="overflow-hidden flex flex-col gap-1 mt-1 pl-4"
                 >
+                  <button
+                    onClick={() => {
+                      handleNavClick('sales');
+                      setIsOpen(false);
+                    }}
+                    className="flex items-center gap-3 px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 rounded-lg hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-slate-800 dark:hover:text-indigo-400 transition-all w-full text-left"
+                  >
+                    <Receipt className="w-4 h-4" />
+                    Record Income
+                  </button>
+                  <button
+                    onClick={() => {
+                        setPendingModal('purchases');
+                        openModal('dat');
+                        setIsOpen(false);
+                    }}
+                    className="flex items-center gap-3 px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 rounded-lg hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-slate-800 dark:hover:text-indigo-400 transition-all w-full text-left"
+                  >
+                    <FolderClock className="w-4 h-4" />
+                    Record Expense (DAT Entry)
+                  </button>
+                  <button
+                    onClick={() => {
+                        setCurrentDat(null);
+                        openModal('purchases');
+                        setIsOpen(false);
+                    }}
+                    className="flex items-center gap-3 px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 rounded-lg hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-slate-800 dark:hover:text-indigo-400 transition-all w-full text-left"
+                  >
+                    <ShoppingCart className="w-4 h-4" />
+                    Record Expense (Normal Entry)
+                  </button>
+
+                  <hr className="border-slate-100 dark:border-slate-800 my-1" />
+
                   {historyItems.map((subItem) => {
                     const SubIcon = subItem.icon;
                     return (
