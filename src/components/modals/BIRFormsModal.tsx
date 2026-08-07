@@ -389,6 +389,13 @@ export function BIRFormsModal() {
     });
 
     const salesTotal = salesList.reduce((sum, s) => sum + s.amount, 0);
+    // VAT-taxable base for 2550Q: net-of-VAT amount for VATable entries only (excludes
+    // VAT Exempt / Zero-Rated). Legacy entries (saved before per-entry VAT breakdown existed)
+    // stored `amount` as already-net with a flat 12% assumed, so they fall back to their
+    // full amount here, matching prior behavior for that data.
+    const vatableNetSales = salesList
+      .filter(s => !s.vatType || s.vatType === 'VATable')
+      .reduce((sum, s) => sum + (s.netOfVat !== undefined ? s.netOfVat : s.amount), 0);
     const purchasesTotal = purchasesList.reduce((sum, p) => sum + p.amount, 0);
     const vatPurchasesTotal = purchasesList
       .filter(p => p.vatType === 'vat')
@@ -463,6 +470,7 @@ export function BIRFormsModal() {
 
     return {
       salesTotal,
+      vatableNetSales,
       purchasesTotal,
       vatPurchasesTotal,
       purchasesInputTax,
@@ -476,8 +484,10 @@ export function BIRFormsModal() {
     };
   }, [currentClient, selectedYear, selectedQuarter, selectedMonth, activeFormType]);
 
-  // Clean values combining manual overrides and compiled values
-  const activeVatSales = manualVatSales !== '' ? parseFloat(manualVatSales) || 0 : compiledData.salesTotal;
+  // Clean values combining manual overrides and compiled values.
+  // Uses vatableNetSales (net-of-VAT, VATable entries only) rather than the gross
+  // salesTotal, since output tax must be computed on the net taxable base, not gross.
+  const activeVatSales = manualVatSales !== '' ? parseFloat(manualVatSales) || 0 : compiledData.vatableNetSales;
   const activeZeroSales = parseFloat(manualZeroSales) || 0;
   const activeExemptSales = parseFloat(manualExemptSales) || 0;
   const activeTotalSalesLine = activeVatSales + activeZeroSales + activeExemptSales;
@@ -638,8 +648,12 @@ export function BIRFormsModal() {
     const purchasesTotal = purchases.reduce((sum, p) => sum + p.amount, 0);
 
     if (formType === '2550Q') {
+      // Output tax base must be net-of-VAT, VATable sales only - not gross total sales.
+      const vatableNetSales = sales
+        .filter(s => !s.vatType || s.vatType === 'VATable')
+        .reduce((sum, s) => sum + (s.netOfVat !== undefined ? s.netOfVat : s.amount), 0);
       const inputTaxVal = purchases.filter(p => p.vatType === 'vat').reduce((sum, p) => sum + (p.inputTax || p.amount * 0.12), 0);
-      return Math.max(0, (salesTotal * 0.12) - inputTaxVal);
+      return Math.max(0, (vatableNetSales * 0.12) - inputTaxVal);
     }
     
     if (formType === '2551Q') {

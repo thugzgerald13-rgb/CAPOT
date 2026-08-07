@@ -82,6 +82,16 @@ export function HistoryModal() {
     (s.invoiceNo && s.invoiceNo.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
+  // Legacy sales entries (saved before Net of VAT / Output Tax were tracked per-entry) stored
+  // `amount` as the NET figure with a flat 12% always added on top. Newer entries store
+  // `amount` as the GROSS figure with netOfVat/outputTax computed from vatType.
+  const getSaleVatBreakdown = (s: typeof sales[number]) => {
+    const hasVatBreakdown = s.outputTax !== undefined && s.netOfVat !== undefined;
+    const outputTax = hasVatBreakdown ? s.outputTax : s.amount * 0.12;
+    const netOfVat = hasVatBreakdown ? s.netOfVat : s.amount;
+    return { outputTax, netOfVat };
+  };
+
   // Derive unique DAT periods from transactions
   const allPeriods = Array.from(new Set([
     ...(currentClient.sales || []).map(s => s.datMonthYear),
@@ -221,8 +231,16 @@ export function HistoryModal() {
     ];
     
     const dataRows = sales.map(s => {
-      const outputTax = s.amount * 0.12; 
-      const grossTotal = s.amount + outputTax;
+      // Legacy entries (saved before Net of VAT / Output Tax were tracked per-entry) stored
+      // `amount` as the NET figure with a flat 12% always added on top. New entries store
+      // `amount` as the GROSS figure with netOfVat/outputTax computed from vatType.
+      const hasVatBreakdown = s.outputTax !== undefined && s.netOfVat !== undefined;
+      const outputTax = hasVatBreakdown ? s.outputTax : s.amount * 0.12;
+      const netOfVat = hasVatBreakdown ? s.netOfVat : s.amount;
+      const grossTotal = hasVatBreakdown ? s.amount : s.amount + outputTax;
+      const isExempt = s.vatType === 'VAT Exempt';
+      const isZeroRated = s.vatType === 'Zero-Rated';
+      const taxableAmount = (isExempt || isZeroRated) ? 0 : netOfVat;
       
       return [
         s.date,
@@ -231,22 +249,30 @@ export function HistoryModal() {
         s.buyerName || s.customerName,
         s.buyerAddress || s.customerAddress || '',
         grossTotal,
-        0,
-        0,
-        s.amount,
+        isExempt ? grossTotal : 0,
+        isZeroRated ? grossTotal : 0,
+        taxableAmount,
         outputTax,
         grossTotal
       ];
     });
 
+    const computeRow = (s: typeof sales[number]) => {
+      const hasVatBreakdown = s.outputTax !== undefined && s.netOfVat !== undefined;
+      const outputTax = hasVatBreakdown ? s.outputTax : s.amount * 0.12;
+      const netOfVat = hasVatBreakdown ? s.netOfVat : s.amount;
+      const grossTotal = hasVatBreakdown ? s.amount : s.amount + outputTax;
+      return { outputTax, netOfVat, grossTotal };
+    };
+
     const totalRow = [
       'Grand Total :', '', '', '', '',
-      sales.reduce((sum, s) => sum + s.amount + (s.amount * 0.12), 0),
-      0,
-      0,
-      sales.reduce((sum, s) => sum + s.amount, 0),
-      sales.reduce((sum, s) => sum + (s.amount * 0.12), 0),
-      sales.reduce((sum, s) => sum + s.amount + (s.amount * 0.12), 0)
+      sales.reduce((sum, s) => sum + computeRow(s).grossTotal, 0),
+      sales.reduce((sum, s) => sum + (s.vatType === 'VAT Exempt' ? computeRow(s).grossTotal : 0), 0),
+      sales.reduce((sum, s) => sum + (s.vatType === 'Zero-Rated' ? computeRow(s).grossTotal : 0), 0),
+      sales.reduce((sum, s) => sum + ((s.vatType === 'VAT Exempt' || s.vatType === 'Zero-Rated') ? 0 : computeRow(s).netOfVat), 0),
+      sales.reduce((sum, s) => sum + computeRow(s).outputTax, 0),
+      sales.reduce((sum, s) => sum + computeRow(s).grossTotal, 0)
     ];
 
     const finalData = [...headerRows, ...dataRows, totalRow, [''], ['END OF REPORT']];
@@ -394,18 +420,50 @@ export function HistoryModal() {
                       <div key={s.id} className="bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl p-4 flex flex-col gap-2 relative shadow-sm">
                         <div className="flex justify-between items-center">
                           <span className="text-xs font-bold text-slate-800 dark:text-slate-200">{s.date}</span>
-                          <span className="text-xs font-mono text-slate-500">Ref: {s.ref || s.invoiceNo || '—'}</span>
+                          <span className="text-xs font-mono text-slate-500">Inv #: {s.ref || s.invoiceNo || '—'}</span>
                         </div>
-                        <div className="flex justify-between items-end mt-1">
-                          <div className="flex flex-col">
-                            <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Buyer</span>
-                            <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 max-w-[200px] truncate">{s.buyerName || s.customerName}</span>
-                          </div>
-                          <div className="text-right">
-                            <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">Amount</span>
-                            <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">₱{s.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+
+                        <div>
+                          <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-wider block mb-1">Customer Info</span>
+                          <div className="bg-white dark:bg-slate-900 rounded-xl p-2.5 border border-slate-200/50 dark:border-slate-800 flex flex-col gap-1 text-[11px]">
+                            <div className="font-bold text-slate-800 dark:text-slate-200">{s.buyerName || s.customerName}</div>
+                            <div className="text-slate-500 font-mono">TIN: {s.buyerTin || '—'}</div>
+                            <div className="text-slate-400 truncate" title={s.buyerAddress}>{s.buyerAddress || '—'}</div>
+                            {s.desc && <div className="text-slate-500 italic mt-1">"{s.desc}"</div>}
                           </div>
                         </div>
+
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div>
+                            <span className="text-[10px] text-slate-400 block">Payment Type</span>
+                            <span className="font-semibold bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-700 dark:text-slate-300 block w-max mt-0.5">
+                              {s.paymentType || '—'}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] text-slate-400 block">Classification</span>
+                            <div className="flex flex-wrap gap-1 mt-0.5">
+                              <span className="px-1.5 py-0.5 rounded text-[9px] bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400 font-semibold uppercase">{s.vatType || '—'}</span>
+                              <span className="px-1.5 py-0.5 rounded text-[9px] bg-cyan-50 text-cyan-600 dark:bg-cyan-900/30 dark:text-cyan-400 font-semibold uppercase">{s.incomeType || '—'}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="bg-emerald-50/50 dark:bg-emerald-900/10 p-2.5 rounded-lg mt-1 flex flex-col gap-1 border border-emerald-100 dark:border-emerald-900/30">
+                          <div className="flex justify-between items-center text-xs">
+                            <span className="text-slate-500">Net of VAT:</span>
+                            <span className="font-mono text-slate-700 dark:text-slate-300">₱{getSaleVatBreakdown(s).netOfVat.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                          </div>
+                          <div className="flex justify-between items-center text-xs">
+                            <span className="text-slate-500">Output Tax:</span>
+                            <span className="font-mono text-blue-600 dark:text-blue-400">₱{getSaleVatBreakdown(s).outputTax.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                          </div>
+                          <div className="flex justify-between items-center text-xs pt-1.5 border-t border-dashed border-emerald-500/30">
+                            <span className="font-bold text-slate-700 dark:text-slate-300">Gross Amount:</span>
+                            <span className="font-extrabold text-emerald-600 dark:text-emerald-400">₱{s.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                          </div>
+                        </div>
+
                         <div className="flex justify-end pt-2 border-t border-slate-200/60 dark:border-slate-800 mt-1">
                           <button 
                             onClick={() => handleDeleteIncome(s.id)}
@@ -445,12 +503,15 @@ export function HistoryModal() {
                           </>
                         ) : (
                           <>
-                            <th className="px-4 py-3 border-b border-slate-100 dark:border-slate-800">Date</th>
-                            <th className="px-4 py-3 border-b border-slate-100 dark:border-slate-800">Reference</th>
-                            <th className="px-4 py-3 border-b border-slate-100 dark:border-slate-800">Account Title</th>
-                            <th className="px-4 py-3 border-b border-slate-100 dark:border-slate-800">Name/Entity</th>
-                            <th className="px-4 py-3 border-b border-slate-100 dark:border-slate-800 text-right font-bold">Amount</th>
-                            <th className="px-4 py-3 border-b border-slate-100 dark:border-slate-800 w-16 sticky right-0 bg-white dark:bg-slate-900 z-10"></th>
+                            <th className="px-3 py-3 border-b border-slate-100 dark:border-slate-800 whitespace-nowrap">Date</th>
+                            <th className="px-3 py-3 border-b border-slate-100 dark:border-slate-800 whitespace-nowrap">Invoice No.</th>
+                            <th className="px-3 py-3 border-b border-slate-100 dark:border-slate-800 text-left">Customer Info</th>
+                            <th className="px-3 py-3 border-b border-slate-100 dark:border-slate-800 text-left">Payment</th>
+                            <th className="px-3 py-3 border-b border-slate-100 dark:border-slate-800 text-left">Classification</th>
+                            <th className="px-3 py-3 border-b border-slate-100 dark:border-slate-800 text-right whitespace-nowrap">Gross Amount</th>
+                            <th className="px-3 py-3 border-b border-slate-100 dark:border-slate-800 text-right whitespace-nowrap">Net of VAT</th>
+                            <th className="px-3 py-3 border-b border-slate-100 dark:border-slate-800 text-right whitespace-nowrap">Output Tax</th>
+                            <th className="px-3 py-3 border-b border-slate-100 dark:border-slate-800 w-12 sticky right-0 bg-white dark:bg-slate-900 z-10"></th>
                           </>
                         )}
                       </tr>
@@ -517,17 +578,41 @@ export function HistoryModal() {
                       ) : (
                         filteredSales.map((s) => (
                           <tr key={s.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
-                            <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">{s.date}</td>
-                            <td className="px-4 py-3 text-sm font-medium text-slate-800 dark:text-slate-200">{s.ref || s.invoiceNo || '—'}</td>
-                            <td className="px-4 py-3 text-sm text-slate-400 italic">—</td>
-                            <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">{s.buyerName || s.customerName}</td>
-                            <td className="px-4 py-3 text-sm font-bold text-slate-900 dark:text-white text-right">
+                            <td className="px-3 py-3 text-sm text-slate-600 dark:text-slate-400 align-top whitespace-nowrap">{s.date}</td>
+                            <td className="px-3 py-3 text-sm font-medium text-slate-800 dark:text-slate-200 align-top whitespace-nowrap">{s.ref || s.invoiceNo || '—'}</td>
+                            <td className="px-3 py-3 text-xs align-top">
+                              <div className="flex flex-col gap-0.5">
+                                <span className="font-bold text-slate-800 dark:text-slate-200">{s.buyerName || s.customerName}</span>
+                                <span className="text-slate-500 font-mono text-[10px]">TIN: {s.buyerTin || '—'}</span>
+                                <span className="text-slate-400 text-[10px] truncate max-w-[180px]" title={s.buyerAddress}>{s.buyerAddress || '—'}</span>
+                              </div>
+                            </td>
+                            <td className="px-3 py-3 text-xs align-top">
+                              <span className="inline-block px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-medium">
+                                {s.paymentType || '—'}
+                              </span>
+                            </td>
+                            <td className="px-3 py-3 text-xs align-top">
+                              <div className="flex flex-wrap items-center gap-1">
+                                <span className="px-1.5 py-0.5 rounded text-[9px] bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400 font-semibold uppercase">{s.vatType || '—'}</span>
+                                <span className="px-1.5 py-0.5 rounded text-[9px] bg-cyan-50 text-cyan-600 dark:bg-cyan-900/30 dark:text-cyan-400 font-semibold uppercase">{s.incomeType || '—'}</span>
+                              </div>
+                              {s.desc && <div className="text-[10px] text-slate-400 italic mt-1 truncate max-w-[160px]" title={s.desc}>"{s.desc}"</div>}
+                            </td>
+                            <td className="px-3 py-3 text-sm font-bold text-emerald-700 dark:text-emerald-400 text-right align-top whitespace-nowrap bg-emerald-50/30 dark:bg-emerald-900/10">
                               ₱{s.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                             </td>
-                            <td className="px-4 py-3 text-center">
+                            <td className="px-3 py-3 text-sm text-slate-900 dark:text-white text-right align-top whitespace-nowrap">
+                              ₱{getSaleVatBreakdown(s).netOfVat.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            </td>
+                            <td className="px-3 py-3 text-sm text-blue-600 dark:text-blue-400 text-right align-top whitespace-nowrap">
+                              ₱{getSaleVatBreakdown(s).outputTax.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            </td>
+                            <td className="px-3 py-3 text-center align-top sticky right-0 bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800/50 z-10 border-l border-slate-100 dark:border-slate-800">
                               <button 
                                 onClick={() => handleDeleteIncome(s.id)}
                                 className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
+                                title="Delete Entry"
                               >
                                 <Trash2 className="w-4 h-4" />
                               </button>
@@ -537,7 +622,7 @@ export function HistoryModal() {
                       )}
                       {((activeTab === 'expenses' && filteredPurchases.length === 0) || (activeTab === 'income' && filteredSales.length === 0)) && (
                         <tr>
-                          <td colSpan={activeTab === 'expenses' ? 9 : 6} className="px-4 py-12 text-center text-slate-500 dark:text-slate-400">
+                          <td colSpan={9} className="px-4 py-12 text-center text-slate-500 dark:text-slate-400">
                             <History className="w-8 h-8 mx-auto mb-3 opacity-20" />
                             <p className="font-medium">No {activeTab} found for this period.</p>
                             <p className="text-xs">Adjust your search or change the DAT File Selection.</p>
@@ -806,11 +891,11 @@ export function HistoryModal() {
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                       {sales.map((s) => {
-                        // Assuming 12% output tax for Taxable Sales
-                        // We will need to compute this better if we store more details
-                        const isVat = true; // simplified
-                        const outputTax = s.amount * 0.12; 
-                        const grossTotal = s.amount + outputTax;
+                        const { outputTax, netOfVat } = getSaleVatBreakdown(s);
+                        const grossTotal = s.outputTax !== undefined ? s.amount : s.amount + outputTax;
+                        const isExempt = s.vatType === 'VAT Exempt';
+                        const isZeroRated = s.vatType === 'Zero-Rated';
+                        const taxableAmount = (isExempt || isZeroRated) ? 0 : netOfVat;
                         const monthNum = currentDat?.month?.toString().padStart(2, '0') || '—';
 
                         return (
@@ -823,10 +908,14 @@ export function HistoryModal() {
                             <td className="px-2 py-2 border-r border-slate-100 dark:border-slate-800 text-right font-bold">
                               {grossTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                             </td>
-                            <td className="px-2 py-2 border-r border-slate-100 dark:border-slate-800 text-right text-slate-500">0.00</td>
-                            <td className="px-2 py-2 border-r border-slate-100 dark:border-slate-800 text-right text-slate-500">0.00</td>
                             <td className="px-2 py-2 border-r border-slate-100 dark:border-slate-800 text-right text-slate-500">
-                              {s.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                              {(isExempt ? grossTotal : 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            </td>
+                            <td className="px-2 py-2 border-r border-slate-100 dark:border-slate-800 text-right text-slate-500">
+                              {(isZeroRated ? grossTotal : 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            </td>
+                            <td className="px-2 py-2 border-r border-slate-100 dark:border-slate-800 text-right text-slate-500">
+                              {taxableAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                             </td>
                             <td className="px-2 py-2 border-r border-slate-100 dark:border-slate-800 text-right text-indigo-600 font-bold">
                               {outputTax.toLocaleString(undefined, { minimumFractionDigits: 2 })}
@@ -842,18 +931,22 @@ export function HistoryModal() {
                       <tr>
                         <td colSpan={5} className="px-2 py-3 border-r border-slate-200 dark:border-slate-700 text-right">TOTAL PERIOD SUMMARY:</td>
                         <td className="px-2 py-3 border-r border-slate-200 dark:border-slate-700 text-right">
-                          ₱{sales.reduce((sum, s) => sum + s.amount + (s.amount * 0.12), 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          ₱{sales.reduce((sum, s) => sum + (s.outputTax !== undefined ? s.amount : s.amount + getSaleVatBreakdown(s).outputTax), 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                         </td>
-                        <td className="px-2 py-3 border-r border-slate-200 dark:border-slate-700 text-right font-normal">0.00</td>
-                        <td className="px-2 py-3 border-r border-slate-200 dark:border-slate-700 text-right font-normal">0.00</td>
                         <td className="px-2 py-3 border-r border-slate-200 dark:border-slate-700 text-right font-normal">
-                          {sales.reduce((sum, s) => sum + s.amount, 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          {sales.reduce((sum, s) => sum + (s.vatType === 'VAT Exempt' ? (s.outputTax !== undefined ? s.amount : s.amount + getSaleVatBreakdown(s).outputTax) : 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        </td>
+                        <td className="px-2 py-3 border-r border-slate-200 dark:border-slate-700 text-right font-normal">
+                          {sales.reduce((sum, s) => sum + (s.vatType === 'Zero-Rated' ? (s.outputTax !== undefined ? s.amount : s.amount + getSaleVatBreakdown(s).outputTax) : 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        </td>
+                        <td className="px-2 py-3 border-r border-slate-200 dark:border-slate-700 text-right font-normal">
+                          {sales.reduce((sum, s) => sum + ((s.vatType === 'VAT Exempt' || s.vatType === 'Zero-Rated') ? 0 : getSaleVatBreakdown(s).netOfVat), 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                         </td>
                         <td className="px-2 py-3 border-r border-slate-200 dark:border-slate-700 text-right text-indigo-600">
-                          {sales.reduce((sum, s) => sum + (s.amount * 0.12), 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          {sales.reduce((sum, s) => sum + getSaleVatBreakdown(s).outputTax, 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                         </td>
                         <td className="px-2 py-3 text-right text-indigo-700">
-                          {sales.reduce((sum, s) => sum + s.amount + (s.amount * 0.12), 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          {sales.reduce((sum, s) => sum + (s.outputTax !== undefined ? s.amount : s.amount + getSaleVatBreakdown(s).outputTax), 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                         </td>
                       </tr>
                     </tfoot>

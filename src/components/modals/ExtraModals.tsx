@@ -104,6 +104,12 @@ export function ExtraModals() {
   const totalIpTax = currentClient?.purchases.reduce((s,i)=>s+(i.inputTax||0),0) || 0;
   const gp = salesTotal - purchasesTotal;
   const gm = salesTotal ? ((gp/salesTotal)*100).toFixed(2) : 0;
+
+  // Sales Journal: income entries posted with Credit Card or On Account payment types
+  const creditSalesEntries = (currentClient?.sales || []).filter(
+    s => s.paymentType === 'Credit Card' || s.paymentType === 'On Account'
+  );
+  const creditSalesTotal = creditSalesEntries.reduce((s, i) => s + i.amount, 0);
   
   return (
     <>
@@ -930,13 +936,55 @@ export function ExtraModals() {
          </div>
       </Modal>
 
-      <Modal id="sales-journal" title="Sales Journal" icon={<Receipt className="text-emerald-500" />}>
-         <div className="p-8 text-center text-slate-500">
-            <Receipt className="w-12 h-12 mx-auto mb-4 opacity-20" />
-            <h3 className="text-lg font-bold text-slate-700 dark:text-slate-300 mb-2">Sales Journal</h3>
-            <p className="text-sm">Summary of all sales transactions for the period.</p>
-            <div className="mt-6 p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-100 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 font-bold">
-               Total Sales recorded: ₱{salesTotal.toLocaleString()}
+      <Modal id="sales-journal" title="Sales Journal" icon={<Receipt className="text-emerald-500" />} maxWidth="max-w-6xl">
+         <div className="p-2">
+            <p className="text-sm text-slate-500 mb-4">Income entries posted here automatically when Payment Type is Credit Card or On Account (recorded in Cash Receipts Journal instead).</p>
+
+            {creditSalesEntries.length === 0 ? (
+              <div className="p-12 text-center text-slate-500 dark:text-slate-400">
+                <Receipt className="w-10 h-10 mx-auto mb-3 opacity-20" />
+                <p className="font-medium">No Credit Card / On Account income entries yet.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Invoice #</th>
+                      <th>Customer</th>
+                      <th>Payment Type</th>
+                      <th>VAT Class</th>
+                      <th className="text-right">Net of VAT</th>
+                      <th className="text-right">VAT</th>
+                      <th className="text-right">Gross Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {creditSalesEntries.map(s => (
+                      <tr key={s.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-colors">
+                        <td>{s.date}</td>
+                        <td>{s.ref || '—'}</td>
+                        <td className="font-medium">{s.buyerName}</td>
+                        <td>
+                          <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-xs font-medium">{s.paymentType}</span>
+                        </td>
+                        <td>
+                          <span className="px-1.5 py-0.5 rounded text-[10px] bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400 font-semibold uppercase">{s.vatType || '—'}</span>
+                        </td>
+                        <td className="text-right font-mono">₱{(s.netOfVat ?? s.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                        <td className="text-right font-mono text-blue-600 dark:text-blue-400">₱{(s.outputTax ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                        <td className="text-right font-bold">₱{s.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <div className="mt-6 bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-xl border border-emerald-100 dark:border-emerald-800 flex justify-between items-center">
+               <span className="font-bold text-emerald-700 dark:text-emerald-400">Total Sales Journal (Credit Card / On Account)</span>
+               <span className="text-xl font-extrabold text-emerald-600 dark:text-emerald-400">₱{creditSalesTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
             </div>
          </div>
       </Modal>
