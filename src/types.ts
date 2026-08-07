@@ -26,12 +26,18 @@ export interface Purchase {
 
 export interface Sale {
   id: number;
+  datMonthYear?: string;
   date: string;
   ref: string;
   paymentType: string;
-  buyerName: string;
   buyerTin: string;
+  buyerName: string;
+  buyerAddress: string;
+  vatType: string;
   amount: number;
+  netOfVat: number;
+  outputTax: number;
+  incomeType: string;
   desc?: string;
 }
 
