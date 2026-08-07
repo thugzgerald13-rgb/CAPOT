@@ -12,7 +12,6 @@ interface AccountingContextType {
   businessProfile: BusinessProfile | null;
   isDarkMode: boolean;
   activeModal: string | null;
-  pendingModal: string | null;
   currentDat: DatSelection | null;
   historyTab: string;
   birFormTab: string;
@@ -23,7 +22,6 @@ interface AccountingContextType {
 
   setDarkMode: (value: boolean) => void;
   openModal: (modal: string | null) => void;
-  setPendingModal: (modal: string | null) => void;
   setHistoryTab: (tab: string) => void;
   setBirFormTab: (tab: string) => void;
   setCurrentClientId: (id: string) => void;
@@ -115,7 +113,6 @@ export function AccountingProvider({
   const [businessProfile, setBusinessProfile] = useState<BusinessProfile | null>(null);
   const [isDarkMode, setDarkMode] = useState(false);
   const [activeModal, setActiveModal] = useState<string | null>(null);
-  const [pendingModal, setPendingModal] = useState<string | null>(null);
   const [currentDat, setCurrentDat] = useState<DatSelection | null>(null);
   const [historyTab, setHistoryTab] = useState('expenses');
   const [birFormTab, setBirFormTab] = useState('tracker');
@@ -791,7 +788,6 @@ export function AccountingProvider({
         businessProfile,
         isDarkMode,
         activeModal,
-        pendingModal,
         currentDat,
         historyTab,
         birFormTab,
@@ -801,7 +797,6 @@ export function AccountingProvider({
         syncData,
         setDarkMode,
         openModal,
-        setPendingModal,
         setHistoryTab,
         setBirFormTab,
         setCurrentClientId,

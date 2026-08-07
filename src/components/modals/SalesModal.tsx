@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
 import { useAccounting } from '../../context/AccountingContext';
-import { formatTIN } from '../../lib/utils';
+import { formatTIN, MONTHS, getMonthName } from '../../lib/utils';
 import { Receipt, Search, Trash2, Plus, FolderClock } from 'lucide-react';
 
 export function SalesModal() {
-  const { currentClient, currentClientId, currentDat, saveClient, showToast, activeDevice } = useAccounting();
+  const { currentClient, currentClientId, currentDat, setCurrentDat, saveClient, showToast, activeDevice } = useAccounting();
+
+  const currentYear = new Date().getFullYear();
+  const periodYears = Array.from({ length: 11 }, (_, i) => currentYear - 10 + i);
   
   // Form State
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -18,6 +21,17 @@ export function SalesModal() {
   const [searchTerm, setSearchTerm] = useState('');
   const [autoLoadMsg, setAutoLoadMsg] = useState('');
   const [dateWarning, setDateWarning] = useState<string | null>(null);
+
+  // Default to the current month/year if no period has been picked yet,
+  // so Save works immediately without requiring the user to touch the picker.
+  useEffect(() => {
+    if (!currentDat) {
+      const now = new Date();
+      const month = now.getMonth() + 1;
+      const year = now.getFullYear();
+      setCurrentDat({ month, year, formatted: `${getMonthName(month)} ${year}` });
+    }
+  }, []);
 
   // Date validation against DAT
   useEffect(() => {
@@ -121,13 +135,37 @@ export function SalesModal() {
       badge={<span className="bg-emerald-500 text-white px-2 py-0.5 rounded-full text-xs font-bold">Revenue</span>}
     >
       <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between bg-slate-100 dark:bg-slate-800 p-4 rounded-2xl mb-6 gap-4 border border-slate-200 dark:border-slate-700">
-        <div className="flex items-center gap-2 font-bold text-slate-700 dark:text-slate-300">
+        <div className="flex flex-wrap items-center gap-2 font-bold text-slate-700 dark:text-slate-300">
           <FolderClock className="w-5 h-5 text-cyan-500" />
-          <span>DAT Period:</span>
-          {currentDat ? (
-            <span className="bg-cyan-500 text-white px-3 py-1 rounded-lg text-sm shadow-sm">{currentDat.formatted}</span>
-          ) : (
-            <span className="text-red-500 italic">No DAT Selected</span>
+          <span>Period:</span>
+          <select
+            value={currentDat?.month || new Date().getMonth() + 1}
+            onChange={e => {
+              const month = parseInt(e.target.value);
+              const year = currentDat?.year || currentYear;
+              setCurrentDat({ month, year, formatted: `${getMonthName(month)} ${year}` });
+            }}
+            className="px-3 py-1.5 rounded-lg text-sm font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 outline-none"
+          >
+            {MONTHS.map((m, i) => (
+              <option key={m} value={i + 1}>{m}</option>
+            ))}
+          </select>
+          <select
+            value={currentDat?.year || currentYear}
+            onChange={e => {
+              const year = parseInt(e.target.value);
+              const month = currentDat?.month || new Date().getMonth() + 1;
+              setCurrentDat({ month, year, formatted: `${getMonthName(month)} ${year}` });
+            }}
+            className="px-3 py-1.5 rounded-lg text-sm font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 outline-none"
+          >
+            {periodYears.map(y => (
+              <option key={y} value={y}>{y}</option>
+            ))}
+          </select>
+          {!currentDat && (
+            <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold">Pick a period to enable saving</span>
           )}
         </div>
       </div>

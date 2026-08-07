@@ -17,7 +17,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
-  const { openModal, currentDat, setCurrentDat, setHistoryTab, setBirFormTab, setPendingModal, syncData, isSyncing } = useAccounting();
+  const { openModal, setCurrentDat, setHistoryTab, setBirFormTab, syncData, isSyncing } = useAccounting();
   const { user, isAdmin, userRole, signOut } = useAuth();
   const [isTransactionsOpen, setIsTransactionsOpen] = useState(false);
   const [isReportsOpen, setIsReportsOpen] = useState(false);
@@ -59,14 +59,8 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
       setHistoryTab(historyType);
     }
 
-    // Always verify or ask for DAT when going to sales or purchases
-    if (modalId === 'sales' || modalId === 'purchases') {
-      setPendingModal(modalId);
-      openModal('dat');
-    } else {
-      openModal(modalId);
-    }
-    
+    openModal(modalId);
+
     if (!historyType) {
       setIsOpen(false);
     }

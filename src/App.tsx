@@ -6,7 +6,6 @@ import { AccountingProvider, useAccounting } from './context/AccountingContext';
 import { AnimatePresence, motion } from 'motion/react';
 import { SalesModal } from './components/modals/SalesModal';
 import { PurchasesModal } from './components/modals/PurchasesModal';
-import { DatModal } from './components/modals/DatModal';
 import { TinLibraryModal } from './components/modals/TinLibraryModal';
 import { HistoryModal } from './components/modals/HistoryModal';
 import { ChartOfAccountsModal } from './components/modals/ChartOfAccountsModal';
@@ -70,7 +69,6 @@ function AppLayout() {
         </AnimatePresence>
 
         {/* Modal Declarations */}
-        <DatModal />
         <SalesModal />
         <PurchasesModal />
         <TinLibraryModal />
