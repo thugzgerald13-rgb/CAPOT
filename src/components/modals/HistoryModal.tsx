@@ -599,10 +599,10 @@ export function HistoryModal() {
               {!currentDat ? (
                 <div className="p-12 text-center text-slate-500 dark:text-slate-400">
                   <FolderClock className="w-12 h-12 mx-auto mb-4 opacity-10" />
-                  <p className="font-bold">No DAT Period Selected</p>
+                  <p className="font-bold">No Period Selected</p>
                   <p className="text-sm mb-6">Please select a period to view the summary list.</p>
                   <button 
-                    onClick={() => openModal('dat')}
+                    onClick={() => openModal('purchases')}
                     className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-500/20"
                   >
                     Select Period Now
@@ -771,10 +771,10 @@ export function HistoryModal() {
               {!currentDat ? (
                 <div className="p-12 text-center text-slate-500 dark:text-slate-400">
                   <FolderClock className="w-12 h-12 mx-auto mb-4 opacity-10" />
-                  <p className="font-bold">No DAT Period Selected</p>
+                  <p className="font-bold">No Period Selected</p>
                   <p className="text-sm mb-6">Please select a period to view the summary list.</p>
                   <button 
-                    onClick={() => openModal('dat')}
+                    onClick={() => openModal('sales')}
                     className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-500/20"
                   >
                     Select Period Now
