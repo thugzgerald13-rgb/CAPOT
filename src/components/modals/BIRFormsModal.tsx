@@ -7,7 +7,7 @@ import {
   CheckCircle2, HelpCircle, ArrowRight, FileCheck, Coins, RefreshCw, AlertCircle
 } from 'lucide-react';
 import { TaxDeadline, Client } from '../../types';
-import { adjustDeadlineForWeekend, getComplianceStatusInfo, complianceFormsDirectory } from '../../lib/complianceUtils';
+import { adjustDeadlineForWeekend, getComplianceStatusInfo } from '../../lib/complianceUtils';
 
 // Standard BIR filing deadlines generator for Philippines 2026/2025
 export function generateStandardDeadlines(year: number): TaxDeadline[] {
@@ -232,7 +232,6 @@ export function BIRFormsModal() {
   const [filingTaxStatus, setFilingTaxStatus] = useState<'With Payable' | 'W/O Payable'>('With Payable');
   const [filingDatePaid, setFilingDatePaid] = useState<string>('');
   const [filingNotes, setFilingNotes] = useState<string>('');
-  const [showFormsDirectory, setShowFormsDirectory] = useState<boolean>(false);
 
   // Sync default filing date with simulated today when currentDat changes
   useEffect(() => {
@@ -942,13 +941,6 @@ export function BIRFormsModal() {
                     <option value="Overdue">⚠️ Overdue</option>
                   </select>
                 </div>
-
-                <button
-                  onClick={() => setShowFormsDirectory(v => !v)}
-                  className="w-full text-xs font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 p-2.5 rounded-xl transition flex items-center justify-center gap-1.5"
-                >
-                  <FileText className="w-3.5 h-3.5" /> {showFormsDirectory ? 'Hide' : 'Show'} Compliance Forms Directory
-                </button>
               </div>
             )}
             
@@ -2206,38 +2198,6 @@ export function BIRFormsModal() {
                     </div>
                   </div>
                 </div>
-
-                {/* Compliance Forms Directory (reference library) */}
-                {showFormsDirectory && (
-                  <div className="bg-white dark:bg-slate-900/20 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm">
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-wider">Compliance Forms Directory</h3>
-                      <span className="text-[10px] text-slate-500 font-bold">{complianceFormsDirectory.length} filings referenced</span>
-                    </div>
-                    <div className="overflow-x-auto -mx-1">
-                      <table className="w-full text-xs">
-                        <thead>
-                          <tr className="text-left text-[9px] uppercase tracking-widest text-slate-400 border-b border-slate-100 dark:border-slate-800">
-                            <th className="py-2 px-1 font-black">Code</th>
-                            <th className="py-2 px-1 font-black">Description</th>
-                            <th className="py-2 px-1 font-black">Frequency</th>
-                            <th className="py-2 px-1 font-black">Deadline Rule</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {complianceFormsDirectory.map(ref => (
-                            <tr key={ref.code} className="border-b border-slate-50 dark:border-slate-800/50 last:border-0">
-                              <td className="py-2 px-1 font-mono font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap">{ref.code}</td>
-                              <td className="py-2 px-1 text-slate-600 dark:text-slate-400">{ref.description}</td>
-                              <td className="py-2 px-1 text-slate-500 whitespace-nowrap">{ref.frequency}</td>
-                              <td className="py-2 px-1 text-slate-500">{ref.deadlineRule}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
 
                 {/* Deadlines Schedule Section */}
                 <div className="space-y-4">

@@ -325,66 +325,11 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
                     openModal('bir-forms');
                     setIsOpen(false);
                   }}
-                    className="flex items-center gap-3 px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 rounded-lg hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-slate-800 dark:hover:text-indigo-400 transition-all w-full text-left"
-                  >
-                    <FileText className="w-4 h-4" />
-                    Form 2550Q (VAT)
-                  </button>
-                  <button
-                    onClick={() => {
-                      setBirFormTab('1701Q');
-                      openModal('bir-forms');
-                      setIsOpen(false);
-                    }}
-                    className="flex items-center gap-3 px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 rounded-lg hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-slate-800 dark:hover:text-indigo-400 transition-all w-full text-left"
-                  >
-                    <FileText className="w-4 h-4" />
-                    Form 1701Q (Income)
-                  </button>
-                  <button
-                    onClick={() => {
-                      setBirFormTab('2551Q');
-                      openModal('bir-forms');
-                      setIsOpen(false);
-                    }}
-                    className="flex items-center gap-3 px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 rounded-lg hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-slate-800 dark:hover:text-indigo-400 transition-all w-full text-left"
-                  >
-                    <FileText className="w-4 h-4" />
-                    Form 2551Q (Percentage)
-                  </button>
-                  <button
-                    onClick={() => {
-                      setBirFormTab('1601-C');
-                      openModal('bir-forms');
-                      setIsOpen(false);
-                    }}
-                    className="flex items-center gap-3 px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 rounded-lg hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-slate-800 dark:hover:text-indigo-400 transition-all w-full text-left"
-                  >
-                    <FileText className="w-4 h-4" />
-                    Form 1601-C (Withholding)
-                  </button>
-                  <button
-                    onClick={() => {
-                      setBirFormTab('0619-E');
-                      openModal('bir-forms');
-                      setIsOpen(false);
-                    }}
-                    className="flex items-center gap-3 px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 rounded-lg hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-slate-800 dark:hover:text-indigo-400 transition-all w-full text-left"
-                  >
-                    <FileText className="w-4 h-4" />
-                    Form 0619-E (Monthly EWT)
-                  </button>
-                  <button
-                    onClick={() => {
-                      setBirFormTab('1601-EQ');
-                      openModal('bir-forms');
-                      setIsOpen(false);
-                    }}
-                    className="flex items-center gap-3 px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 rounded-lg hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-slate-800 dark:hover:text-indigo-400 transition-all w-full text-left"
-                  >
-                    <FileText className="w-4 h-4" />
-                    Form 1601-EQ (Quarterly EWT)
-                  </button>
+                  className="flex items-center gap-3 px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 rounded-lg hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-slate-800 dark:hover:text-indigo-400 transition-all w-full text-left"
+                >
+                  <FileText className="w-4 h-4" />
+                  Forms
+                </button>
                 </motion.div>
               )}
             </AnimatePresence>
