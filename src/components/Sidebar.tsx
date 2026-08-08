@@ -8,7 +8,7 @@ import {
   LineChart, Scale, Receipt, ShoppingCart, 
   TrendingUp, FileText, Library, Lightbulb, FolderClock, History,
   ChevronDown, LayoutGrid, Settings, Key, Banknote, Wallet, CreditCard, ShieldAlert, RefreshCw, LogOut, Shield, FolderUp,
-  Boxes, CheckCircle2
+  Boxes, CheckCircle2, FileSignature
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -197,6 +197,16 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
                 >
                   <button
                     onClick={() => {
+                      openModal('billing');
+                      setIsOpen(false);
+                    }}
+                    className="flex items-center gap-3 px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 rounded-lg hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-slate-800 dark:hover:text-indigo-400 transition-all w-full text-left"
+                  >
+                    <CreditCard className="w-4 h-4" />
+                    Billing
+                  </button>
+                  <button
+                    onClick={() => {
                       handleNavClick('sales');
                       setIsOpen(false);
                     }}
@@ -215,6 +225,16 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
                   >
                     <ShoppingCart className="w-4 h-4" />
                     Record Expense
+                  </button>
+                  <button
+                    onClick={() => {
+                      openModal('journal-voucher');
+                      setIsOpen(false);
+                    }}
+                    className="flex items-center gap-3 px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 rounded-lg hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-slate-800 dark:hover:text-indigo-400 transition-all w-full text-left"
+                  >
+                    <FileSignature className="w-4 h-4" />
+                    Journal Voucher
                   </button>
 
                   <hr className="border-slate-100 dark:border-slate-800 my-1" />
