@@ -65,6 +65,44 @@ export interface CoaAccount {
   [key: string]: any;
 }
 
+export interface BillingInvoice {
+  id: string;
+  date: string;
+  dueDate: string;
+  invoiceNo: string;
+  customerTin: string;
+  customerName: string;
+  customerAddress: string;
+  vatType: string;
+  amount: number;
+  netOfVat: number;
+  outputTax: number;
+  description?: string;
+  status: 'Outstanding' | 'Paid';
+  paymentType?: string;
+  datePaid?: string;
+  isRecurring: boolean;
+  recurrenceFrequency?: 'Monthly' | 'Quarterly' | 'Annually';
+  nextBillingDate?: string;
+  parentInvoiceId?: string;
+}
+
+export interface JournalVoucherLine {
+  id: string;
+  accountId: string;
+  accountName: string;
+  debit: number;
+  credit: number;
+}
+
+export interface JournalVoucher {
+  id: string;
+  date: string;
+  reference: string;
+  memo: string;
+  lines: JournalVoucherLine[];
+}
+
 export interface Client {
   id: string;
   name: string; // Display name
@@ -122,6 +160,8 @@ export interface Client {
   inventoryItems?: InventoryItem[];
   inventoryMovements?: InventoryMovement[];
   taxDeadlines?: TaxDeadline[];
+  billingInvoices?: BillingInvoice[];
+  journalVouchers?: JournalVoucher[];
 }
 
 export interface TaxDeadline {

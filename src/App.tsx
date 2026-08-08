@@ -5,6 +5,8 @@ import { Dashboard } from './components/Dashboard';
 import { AccountingProvider, useAccounting } from './context/AccountingContext';
 import { AnimatePresence, motion } from 'motion/react';
 import { SalesModal } from './components/modals/SalesModal';
+import { BillingModal } from './components/modals/BillingModal';
+import { JournalVoucherModal } from './components/modals/JournalVoucherModal';
 import { PurchasesModal } from './components/modals/PurchasesModal';
 import { TinLibraryModal } from './components/modals/TinLibraryModal';
 import { HistoryModal } from './components/modals/HistoryModal';
@@ -70,6 +72,8 @@ function AppLayout() {
 
         {/* Modal Declarations */}
         <SalesModal />
+        <BillingModal />
+        <JournalVoucherModal />
         <PurchasesModal />
         <TinLibraryModal />
         <HistoryModal />
