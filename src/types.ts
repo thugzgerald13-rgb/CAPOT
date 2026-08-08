@@ -85,6 +85,7 @@ export interface Client {
   phone?: string;
   email?: string;
   category?: 'private' | 'government';
+  hasMultipleBusinessLines?: boolean;
   accountingType?: 'Calendar' | 'Fiscal';
   fiscalMonthEnd?: number;
   coaFormat?: 'numeric' | 'alphanumeric';
@@ -206,6 +207,7 @@ export interface BusinessProfile {
   phone?: string;
   email?: string;
   category?: 'private' | 'government';
+  hasMultipleBusinessLines?: boolean;
   accountingType?: 'Calendar' | 'Fiscal';
   fiscalMonthEnd?: number;
 }

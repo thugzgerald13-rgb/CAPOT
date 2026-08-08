@@ -24,7 +24,7 @@ export function SalesModal() {
   const [buyerAddress, setBuyerAddress] = useState('');
   const [vatType, setVatType] = useState('VATable');
   const [amount, setAmount] = useState('');
-  const [incomeType, setIncomeType] = useState('Service Income');
+  const [incomeType, setIncomeType] = useState('');
   const [desc, setDesc] = useState('');
   const [autoLoadMsg, setAutoLoadMsg] = useState('');
   const [dateWarning, setDateWarning] = useState<string | null>(null);
@@ -99,8 +99,12 @@ export function SalesModal() {
 
   const handleAddSale = () => {
     if (!currentClient || !currentClientId || !currentDat) return;
-    if (!date || !amount || !buyerName) {
-      alert('Enter date, buyer name, and amount');
+    if (!date || !amount) {
+      alert('Enter date and amount');
+      return;
+    }
+    if (!ref.trim() || !buyerTin.trim() || !buyerName.trim() || !buyerAddress.trim()) {
+      alert('Invoice #, Customer TIN, Customer Name, and Customer Address are all required.');
       return;
     }
     if (dateWarning) {
@@ -222,16 +226,17 @@ export function SalesModal() {
           </select>
         </div>
         <div>
-          <label className="form-label">Invoice #</label>
-          <input type="text" value={ref} onChange={e => setRef(e.target.value)} placeholder="INV-001" className="form-input" />
+          <label className="form-label">Invoice # <span className="text-rose-500">*</span></label>
+          <input type="text" value={ref} onChange={e => setRef(e.target.value)} placeholder="INV-001" required className="form-input" />
         </div>
         <div className="relative">
-          <label className="form-label">Customer TIN</label>
+          <label className="form-label">Customer TIN <span className="text-rose-500">*</span></label>
           <input 
             type="text" 
             value={buyerTin} 
             onChange={e => setBuyerTin(formatTIN(e.target.value))} 
             placeholder="000-000-000" 
+            required
             className="form-input font-mono" 
             maxLength={11}
           />
@@ -242,12 +247,12 @@ export function SalesModal() {
           )}
         </div>
         <div className="lg:col-span-2">
-          <label className="form-label">Customer Name</label>
-          <input type="text" value={buyerName} onChange={e => setBuyerName(e.target.value)} placeholder="Company / Full Name" className="form-input" />
+          <label className="form-label">Customer Name <span className="text-rose-500">*</span></label>
+          <input type="text" value={buyerName} onChange={e => setBuyerName(e.target.value)} placeholder="Company / Full Name" required className="form-input" />
         </div>
         <div className="lg:col-span-2">
-          <label className="form-label">Customer Address</label>
-          <input type="text" value={buyerAddress} onChange={e => setBuyerAddress(e.target.value)} placeholder="Business / Residential Address" className="form-input" />
+          <label className="form-label">Customer Address <span className="text-rose-500">*</span></label>
+          <input type="text" value={buyerAddress} onChange={e => setBuyerAddress(e.target.value)} placeholder="Business / Residential Address" required className="form-input" />
         </div>
         <div>
           <label className="form-label">VAT / Exempt / 0-Rated</label>
@@ -269,20 +274,21 @@ export function SalesModal() {
           <label className="form-label">VAT</label>
           <input type="text" readOnly value={outputTax.toLocaleString(undefined, { minimumFractionDigits: 2 })} className="form-input bg-slate-100 dark:bg-slate-900/60 text-slate-500 cursor-not-allowed" />
         </div>
-        <div className="lg:col-span-2">
-          <label className="form-label">Service Income / Sales</label>
-          <select value={incomeType} onChange={e => setIncomeType(e.target.value)} className="form-input">
-            <option value="Service Income">Service Income</option>
-            <option value="Sale of Goods">Sale of Goods</option>
-            <option value="Multiple">Multiple</option>
-          </select>
-        </div>
-        {incomeType === 'Multiple' && (
-          <div className="lg:col-span-4">
-            <label className="form-label">Description</label>
-            <input type="text" value={desc} onChange={e => setDesc(e.target.value)} placeholder="Breakdown of products or services included" className="form-input" />
+        {currentClient?.hasMultipleBusinessLines && (
+          <div className="lg:col-span-2">
+            <label className="form-label">Service Income / Sales</label>
+            <select value={incomeType} onChange={e => setIncomeType(e.target.value)} className="form-input">
+              <option value="">Select type...</option>
+              <option value="Service Income">Service Income</option>
+              <option value="Sale of Goods">Sale of Goods</option>
+              <option value="Multiple">Multiple</option>
+            </select>
           </div>
         )}
+        <div className="lg:col-span-4">
+          <label className="form-label">Description</label>
+          <input type="text" value={desc} onChange={e => setDesc(e.target.value)} placeholder="Optional notes about this transaction" className="form-input" />
+        </div>
         <div className="lg:col-span-4 mt-2">
           <button onClick={handleAddSale} className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 rounded-xl transition-colors shadow-sm shadow-emerald-500/20 flex justify-center items-center gap-2">
             <Plus className="w-5 h-5" /> Add Income Entry

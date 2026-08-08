@@ -345,6 +345,17 @@ export function ExtraModals() {
                     <span className="text-xs font-bold uppercase tracking-tight">Government</span>
                   </label>
                 </div>
+                <div className="col-span-12 -mt-2 mb-2">
+                  <label className="flex items-center gap-2 cursor-pointer group w-max">
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 rounded"
+                      checked={editingClient.hasMultipleBusinessLines || false}
+                      onChange={e => setEditingClient({...editingClient, hasMultipleBusinessLines: e.target.checked})}
+                    />
+                    <span className="text-xs font-bold text-slate-600 dark:text-slate-400">Multiple lines of business (e.g. sale of goods and services)</span>
+                  </label>
+                </div>
               </div>
 
               <div className="grid grid-cols-12 gap-4 items-end mb-6">
@@ -734,6 +745,17 @@ export function ExtraModals() {
                       onChange={() => setEditingBusiness({...editingBusiness, category: 'government'})}
                     />
                     <span className="text-xs font-bold uppercase tracking-tight">Government</span>
+                  </label>
+                </div>
+                <div className="col-span-12 -mt-2 mb-2">
+                  <label className="flex items-center gap-2 cursor-pointer group w-max">
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 rounded"
+                      checked={editingBusiness.hasMultipleBusinessLines || false}
+                      onChange={e => setEditingBusiness({...editingBusiness, hasMultipleBusinessLines: e.target.checked})}
+                    />
+                    <span className="text-xs font-bold text-slate-600 dark:text-slate-400">Multiple lines of business (e.g. sale of goods and services)</span>
                   </label>
                 </div>
               </div>
