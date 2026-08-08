@@ -84,6 +84,7 @@ const buildMatchingClient = (profileData: BusinessProfile, existing: Client | un
     phone: profileData.phone || existing?.phone || '',
     email: profileData.email || existing?.email || '',
     category: profileData.category || existing?.category || 'private',
+    hasMultipleBusinessLines: profileData.hasMultipleBusinessLines ?? existing?.hasMultipleBusinessLines ?? false,
     accountingType: profileData.accountingType || 'Calendar',
     fiscalMonthEnd: profileData.fiscalMonthEnd || 12,
     tinLibrary: existing?.tinLibrary || { customers: [], suppliers: [] },
